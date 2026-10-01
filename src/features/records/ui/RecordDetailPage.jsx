@@ -1,5 +1,11 @@
 /**
  * Record Detail — displays a Module-created Record's data.
+ *
+ * CRITICAL INVARIANT: A historical Record must always be rendered using
+ * the exact Module Version that created it. This page loads the Module
+ * Version snapshot via record.moduleId + record.moduleVersion, NOT the
+ * current Module schema.
+ *
  * Entity References are resolved to display names.
  */
 import { useState, useEffect } from 'react';
@@ -22,6 +28,7 @@ export default function RecordDetailPage() {
   const { currentWorkspace } = useWorkspace();
   const [record, setRecord] = useState(null);
   const [mod, setMod] = useState(null);
+  const [versionSchema, setVersionSchema] = useState(null);
   const [entityNames, setEntityNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,11 +45,26 @@ export default function RecordDetailPage() {
         if (cancelled || !rec) return;
         setRecord(rec);
 
-        // Load module for field definitions
+        // Load the Module for metadata (name, link)
         if (rec.moduleId && services?.module) {
           try {
             const m = await services.module.getModule(workspaceId, rec.moduleId);
             if (!cancelled) setMod(m);
+
+            // Load the HISTORICAL Module Version schema for rendering
+            // This is the exact schema that was active when the Record was created.
+            if (rec.moduleVersion && services.module.getModuleVersion) {
+              try {
+                const version = await services.module.getModuleVersion(
+                  workspaceId, rec.moduleId, rec.moduleVersion,
+                );
+                if (!cancelled && version) {
+                  setVersionSchema(version);
+                }
+              } catch {
+                // Version snapshot may not exist for pre-4.1 records
+              }
+            }
           } catch {
             // Module may not exist or be accessible
           }
@@ -89,7 +111,10 @@ export default function RecordDetailPage() {
     );
   }
 
-  const fields = mod?.formSchema?.fields || [];
+  // Use historical version schema if available; fall back to current module schema
+  const historicalSchema = versionSchema?.formSchema || mod?.formSchema;
+  const fields = historicalSchema?.fields || [];
+  const schemaSource = versionSchema ? 'historical' : (mod ? 'current' : 'none');
 
   return (
     <div className="p-6 max-w-3xl">
@@ -128,6 +153,12 @@ export default function RecordDetailPage() {
             <span className="text-neutral-500">Record Type</span>
             <p className="font-medium text-neutral-800 font-mono text-xs">{record.recordType}</p>
           </div>
+          {record.moduleVersion && (
+            <div>
+              <span className="text-neutral-500">Module Version</span>
+              <p className="font-medium text-neutral-800">v{record.moduleVersion}</p>
+            </div>
+          )}
           <div>
             <span className="text-neutral-500">Created</span>
             <p className="font-medium text-neutral-800">{formatTimestamp(record.createdAt)}</p>
@@ -139,6 +170,18 @@ export default function RecordDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Schema source indicator */}
+        {schemaSource === 'historical' && (
+          <p className="text-xs text-neutral-400 mt-3">
+            Rendered using Module Version {record.moduleVersion} schema
+          </p>
+        )}
+        {schemaSource === 'current' && record.moduleVersion && (
+          <p className="text-xs text-amber-500 mt-3">
+            Version {record.moduleVersion} schema not found — rendering with current Module schema
+          </p>
+        )}
       </div>
 
       {/* Record Data */}

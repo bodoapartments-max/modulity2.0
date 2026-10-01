@@ -30,17 +30,18 @@ export const RECORD_PRIORITIES = Object.freeze({
  * @typedef {Object} Record
  * @property {string} recordId
  * @property {string} workspaceId
- * @property {string|null} moduleId     — which module created it (null until modules exist)
- * @property {string} recordType        — machine identifier for the record kind
+ * @property {string|null} moduleId       — which module created it (null for non-module records)
+ * @property {number|null} moduleVersion  — exact Module version used when Record was created (immutable)
+ * @property {string} recordType          — machine identifier for the record kind
  * @property {string} status
  * @property {string|null} priority
- * @property {Object} createdBy         — ActorRef
- * @property {Object|null} submittedBy  — ActorRef
- * @property {Object} data              — validated form payload
+ * @property {Object} createdBy           — ActorRef
+ * @property {Object|null} submittedBy    — ActorRef
+ * @property {Object} data                — validated form payload
  * @property {import('./entity.js').EntityReference[]} entityReferences — canonical references (source of truth)
  * @property {string[]} entityReferenceIds — derived from entityReferences for array-contains queries (index only)
- * @property {string[]} attachments     — file IDs
- * @property {string[]} createdEntityIds — entity IDs created from this record
+ * @property {string[]} attachments       — file IDs
+ * @property {string[]} createdEntityIds  — entity IDs created from this record
  * @property {string} schemaVersion
  * @property {string} createdAt
  * @property {string} updatedAt
@@ -57,6 +58,7 @@ export function createRecord({
   recordId,
   workspaceId,
   moduleId = null,
+  moduleVersion = null,
   recordType,
   status = RECORD_STATUSES.DRAFT,
   priority = null,
@@ -85,11 +87,18 @@ export function createRecord({
   if (!Array.isArray(entityReferences)) {
     throw new Error('entityReferences must be an array');
   }
+  // moduleVersion must be a positive integer when moduleId is present
+  if (moduleId && moduleVersion !== null && moduleVersion !== undefined) {
+    if (typeof moduleVersion !== 'number' || !Number.isInteger(moduleVersion) || moduleVersion < 1) {
+      throw new Error('moduleVersion must be a positive integer');
+    }
+  }
 
   return Object.freeze({
     recordId,
     workspaceId,
     moduleId,
+    moduleVersion: moduleId ? (moduleVersion ?? null) : null,
     recordType,
     status,
     priority,

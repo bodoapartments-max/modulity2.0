@@ -130,14 +130,31 @@ All notable changes to Modulity 2.0 will be documented in this file.
   - 79 new unit tests (322 total): Module domain model, validateModuleCode, ModuleService (CRUD, lifecycle, versioning, immutability), Form Schema validation, form values validation, entity reference extraction, ModuleSubmissionService (submission pipeline, status checks, validation, draft/submit), demo module schemas, Field Registry, Display Formatter.
   - Updated `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `docs/UNIVERSAL_DATA_CORE.md`.
 
+- Step 4.1: Module Version History & Record Provenance Hardening.
+  - Record domain model: added `moduleVersion` field (positive integer, immutable after creation).
+  - Module Version Snapshots: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}` — immutable historical schema snapshots.
+  - Module Version snapshot domain model: `src/modules/moduleVersion.js` with frozen value objects.
+  - Version creation lifecycle: first activation creates Version 1 snapshot; ACTIVE schema changes create next version atomically.
+  - Atomic `moduleCode` reservation: `workspaces/{workspaceId}/moduleCodes/{code}` using `writeBatch`. Codes are never reused, even after archiving.
+  - ModuleSubmissionService passes exact `moduleVersion` to RecordService; Record persists `moduleId`, `moduleVersion`, `recordType` as immutable provenance.
+  - RecordService strips `moduleId`, `moduleVersion`, `recordType` from draft updates (provenance immutable).
+  - RecordDetailPage loads historical Module Version schema via `record.moduleId` + `record.moduleVersion`. Falls back to current schema with warning if version snapshot not found.
+  - ModuleService: `getModuleVersion()` and `listModuleVersions()` for historical schema retrieval.
+  - Firestore Module Repository: version snapshot CRUD, code reservation, `writeBatch` atomicity for version creation + module update.
+  - Firestore Rules: version snapshots (create + read allowed, update + delete denied), module code reservations (create + read allowed, update + delete denied), Record `moduleId`/`moduleVersion`/`recordType` immutable on update.
+  - 24 new unit tests (346 total): Module Version snapshot domain model (8), ModuleService version snapshots (7), code uniqueness (2), ModuleSubmissionService `moduleVersion` provenance (4), Record `moduleVersion` domain model (6 new assertions across tests).
+  - 28 new Firebase Emulator security tests (161 total): version snapshot immutability (13), module code reservation (11), Record provenance immutability (5).
+  - Updated `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `docs/MODULE_CONTRACT.md`.
+
 ### Notes
 
 - No Modulity V1 code imported.
-- ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 4.
+- ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 4/4.1.
 - Invitation acceptance, ownership transfer, OWNER role escalation still require Cloud Functions.
 - File upload binary handling is deferred — only metadata model and storage contract established. FileReferenceField uses text input placeholder.
 - Schema migration framework is documented conceptually but not implemented.
 - Cross-workspace sharing is denied by default; future sharing system deferred.
-- Module code uniqueness is enforced via query-based check in ModuleService; race conditions are possible under concurrent writes (documented; transaction-based enforcement may be added in future).
-- Submitted Record trust boundary: application-layer validation via ModuleSubmissionService; future trusted backend enforcement may be needed for stronger guarantees.
+- Module code uniqueness is now enforced via atomic `writeBatch` reservation in `workspaces/{workspaceId}/moduleCodes/{code}`. Concurrent creates fail atomically — the race condition from Step 4 is resolved.
+- Submitted Record trust boundary: application-layer validation via ModuleSubmissionService; Firestore Rules enforce storage authorization and provenance immutability; future trusted backend enforcement may be needed for stronger validation guarantees. Browser form validation is UX; application service validation is deterministic business validation; Firestore Rules cannot reproduce arbitrary Module Form Schema validation.
 - Rich text, signature, location, image, currency, multiselect, radio, domain-entity-reference, user-reference field types are documented in MODULE_CONTRACT.md but not yet implemented in the Field Registry (UnsupportedField fallback renders).
+- **INVARIANT: A historical Record must always be interpretable using the exact Module Version that created it. Changing a Module tomorrow must never change the meaning of a Record created yesterday.**

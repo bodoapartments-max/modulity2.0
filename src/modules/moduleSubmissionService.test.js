@@ -2,6 +2,7 @@
  * ModuleSubmissionService — Unit Tests
  *
  * Full integration test: Module → Form validation → Record creation
+ * with moduleVersion provenance.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createModuleSubmissionService } from './moduleSubmissionService.js';
@@ -94,6 +95,59 @@ describe('ModuleSubmissionService', () => {
       expect(record.submittedAt).toBeTruthy();
     });
 
+    it('stores exact moduleVersion on created Record', async () => {
+      const record = await service.submitModuleRecord({
+        workspaceId: 'ws-1',
+        moduleId: 'mod-1',
+        actor: validActor,
+        values: { name: 'Test', date: '2024-06-15' },
+      });
+
+      expect(record.moduleVersion).toBe(1);
+    });
+
+    it('stores moduleVersion 3 when Module is version 3', async () => {
+      const v3Mod = makeActiveModule({ version: 3 });
+      const svc = createModuleSubmissionService({
+        moduleRepo: makeMockModuleRepo(v3Mod),
+        recordService,
+        entityService: null,
+      });
+
+      const record = await svc.submitModuleRecord({
+        workspaceId: 'ws-1',
+        moduleId: 'mod-1',
+        actor: validActor,
+        values: { name: 'Test', date: '2024-06-15' },
+      });
+
+      expect(record.moduleVersion).toBe(3);
+    });
+
+    it('Record created under v1 stores moduleVersion 1, v2 stores moduleVersion 2', async () => {
+      // Create record under v1
+      const rec1 = await service.submitModuleRecord({
+        workspaceId: 'ws-1', moduleId: 'mod-1', actor: validActor,
+        values: { name: 'V1 Record', date: '2024-06-15' },
+      });
+
+      // Simulate module version upgrade
+      const v2Mod = makeActiveModule({ version: 2 });
+      const svc2 = createModuleSubmissionService({
+        moduleRepo: makeMockModuleRepo(v2Mod),
+        recordService,
+        entityService: null,
+      });
+
+      const rec2 = await svc2.submitModuleRecord({
+        workspaceId: 'ws-1', moduleId: 'mod-1', actor: validActor,
+        values: { name: 'V2 Record', date: '2024-07-01' },
+      });
+
+      expect(rec1.moduleVersion).toBe(1);
+      expect(rec2.moduleVersion).toBe(2);
+    });
+
     it('rejects missing required fields', async () => {
       await expect(service.submitModuleRecord({
         workspaceId: 'ws-1',
@@ -184,7 +238,7 @@ describe('ModuleSubmissionService', () => {
   });
 
   describe('saveDraft', () => {
-    it('creates a DRAFT record', async () => {
+    it('creates a DRAFT record with moduleVersion', async () => {
       const record = await service.saveDraft({
         workspaceId: 'ws-1',
         moduleId: 'mod-1',
@@ -194,6 +248,7 @@ describe('ModuleSubmissionService', () => {
 
       expect(record.status).toBe('DRAFT');
       expect(record.submittedAt).toBeNull();
+      expect(record.moduleVersion).toBe(1);
     });
   });
 });

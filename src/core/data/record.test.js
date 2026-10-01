@@ -55,7 +55,39 @@ describe('record', () => {
   it('accepts optional moduleId and submittedBy as null', () => {
     const record = createRecord(baseArgs);
     expect(record.moduleId).toBeNull();
+    expect(record.moduleVersion).toBeNull();
     expect(record.submittedBy).toBeNull();
+  });
+
+  it('stores moduleVersion when moduleId is present', () => {
+    const record = createRecord({ ...baseArgs, moduleId: 'mod-1', moduleVersion: 3 });
+    expect(record.moduleId).toBe('mod-1');
+    expect(record.moduleVersion).toBe(3);
+  });
+
+  it('moduleVersion defaults to null when moduleId present but no version given', () => {
+    const record = createRecord({ ...baseArgs, moduleId: 'mod-1' });
+    expect(record.moduleVersion).toBeNull();
+  });
+
+  it('moduleVersion is null when moduleId is null', () => {
+    const record = createRecord({ ...baseArgs, moduleVersion: 5 });
+    expect(record.moduleVersion).toBeNull();
+  });
+
+  it('rejects non-integer moduleVersion', () => {
+    expect(() => createRecord({ ...baseArgs, moduleId: 'mod-1', moduleVersion: 1.5 }))
+      .toThrow('moduleVersion must be a positive integer');
+  });
+
+  it('rejects zero moduleVersion', () => {
+    expect(() => createRecord({ ...baseArgs, moduleId: 'mod-1', moduleVersion: 0 }))
+      .toThrow('moduleVersion must be a positive integer');
+  });
+
+  it('rejects negative moduleVersion', () => {
+    expect(() => createRecord({ ...baseArgs, moduleId: 'mod-1', moduleVersion: -1 }))
+      .toThrow('moduleVersion must be a positive integer');
   });
 
   it('stores entity references frozen', () => {

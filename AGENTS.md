@@ -130,13 +130,33 @@ Step 4 added the deterministic Module runtime under `src/modules/`:
 
 Key concepts:
 - **MODULE != FORM != RECORD != ENTITY**. A Module is a definition. A Form is a rendered interface. A Record is persisted data. An Entity is a persistent business object.
+- **MODULE != MODULE VERSION**. The Module document is the current configurable definition. A Module Version is an immutable historical snapshot.
 - **One field system**: `FIELD_TYPES` in `entityType.js` extended with form types. `ENTITY_FIELD_TYPES` subset for Entity Type validation. Full set for Form Schema validation.
-- **ModuleSubmissionService** is the orchestrator: loads Module, validates status, validates form data, extracts entity references, delegates to RecordService, creates exactly ONE canonical Record.
-- **Module identity**: `moduleId` (immutable internal), `moduleCode` (stable human/developer-facing, unique per workspace, immutable after creation).
-- **Module lifecycle**: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable. ACTIVE increments version on schema changes. Archived preserved for historical Records.
-- **Records store**: `moduleId`, `moduleVersion` (via Module's `version`), `recordType` (from `recordConfig`).
-- **Firestore Rules**: `workspaces/{workspaceId}/modules/{moduleId}` with full workspace isolation, actor validation, immutable field protection, archived module protection, delete denied.
-- **UI**: ModulesPage, CreateModulePage (manual builder), ModuleDetailPage, EditModulePage, ModuleFormPage (submission), RecordDetailPage.
+- **ModuleSubmissionService** is the orchestrator: loads Module, validates status, validates form data, extracts entity references, delegates to RecordService with exact `moduleVersion`, creates exactly ONE canonical Record.
+- **Module identity**: `moduleId` (immutable internal), `moduleCode` (stable human/developer-facing, unique per workspace, immutable after creation, atomically reserved via `moduleCodes/{code}`).
+- **Module lifecycle**: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable without version snapshots. First activation creates immutable Version 1 snapshot. ACTIVE schema changes create next immutable version. Archived preserved for historical Records.
+- **Records store**: `moduleId`, `moduleVersion` (exact version used at creation, immutable), `recordType` (from `recordConfig`, immutable).
+- **INVARIANT: A historical Record must always be interpretable using the exact Module Version that created it.**
+- **Firestore Rules**: `workspaces/{workspaceId}/modules/{moduleId}` with full workspace isolation, actor validation, immutable field protection, archived module protection, delete denied. Version snapshots and code reservations are fully immutable.
+- **UI**: ModulesPage, CreateModulePage (manual builder), ModuleDetailPage, EditModulePage, ModuleFormPage (submission), RecordDetailPage (renders using historical version schema).
+
+## Step 4.1 — Module Version History & Record Provenance Hardening
+
+Step 4.1 hardened Module versioning and Record provenance:
+
+| File | Purpose |
+|------|---------|
+| `modules/moduleVersion.js` | Module Version Snapshot domain model |
+| `modules/moduleVersion.test.js` | Version snapshot unit tests |
+
+Key changes:
+- **Record `moduleVersion`**: added to `record.js`, `recordService.js`, `moduleSubmissionService.js`. Positive integer, immutable after creation. Firestore Rules enforce immutability.
+- **Module Version Snapshots**: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}`. Immutable after creation. Contains full schema for historical Record interpretation.
+- **Atomic `moduleCode` reservation**: `workspaces/{workspaceId}/moduleCodes/{code}` via `writeBatch`. Codes are permanent — never reused, even after archiving.
+- **Version creation lifecycle**: DRAFT edits create no snapshots. First activation creates Version 1. ACTIVE schema changes atomically create next version + update Module.
+- **RecordDetailPage**: loads historical version schema via `record.moduleId` + `record.moduleVersion`. Falls back to current Module schema with warning if snapshot not found.
+- **Firestore Rules**: version snapshots (no update, no delete), code reservations (no update, no delete), Record provenance fields (`moduleId`, `moduleVersion`, `recordType`) immutable on update.
+- **Trust boundary**: Browser validation is UX. ModuleSubmissionService is deterministic business validation. Firestore Rules are storage authorization. Rules cannot reproduce arbitrary schema validation — documented as trusted-submission limitation.
 
 ## Step 2 Architecture Notes
 

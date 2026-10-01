@@ -300,9 +300,12 @@ Path: `workspaces/{workspaceId}/modules/{moduleId}`
 - Denied. Modules must not be hard-deleted when historical Records may reference them.
 
 ### Submission Trust Boundary
-- Client may create DRAFT records.
-- ModuleSubmissionService validates form data at application layer before creating SUBMITTED records.
-- Future: trusted backend enforcement may be needed for stronger submitted-record guarantees.
+- Browser form validation is UX.
+- Application service validation (ModuleSubmissionService) is deterministic business validation.
+- Firestore Rules are the storage authorization boundary.
+- Firestore Rules currently cannot fully reproduce arbitrary Module Form Schema validation.
+- Therefore a malicious client with direct Firestore access may be able to construct semantically invalid `Record.data` unless final submission is later moved behind a trusted backend.
+- Do NOT describe current client submission as fully server-authoritative.
 
 ### Emulator Test Coverage (21 tests)
 - Personal workspace: owner create/read, non-owner denied.
@@ -314,6 +317,60 @@ Path: `workspaces/{workspaceId}/modules/{moduleId}`
 - Archived module update protection.
 - Delete denied.
 - Unauthenticated access denied.
+
+## 12c. Module Version Snapshot Rules (Step 4.1)
+
+Path: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}`
+
+### Read
+- Authenticated + workspace access (personal owner or org active member).
+
+### Create
+- Authenticated + workspace access.
+- `workspaceId` and `moduleId` must match path parameters.
+- `createdBy` must be valid client actor.
+- Organization workspaces: requires ADMIN or OWNER role.
+
+### Update
+- **DENIED**. Version snapshots are immutable.
+
+### Delete
+- **DENIED**. Version snapshots must never be removed.
+
+## 12d. Module Code Reservation Rules (Step 4.1)
+
+Path: `workspaces/{workspaceId}/moduleCodes/{normalizedCode}`
+
+### Read
+- Authenticated + workspace access.
+
+### Create
+- Authenticated + workspace access.
+- `workspaceId` must match path.
+- `reservedBy` must be valid client actor.
+- Organization workspaces: requires ADMIN or OWNER role.
+
+### Update
+- **DENIED**. Reservations are immutable. Codes are never reused.
+
+### Delete
+- **DENIED**. Reservations are permanent.
+
+## 12e. Record Provenance Immutability (Step 4.1)
+
+Path: `workspaces/{workspaceId}/records/{recordId}`
+
+Record update rules now enforce immutability on:
+- `moduleId` — cannot be changed after creation.
+- `moduleVersion` — cannot be changed after creation.
+- `recordType` — cannot be changed after creation.
+
+These fields, combined with `workspaceId`, form the authoritative historical interpretation key.
+
+### Emulator Test Coverage — Step 4.1 (28 new tests, 161 total)
+- Version snapshots: owner create, owner read, update denied, delete denied, cross-workspace read/write denied, spoofed actor denied, mismatched moduleId/workspaceId denied, org ADMIN create, org MEMBER denied, unauthenticated denied.
+- Code reservations: owner create/read, update denied, delete denied, cross-workspace read/create denied, spoofed actor denied, mismatched workspaceId denied, org ADMIN create, org MEMBER denied, unauthenticated denied.
+- Record provenance: moduleId immutable, moduleVersion immutable, recordType immutable, status update allowed, data update allowed.
 
 ---
 

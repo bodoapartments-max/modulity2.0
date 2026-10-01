@@ -266,12 +266,16 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // Module provenance fields are immutable: moduleId, moduleVersion, recordType
         allow update: if isAuthenticated()
           && fieldUnchanged('workspaceId')
           && fieldUnchanged('recordId')
           && fieldUnchanged('createdBy')
           && fieldUnchanged('createdAt')
           && fieldUnchanged('_createdAt')
+          && fieldUnchanged('moduleId')
+          && fieldUnchanged('moduleVersion')
+          && fieldUnchanged('recordType')
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -358,6 +362,73 @@ service cloud.firestore {
           // Archived modules cannot be modified (except to re-archive, which is a no-op)
           && (resource.data.status != 'ARCHIVED' || request.resource.data.status == 'ARCHIVED');
 
+        allow delete: if false;
+
+        // ─── Module Version Snapshots ──────────────────────
+        // Path: workspaces/{workspaceId}/modules/{moduleId}/versions/{version}
+        // IMMUTABLE after creation. These preserve historical schema for Record interpretation.
+
+        match /versions/{version} {
+          // Read: same workspace access rules as parent module
+          allow read: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          // Create: workspace access + actor validation + workspaceId/moduleId match
+          allow create: if isAuthenticated()
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.moduleId == moduleId
+            && request.resource.data.createdBy != null
+            && isValidClientActor(request.resource.data.createdBy)
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isAdminOrOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          // IMMUTABLE: no updates, no deletes
+          allow update: if false;
+          allow delete: if false;
+        }
+      }
+
+      // ─── Module Code Reservations ─────────────────────────
+      // Path: workspaces/{workspaceId}/moduleCodes/{normalizedCode}
+      // Atomic identity reservation. NEVER reused, even after archiving.
+
+      match /moduleCodes/{codeId} {
+        // Read: workspace members can check if code is reserved
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Create: workspace access + workspaceId match + actor validation
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.reservedBy != null
+          && isValidClientActor(request.resource.data.reservedBy)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isAdminOrOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // IMMUTABLE: no updates, no deletes — codes are never reused
+        allow update: if false;
         allow delete: if false;
       }
     }

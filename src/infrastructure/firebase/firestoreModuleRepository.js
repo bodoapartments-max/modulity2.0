@@ -1,7 +1,10 @@
 /**
  * Modulity 2.0 — Firestore Module Repository
  *
- * Path: workspaces/{workspaceId}/modules/{moduleId}
+ * Paths:
+ *   workspaces/{workspaceId}/modules/{moduleId}
+ *   workspaces/{workspaceId}/modules/{moduleId}/versions/{version}
+ *   workspaces/{workspaceId}/moduleCodes/{normalizedCode}
  *
  * @module infrastructure/firebase/firestoreModuleRepository
  */
@@ -16,6 +19,7 @@ import {
   query,
   where,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 
 /**
@@ -29,6 +33,18 @@ export function createFirestoreModuleRepository(db) {
 
   function moduleDoc(workspaceId, moduleId) {
     return doc(db, 'workspaces', workspaceId, 'modules', moduleId);
+  }
+
+  function versionDoc(workspaceId, moduleId, version) {
+    return doc(db, 'workspaces', workspaceId, 'modules', moduleId, 'versions', String(version));
+  }
+
+  function versionsCol(workspaceId, moduleId) {
+    return collection(db, 'workspaces', workspaceId, 'modules', moduleId, 'versions');
+  }
+
+  function codeReservationDoc(workspaceId, normalizedCode) {
+    return doc(db, 'workspaces', workspaceId, 'moduleCodes', normalizedCode);
   }
 
   function mapFromFirestore(docSnap) {
@@ -45,6 +61,15 @@ export function createFirestoreModuleRepository(db) {
   function mapToFirestore(mod) {
     const { createdAt, updatedAt, ...rest } = mod;
     return { ...rest, _createdAt: serverTimestamp(), _updatedAt: serverTimestamp() };
+  }
+
+  function mapVersionFromFirestore(docSnap) {
+    if (!docSnap.exists()) return null;
+    const d = docSnap.data();
+    return {
+      ...d,
+      createdAt: d._createdAt?.toDate?.()?.toISOString?.() || d.createdAt || null,
+    };
   }
 
   async function getById(workspaceId, moduleId) {
@@ -81,5 +106,90 @@ export function createFirestoreModuleRepository(db) {
     return update(workspaceId, moduleId, { status: 'ARCHIVED' });
   }
 
-  return { getById, getByCode, listByWorkspace, create, update, archive };
+  // ─── Module Version Snapshots ─────────────────────────
+
+  /**
+   * Creates an immutable Module Version snapshot.
+   * Uses writeBatch to atomically write the version snapshot and update
+   * the Module's currentVersion field.
+   */
+  async function createVersionSnapshot(workspaceId, moduleId, versionData, moduleUpdates = {}) {
+    const batch = writeBatch(db);
+
+    const vRef = versionDoc(workspaceId, moduleId, versionData.version);
+    const { createdAt: _ca, ...versionRest } = versionData;
+    batch.set(vRef, { ...versionRest, _createdAt: serverTimestamp() });
+
+    // Also update the parent module document atomically
+    if (Object.keys(moduleUpdates).length > 0) {
+      const mRef = moduleDoc(workspaceId, moduleId);
+      batch.update(mRef, { ...moduleUpdates, _updatedAt: serverTimestamp() });
+    }
+
+    await batch.commit();
+    return versionData;
+  }
+
+  async function getVersionSnapshot(workspaceId, moduleId, version) {
+    const snap = await getDoc(versionDoc(workspaceId, moduleId, version));
+    return mapVersionFromFirestore(snap);
+  }
+
+  async function listVersionSnapshots(workspaceId, moduleId) {
+    const snap = await getDocs(versionsCol(workspaceId, moduleId));
+    return snap.docs.map(mapVersionFromFirestore);
+  }
+
+  // ─── Module Code Reservation ──────────────────────────
+
+  /**
+   * Atomically creates a Module and reserves its moduleCode.
+   * Uses writeBatch to ensure code reservation and module creation are atomic.
+   *
+   * Reservation path: workspaces/{workspaceId}/moduleCodes/{normalizedCode}
+   */
+  async function createModuleWithCodeReservation(mod) {
+    const batch = writeBatch(db);
+
+    // Reserve the code
+    const codeRef = codeReservationDoc(mod.workspaceId, mod.moduleCode);
+    batch.set(codeRef, {
+      moduleCode: mod.moduleCode,
+      moduleId: mod.moduleId,
+      workspaceId: mod.workspaceId,
+      reservedAt: serverTimestamp(),
+      reservedBy: mod.createdBy,
+    });
+
+    // Create the module
+    const mRef = moduleDoc(mod.workspaceId, mod.moduleId);
+    batch.set(mRef, mapToFirestore(mod));
+
+    await batch.commit();
+    return mod;
+  }
+
+  /**
+   * Checks if a moduleCode is already reserved in the workspace.
+   * Returns the reservation document or null.
+   */
+  async function isCodeReserved(workspaceId, moduleCode) {
+    const snap = await getDoc(codeReservationDoc(workspaceId, moduleCode));
+    if (!snap.exists()) return null;
+    return snap.data();
+  }
+
+  return {
+    getById,
+    getByCode,
+    listByWorkspace,
+    create,
+    update,
+    archive,
+    createVersionSnapshot,
+    getVersionSnapshot,
+    listVersionSnapshots,
+    createModuleWithCodeReservation,
+    isCodeReserved,
+  };
 }

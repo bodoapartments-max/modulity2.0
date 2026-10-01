@@ -4,10 +4,21 @@
  * React-independent service for Module CRUD and lifecycle.
  * All operations require explicit workspaceId.
  *
+ * Version lifecycle:
+ *   DRAFT → editable without creating version snapshots
+ *   First activation → creates immutable Version 1 snapshot
+ *   ACTIVE schema change → creates next immutable version snapshot
+ *   ARCHIVED → preserved for historical Record interpretation
+ *
+ * Code uniqueness:
+ *   Atomic reservation via workspaces/{workspaceId}/moduleCodes/{code}
+ *   Codes are NEVER reused, even after archiving.
+ *
  * @module modules/moduleService
  */
 
 import { createModule, MODULE_STATUSES, validateModuleCode } from './module.js';
+import { createModuleVersionSnapshot } from './moduleVersion.js';
 import { validateFormSchema } from './forms/formSchemaValidator.js';
 import { generateId } from '../core/utils/generateId.js';
 import { eventBus, createEvent } from '../core/events/eventBus.js';
@@ -19,7 +30,7 @@ import { AppError } from '../core/errors/appError.js';
  */
 export function createModuleService({ moduleRepo }) {
   /**
-   * Creates a new Module in DRAFT status.
+   * Creates a new Module in DRAFT status with atomic code reservation.
    */
   async function createNewModule({
     workspaceId,
@@ -38,10 +49,18 @@ export function createModuleService({ moduleRepo }) {
       throw new AppError('validation_error', codeResult.errors.join('; '));
     }
 
-    // Check uniqueness within workspace
-    const existing = await moduleRepo.getByCode(workspaceId, moduleCode);
-    if (existing) {
-      throw new AppError('conflict', `Module with code "${moduleCode}" already exists in this workspace`);
+    // Check atomic code reservation if supported
+    if (moduleRepo.isCodeReserved) {
+      const reservation = await moduleRepo.isCodeReserved(workspaceId, moduleCode);
+      if (reservation) {
+        throw new AppError('conflict', `Module with code "${moduleCode}" already exists in this workspace`);
+      }
+    } else {
+      // Fallback: query-based check (legacy, race condition possible)
+      const existing = await moduleRepo.getByCode(workspaceId, moduleCode);
+      if (existing) {
+        throw new AppError('conflict', `Module with code "${moduleCode}" already exists in this workspace`);
+      }
     }
 
     // Validate form schema if fields present
@@ -68,7 +87,13 @@ export function createModuleService({ moduleRepo }) {
       createdBy,
     });
 
-    const created = await moduleRepo.create(mod);
+    // Atomic: create module + reserve code in one batch
+    let created;
+    if (moduleRepo.createModuleWithCodeReservation) {
+      created = await moduleRepo.createModuleWithCodeReservation(mod);
+    } else {
+      created = await moduleRepo.create(mod);
+    }
 
     eventBus.emit(createEvent({
       eventType: 'module.created',
@@ -93,7 +118,10 @@ export function createModuleService({ moduleRepo }) {
   }
 
   /**
-   * Updates a DRAFT Module. ACTIVE modules require version increment.
+   * Updates a Module. Schema changes on ACTIVE modules create new version snapshots.
+   *
+   * DRAFT: freely editable, no version snapshots created.
+   * ACTIVE: schema change → increment version + create immutable snapshot.
    */
   async function updateModule(workspaceId, moduleId, changes, actor) {
     const existing = await moduleRepo.getById(workspaceId, moduleId);
@@ -112,11 +140,6 @@ export function createModuleService({ moduleRepo }) {
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
 
-    // If form schema changes on an ACTIVE module, increment version
-    if (safeChanges.formSchema && existing.status === MODULE_STATUSES.ACTIVE) {
-      safeChanges.version = existing.version + 1;
-    }
-
     // Validate new form schema if provided
     if (safeChanges.formSchema) {
       const schema = safeChanges.formSchema;
@@ -126,6 +149,50 @@ export function createModuleService({ moduleRepo }) {
           throw new AppError('validation_error', `Invalid form schema: ${schemaResult.errors.join('; ')}`);
         }
       }
+    }
+
+    // If form schema changes on an ACTIVE module, increment version and create snapshot
+    if (safeChanges.formSchema && existing.status === MODULE_STATUSES.ACTIVE) {
+      const newVersion = existing.version + 1;
+      safeChanges.version = newVersion;
+      safeChanges.updatedAt = new Date().toISOString();
+
+      // Merge changes into a full module snapshot
+      const mergedModule = {
+        ...existing,
+        ...safeChanges,
+        version: newVersion,
+      };
+
+      // Create immutable version snapshot atomically with module update
+      const snapshot = createModuleVersionSnapshot({
+        moduleId,
+        workspaceId,
+        version: newVersion,
+        moduleCode: existing.moduleCode,
+        name: mergedModule.name || existing.name,
+        formSchema: mergedModule.formSchema,
+        recordConfig: mergedModule.recordConfig || existing.recordConfig,
+        displayConfig: mergedModule.displayConfig || existing.displayConfig,
+        primaryEntityTypeId: mergedModule.primaryEntityTypeId ?? existing.primaryEntityTypeId,
+        createdBy: actor,
+      });
+
+      if (moduleRepo.createVersionSnapshot) {
+        await moduleRepo.createVersionSnapshot(workspaceId, moduleId, snapshot, safeChanges);
+      } else {
+        await moduleRepo.update(workspaceId, moduleId, safeChanges);
+      }
+
+      eventBus.emit(createEvent({
+        eventType: 'module.version_created',
+        workspaceId,
+        actor: { type: actor.actorType === 'USER' ? 'user' : 'service', id: actor.actorId },
+        payload: { moduleId, version: newVersion, moduleCode: existing.moduleCode },
+      }));
+
+      // Return the updated module
+      return moduleRepo.getById(workspaceId, moduleId);
     }
 
     safeChanges.updatedAt = new Date().toISOString();
@@ -143,7 +210,8 @@ export function createModuleService({ moduleRepo }) {
 
   /**
    * Activates a DRAFT or INACTIVE Module.
-   * Form schema must have at least one field.
+   * First activation creates immutable Version 1 snapshot.
+   * Re-activation from INACTIVE creates a new version snapshot if schema changed.
    */
   async function activateModule(workspaceId, moduleId, actor) {
     const existing = await moduleRepo.getById(workspaceId, moduleId);
@@ -167,19 +235,40 @@ export function createModuleService({ moduleRepo }) {
       throw new AppError('validation_error', `Invalid form schema: ${schemaResult.errors.join('; ')}`);
     }
 
-    const updated = await moduleRepo.update(workspaceId, moduleId, {
+    // Create immutable version snapshot
+    const snapshot = createModuleVersionSnapshot({
+      moduleId,
+      workspaceId,
+      version: existing.version,
+      moduleCode: existing.moduleCode,
+      name: existing.name,
+      formSchema: existing.formSchema,
+      recordConfig: existing.recordConfig,
+      displayConfig: existing.displayConfig,
+      primaryEntityTypeId: existing.primaryEntityTypeId,
+      createdBy: actor,
+    });
+
+    const moduleUpdates = {
       status: MODULE_STATUSES.ACTIVE,
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    if (moduleRepo.createVersionSnapshot) {
+      await moduleRepo.createVersionSnapshot(workspaceId, moduleId, snapshot, moduleUpdates);
+    } else {
+      await moduleRepo.update(workspaceId, moduleId, moduleUpdates);
+    }
 
     eventBus.emit(createEvent({
       eventType: 'module.activated',
       workspaceId,
       actor: { type: actor.actorType === 'USER' ? 'user' : 'service', id: actor.actorId },
-      payload: { moduleId, moduleCode: existing.moduleCode },
+      payload: { moduleId, moduleCode: existing.moduleCode, version: existing.version },
     }));
 
-    return updated;
+    // Return the updated module
+    return moduleRepo.getById(workspaceId, moduleId);
   }
 
   /**
@@ -211,6 +300,7 @@ export function createModuleService({ moduleRepo }) {
 
   /**
    * Archives a Module. Preserves for historical Record interpretation.
+   * Module code reservation is NOT released — codes are never reused.
    */
   async function archiveModule(workspaceId, moduleId, actor) {
     const existing = await moduleRepo.getById(workspaceId, moduleId);
@@ -236,6 +326,23 @@ export function createModuleService({ moduleRepo }) {
     return updated;
   }
 
+  /**
+   * Retrieves a specific Module Version snapshot.
+   * Used for historical Record interpretation.
+   */
+  async function getModuleVersion(workspaceId, moduleId, version) {
+    if (!moduleRepo.getVersionSnapshot) return null;
+    return moduleRepo.getVersionSnapshot(workspaceId, moduleId, version);
+  }
+
+  /**
+   * Lists all version snapshots for a Module.
+   */
+  async function listModuleVersions(workspaceId, moduleId) {
+    if (!moduleRepo.listVersionSnapshots) return [];
+    return moduleRepo.listVersionSnapshots(workspaceId, moduleId);
+  }
+
   return {
     createModule: createNewModule,
     getModule,
@@ -245,5 +352,7 @@ export function createModuleService({ moduleRepo }) {
     activateModule,
     deactivateModule,
     archiveModule,
+    getModuleVersion,
+    listModuleVersions,
   };
 }

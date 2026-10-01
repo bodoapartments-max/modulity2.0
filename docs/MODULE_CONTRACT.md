@@ -278,9 +278,83 @@ The Runtime guarantees:
 
 ---
 
-## 8. Versioning
+## 8. Versioning (updated Step 4.1)
 
-- `moduleCode` is stable.
-- `version` follows semver.
-- Backward-incompatible manifest changes require a new `moduleCode` or explicit migration logic.
-- The registry stores all installed versions and resolves the active version per workspace.
+### Key Invariants
+
+> **A HISTORICAL RECORD MUST ALWAYS BE INTERPRETABLE USING THE EXACT MODULE VERSION THAT CREATED IT.**
+
+> **MODULE != MODULE VERSION.** The Module represents the current configurable business definition. A Module Version is an immutable historical definition.
+
+> **RECORD != MODULE.** Every Module-created Record permanently stores: `moduleId`, `moduleVersion`.
+
+> Changing a Module tomorrow must never change the meaning of a Record created yesterday.
+
+> `moduleCode` is stable workspace identity and must be atomically unique.
+
+### Version Lifecycle
+
+- `moduleCode` is stable and immutable after creation.
+- `version` is a positive integer (1, 2, 3, ...).
+- **DRAFT** modules are freely editable. No version snapshots are created until first activation.
+- **First activation** creates immutable Version 1 snapshot at `modules/{moduleId}/versions/1`.
+- **ACTIVE schema changes** create the next immutable version snapshot. Version N-1 remains unchanged.
+- **ARCHIVED** modules and their version snapshots remain readable for historical Record interpretation.
+
+### Version Snapshot Storage
+
+```
+workspaces/{workspaceId}/modules/{moduleId}/versions/{version}
+```
+
+Each snapshot contains: `moduleId`, `workspaceId`, `version`, `moduleCode`, `name`, `formSchema`, `recordConfig`, `displayConfig`, `primaryEntityTypeId`, `createdBy`, `createdAt`.
+
+### Record Provenance
+
+Every Module-created Record explicitly stores:
+```json
+{
+  "moduleId": "...",
+  "moduleVersion": 3,
+  "recordType": "ROOM_INSPECTION"
+}
+```
+
+These fields are **immutable after Record creation** — enforced at both application layer and Firestore Rules.
+
+The authoritative historical interpretation key is: `workspaceId` + `moduleId` + `moduleVersion`.
+
+Do NOT use: current Module schema, module name, or recordType alone.
+
+### Historical Record Rendering
+
+RecordDetailPage loads the Module Version snapshot via `record.moduleId` + `record.moduleVersion` and uses that snapshot's `formSchema`, `recordConfig`, and `displayConfig` for rendering. It does NOT silently fall back to the current Module schema for historical Records.
+
+### Module Code Uniqueness
+
+```
+workspaces/{workspaceId}/moduleCodes/{normalizedCode}
+```
+
+Codes are reserved atomically via `writeBatch` during Module creation. A reservation identifies the owning `moduleId`. Codes are **never reused**, even after archiving. Reservations cannot be updated or deleted.
+
+### Atomicity
+
+- Module creation + code reservation: `writeBatch` (both succeed or both fail).
+- First activation + Version 1 snapshot: `writeBatch`.
+- ACTIVE schema change + Version N snapshot + Module update: `writeBatch`.
+- Record creation with module provenance: application-layer determinism (ModuleSubmissionService captures exact version before validation and passes it to RecordService).
+
+### Trusted Submission Limitation
+
+- Browser form validation = UX.
+- ModuleSubmissionService = deterministic business validation.
+- Firestore Rules = storage authorization boundary.
+- Firestore Rules cannot fully reproduce arbitrary Module Form Schema validation.
+- A malicious client with direct Firestore access could construct semantically invalid `Record.data`.
+- This is documented as an explicit limitation until final submission moves behind a trusted backend.
+
+### Registry (future)
+
+- The registry may store all installed versions and resolve the active version per workspace.
+- Backward-incompatible manifest changes may require a new `moduleCode` or explicit migration logic.

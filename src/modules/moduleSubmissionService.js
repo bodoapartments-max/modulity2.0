@@ -82,12 +82,17 @@ export function createModuleSubmissionService({ moduleRepo, recordService, entit
     }
 
     // 5 & 6. Create ONE Record via RecordService
+    // Capture the exact Module version used for validation.
+    // This version is immutable on the Record — historical interpretation
+    // must always use this exact version, never the "current" Module schema.
+    const moduleVersion = mod.version;
     const status = isDraft ? RECORD_STATUSES.DRAFT : RECORD_STATUSES.SUBMITTED;
     const now = new Date().toISOString();
 
     const record = await recordService.createRecord({
       workspaceId,
       moduleId: mod.moduleId,
+      moduleVersion,
       recordType: mod.recordConfig?.recordType || mod.moduleCode,
       status,
       createdBy: actor,

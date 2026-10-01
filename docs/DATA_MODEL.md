@@ -392,12 +392,50 @@ Path: `workspaces/{workspaceId}/modules/{moduleId}`
 
 Field types use the shared `FIELD_TYPES` from `core/data/entityType.js`. Entity Types use the `ENTITY_FIELD_TYPES` subset; Form Schemas use the full set.
 
+## Module Version Snapshot (Step 4.1)
+
+Path: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}`
+
+**IMMUTABLE after creation. No updates, no deletes.**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `moduleId` | string | Must match parent document. |
+| `workspaceId` | string | Must match parent workspace. |
+| `version` | number | Positive integer. Document ID = `String(version)`. |
+| `moduleCode` | string | Stable identity code at time of version creation. |
+| `name` | string | Display name at time of version creation. |
+| `formSchema` | object | `{ schemaVersion, fields[] }` — the exact schema for this version. |
+| `recordConfig` | object | `{ recordType }` |
+| `displayConfig` | object | Presentation metadata. |
+| `primaryEntityTypeId` | string? | Entity Type reference. |
+| `createdBy` | ActorRef | Who activated/versioned this snapshot. |
+| `createdAt` | string | When this version snapshot was created. |
+
+## Module Code Reservation (Step 4.1)
+
+Path: `workspaces/{workspaceId}/moduleCodes/{normalizedCode}`
+
+**IMMUTABLE after creation. No updates, no deletes. Codes are never reused.**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `moduleCode` | string | The reserved code. |
+| `moduleId` | string | Owning module. |
+| `workspaceId` | string | Must match workspace path. |
+| `reservedBy` | ActorRef | Who reserved the code. |
+| `reservedAt` | timestamp | Server timestamp. |
+
 ### Module → Record Relationship
 
+**INVARIANT: A historical Record must always be interpretable using the exact Module Version that created it. Changing a Module tomorrow must never change the meaning of a Record created yesterday.**
+
 Records created from a Module include:
-- `moduleId` — which Module created this Record
-- `moduleVersion` (via the Module's `version` at creation time)
-- `recordType` — from `recordConfig.recordType`
+- `moduleId` — which Module created this Record (immutable after creation)
+- `moduleVersion` — exact Module version used when the Record was created (immutable after creation, positive integer)
+- `recordType` — from `recordConfig.recordType` (immutable after creation)
 - `data` — validated form values
 - `entityReferences` — canonical references extracted from form values
 - `entityReferenceIds` — derived query index
+
+The authoritative historical interpretation key is: `workspaceId` + `moduleId` + `moduleVersion`. Do NOT use the current Module schema, module name, or recordType alone to determine historical form structure.

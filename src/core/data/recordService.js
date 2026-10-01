@@ -62,6 +62,7 @@ export function createRecordService({ recordRepo, entityRepo }) {
     workspaceId,
     recordType,
     moduleId = null,
+    moduleVersion = null,
     status = RECORD_STATUSES.DRAFT,
     priority = null,
     createdBy,
@@ -82,6 +83,7 @@ export function createRecordService({ recordRepo, entityRepo }) {
       recordId: generateId(),
       workspaceId,
       moduleId,
+      moduleVersion,
       recordType,
       status,
       priority,
@@ -128,6 +130,10 @@ export function createRecordService({ recordRepo, entityRepo }) {
     delete safeChanges.workspaceId;
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
+    // Module provenance fields are immutable after creation
+    delete safeChanges.moduleId;
+    delete safeChanges.moduleVersion;
+    delete safeChanges.recordType;
 
     // Re-validate entity references if changed
     if (safeChanges.entityReferences !== undefined) {

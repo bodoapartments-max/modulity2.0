@@ -1910,7 +1910,407 @@ describe('modules (workspace-scoped)', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 18. DENY BY DEFAULT
+// 18. MODULE VERSION SNAPSHOTS (Step 4.1)
+// ═══════════════════════════════════════════════════════
+
+describe('modules/{moduleId}/versions/{version} (immutable snapshots)', () => {
+  const versionData = {
+    moduleId: 'mod1',
+    workspaceId: 'ws-p',
+    version: 1,
+    moduleCode: 'TEST',
+    name: 'Test Module v1',
+    formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'a', label: 'A', type: 'text' }] },
+    recordConfig: { recordType: 'TEST' },
+    displayConfig: {},
+    primaryEntityTypeId: null,
+    createdBy: { actorType: 'USER', actorId: 'user1' },
+  };
+
+  it('workspace owner can create version snapshot', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-p', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      versionData,
+    ));
+  });
+
+  it('workspace owner can read version snapshot', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'), versionData);
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1')));
+  });
+
+  it('version snapshot update DENIED (immutable)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'), versionData);
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      { name: 'TAMPERED' },
+    ));
+  });
+
+  it('version snapshot delete DENIED (immutable)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'), versionData);
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1')));
+  });
+
+  it('cross-workspace version read DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'), versionData);
+    });
+    const db = authedDb('attacker');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1')));
+  });
+
+  it('cross-workspace version write DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-p', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('attacker');
+    await assertFails(setDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, createdBy: { actorType: 'USER', actorId: 'attacker' } },
+    ));
+  });
+
+  it('spoofed actor in version create DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-p', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, createdBy: { actorType: 'USER', actorId: 'fake-user' } },
+    ));
+  });
+
+  it('mismatched moduleId in version create DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-p', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, moduleId: 'WRONG-MODULE' },
+    ));
+  });
+
+  it('mismatched workspaceId in version data DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-p', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(
+      doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, workspaceId: 'ws-HACKED' },
+    ));
+  });
+
+  it('org ADMIN can create version snapshot', async () => {
+    await setupOrg('org1', { createdByUserId: 'owner1' }, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'admin1', roles: ['ADMIN'] },
+    ]);
+    await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-o', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'owner1' },
+      });
+    });
+    const db = authedDb('admin1');
+    await assertSucceeds(setDoc(
+      doc(db, 'workspaces', 'ws-o', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, workspaceId: 'ws-o', createdBy: { actorType: 'USER', actorId: 'admin1' } },
+    ));
+  });
+
+  it('org MEMBER cannot create version snapshot', async () => {
+    await setupOrg('org1', { createdByUserId: 'owner1' }, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
+        moduleId: 'mod1', workspaceId: 'ws-o', moduleCode: 'TEST', name: 'Test',
+        status: 'ACTIVE', version: 1, createdBy: { actorType: 'USER', actorId: 'owner1' },
+      });
+    });
+    const db = authedDb('member1');
+    await assertFails(setDoc(
+      doc(db, 'workspaces', 'ws-o', 'modules', 'mod1', 'versions', '1'),
+      { ...versionData, workspaceId: 'ws-o', createdBy: { actorType: 'USER', actorId: 'member1' } },
+    ));
+  });
+
+  it('unauthenticated cannot read version snapshot', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1'), versionData);
+    });
+    const db = unauthedDb();
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1', 'versions', '1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 19. MODULE CODE RESERVATIONS (Step 4.1)
+// ═══════════════════════════════════════════════════════
+
+describe('moduleCodes (workspace-scoped reservations)', () => {
+  const reservationData = {
+    moduleCode: 'TEST',
+    moduleId: 'mod1',
+    workspaceId: 'ws-p',
+    reservedBy: { actorType: 'USER', actorId: 'user1' },
+  };
+
+  it('workspace owner can create code reservation', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData));
+  });
+
+  it('workspace owner can read code reservation', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData);
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST')));
+  });
+
+  it('reservation update DENIED (immutable)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData);
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), {
+      moduleId: 'HIJACKED',
+    }));
+  });
+
+  it('reservation delete DENIED (permanent)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData);
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST')));
+  });
+
+  it('cross-workspace reservation read DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData);
+    });
+    const db = authedDb('attacker');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST')));
+  });
+
+  it('cross-workspace reservation create DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    const db = authedDb('attacker');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'STOLEN'), {
+      ...reservationData, moduleCode: 'STOLEN',
+      reservedBy: { actorType: 'USER', actorId: 'attacker' },
+    }));
+  });
+
+  it('spoofed actor in reservation DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), {
+      ...reservationData, reservedBy: { actorType: 'USER', actorId: 'fake-user' },
+    }));
+  });
+
+  it('mismatched workspaceId in reservation DENIED', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), {
+      ...reservationData, workspaceId: 'ws-HACKED',
+    }));
+  });
+
+  it('org ADMIN can create reservation', async () => {
+    await setupOrg('org1', { createdByUserId: 'owner1' }, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'admin1', roles: ['ADMIN'] },
+    ]);
+    await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
+    const db = authedDb('admin1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-o', 'moduleCodes', 'TEST'), {
+      ...reservationData, workspaceId: 'ws-o',
+      reservedBy: { actorType: 'USER', actorId: 'admin1' },
+    }));
+  });
+
+  it('org MEMBER cannot create reservation', async () => {
+    await setupOrg('org1', { createdByUserId: 'owner1' }, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
+    const db = authedDb('member1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-o', 'moduleCodes', 'TEST'), {
+      ...reservationData, workspaceId: 'ws-o',
+      reservedBy: { actorType: 'USER', actorId: 'member1' },
+    }));
+  });
+
+  it('unauthenticated cannot read reservations', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST'), reservationData);
+    });
+    const db = unauthedDb();
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'moduleCodes', 'TEST')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 20. RECORD PROVENANCE IMMUTABILITY (Step 4.1)
+// ═══════════════════════════════════════════════════════
+
+describe('record provenance immutability (moduleId, moduleVersion, recordType)', () => {
+  it('record moduleId immutable on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        recordType: 'TEST', status: 'DRAFT',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      moduleId: 'HACKED-MODULE',
+    }));
+  });
+
+  it('record moduleVersion immutable on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        recordType: 'TEST', status: 'DRAFT',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      moduleVersion: 99,
+    }));
+  });
+
+  it('record recordType immutable on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        recordType: 'TEST', status: 'DRAFT',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      recordType: 'HACKED_TYPE',
+    }));
+  });
+
+  it('record status update allowed (provenance fields unchanged)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        recordType: 'TEST', status: 'DRAFT',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      status: 'SUBMITTED',
+    }));
+  });
+
+  it('record data update allowed (provenance fields unchanged)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        recordType: 'TEST', status: 'DRAFT', data: { name: 'old' },
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      data: { name: 'updated' },
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 21. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

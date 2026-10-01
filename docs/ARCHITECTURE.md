@@ -255,6 +255,45 @@ Module Definition → Form Schema → FormRenderer → User Input → validateFo
 
 **Module storage:** `workspaces/{workspaceId}/modules/{moduleId}`
 
+## 8c. Module Version History & Record Provenance (Step 4.1)
+
+**Key invariant:** A historical Record must always be interpretable using the exact Module Version that created it.
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `moduleVersion.js` | `modules/` | Module Version Snapshot domain model |
+| `moduleVersion.test.js` | `modules/` | Version snapshot unit tests |
+
+**Immutable version snapshots:** `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}`
+
+Each snapshot preserves the complete historical schema (`formSchema`, `recordConfig`, `displayConfig`, `primaryEntityTypeId`, identity, actor) at the time of version creation. Snapshots cannot be updated or deleted.
+
+**Atomic `moduleCode` reservation:** `workspaces/{workspaceId}/moduleCodes/{code}`
+
+Module creation atomically reserves the code via `writeBatch`. Codes are permanent — never reused, even after archiving. Reservations cannot be updated or deleted.
+
+**Version creation lifecycle:**
+```
+DRAFT → freely editable, no version snapshots
+  ↓ first activation
+ACTIVE v1 + immutable Version 1 snapshot
+  ↓ schema change
+ACTIVE v2 + immutable Version 2 snapshot (Version 1 unchanged)
+```
+
+**Record provenance:** Every Module-created Record stores `moduleId`, `moduleVersion`, `recordType` as immutable fields. These three fields plus `workspaceId` form the authoritative historical interpretation key.
+
+**Historical rendering:** RecordDetailPage loads the Module Version snapshot via `record.moduleId` + `record.moduleVersion`, not the current Module schema.
+
+**Atomicity:** Version snapshot creation + Module update use `writeBatch`. Module creation + code reservation use `writeBatch`. The consistency boundary is documented: `writeBatch` ensures both writes succeed or both fail.
+
+**Trust boundary:**
+- Browser form validation = UX
+- ModuleSubmissionService = deterministic business validation
+- Firestore Rules = storage authorization boundary
+- Firestore Rules cannot reproduce arbitrary Module Form Schema validation
+- A malicious client with direct Firestore access could create semantically invalid `Record.data` unless final submission moves behind a trusted backend
+
 See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
