@@ -18,6 +18,11 @@ import { createFirestoreRelationshipRepository } from './firebase/firestoreRelat
 import { createFirestoreRecordRepository } from './firebase/firestoreRecordRepository.js';
 import { createFirestoreFileRepository } from './firebase/firestoreFileRepository.js';
 import { createFirestoreModuleRepository } from './firebase/firestoreModuleRepository.js';
+import { createFirestoreDeliveryRepository } from './firebase/firestoreDeliveryRepository.js';
+import { createFirestoreFormRequestRepository } from './firebase/firestoreFormRequestRepository.js';
+import { createFirestoreFolderRepository } from './firebase/firestoreFolderRepository.js';
+import { createFirestoreUserRecordStateRepository } from './firebase/firestoreUserRecordStateRepository.js';
+import { createFirestoreShareTokenRepository } from './firebase/firestoreShareTokenRepository.js';
 
 function createRepositories() {
   if (!firebaseDb) {
@@ -38,6 +43,11 @@ function createRepositories() {
     records: createFirestoreRecordRepository(firebaseDb),
     files: createFirestoreFileRepository(firebaseDb),
     modules: createFirestoreModuleRepository(firebaseDb),
+    deliveries: createFirestoreDeliveryRepository(firebaseDb),
+    formRequests: createFirestoreFormRequestRepository(firebaseDb),
+    folders: createFirestoreFolderRepository(firebaseDb),
+    userRecordState: createFirestoreUserRecordStateRepository(firebaseDb),
+    shareTokens: createFirestoreShareTokenRepository(firebaseDb),
   };
 }
 

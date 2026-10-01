@@ -14,7 +14,7 @@ const mainLinks = [
   { label: 'Entity Types', to: '/app/entity-types' },
   { label: 'Entities', to: '/app/entities' },
   { label: 'My Modules', to: '/app/modules' },
-  { label: 'List', to: '/app/list', disabled: true },
+  { label: 'Records', to: '/app/records' },
   { label: 'Ledger', to: '/app/ledger', disabled: true },
   { label: 'Widgets', to: '/app/widgets', disabled: true },
   { label: 'Reports', to: '/app/reports', disabled: true },

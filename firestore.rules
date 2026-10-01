@@ -431,6 +431,245 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if false;
       }
+
+      // ─── Deliveries ──────────────────────────────────────
+      // Path: workspaces/{workspaceId}/deliveries/{deliveryId}
+      // Record sharing/sending. NOT a Record copy.
+
+      match /deliveries/{deliveryId} {
+        // Read: sender or recipient (workspace member)
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Create: workspace member, sender must be self, workspaceId must match
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.sender != null
+          && isValidClientActor(request.resource.data.sender)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: sender can revoke, recipient can update status
+        // Immutable: workspaceId, deliveryId, recordId, sender, recipientUserId, deliveryType
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('recordId')
+          && fieldUnchanged('sender')
+          && fieldUnchanged('recipientUserId')
+          && fieldUnchanged('deliveryType')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow delete: if false;
+      }
+
+      // ─── Form Requests ───────────────────────────────────
+      // Path: workspaces/{workspaceId}/formRequests/{requestId}
+      // Asks someone to create a new Record. Locks Module Version.
+
+      match /formRequests/{requestId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Create: workspace member, requester must be self
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.requester != null
+          && isValidClientActor(request.resource.data.requester)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: immutable fields protected (moduleId, moduleVersion, requester, recipientUserId)
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('moduleId')
+          && fieldUnchanged('moduleVersion')
+          && fieldUnchanged('requester')
+          && fieldUnchanged('recipientUserId')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow delete: if false;
+      }
+
+      // ─── Folders ─────────────────────────────────────────
+      // Path: workspaces/{workspaceId}/folders/{folderId}
+      // Organize Records without copying them.
+
+      match /folders/{folderId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: immutable fields protected
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('folderId')
+          && fieldUnchanged('createdBy')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // USER-scoped folders can be deleted by their owner
+        allow delete: if isAuthenticated()
+          && resource.data.scope == 'USER'
+          && resource.data.ownerUserId == request.auth.uid;
+
+        // ─── Folder Items ──────────────────────────────────
+        // Path: workspaces/{workspaceId}/folders/{folderId}/items/{itemId}
+
+        match /items/{itemId} {
+          allow read: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          allow create: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          allow delete: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          allow update: if false;
+        }
+      }
+
+      // ─── User Record State ───────────────────────────────
+      // Path: workspaces/{workspaceId}/userRecordState/{stateId}
+      // Per-user state (starred). stateId = userId_recordId (deterministic).
+      // Only the owning user can read/write their own state.
+
+      match /userRecordState/{stateId} {
+        // Read: only if the state belongs to the authenticated user
+        allow read: if isAuthenticated()
+          && resource.data.userId == request.auth.uid;
+
+        // Create: user can only create their own state
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.userId == request.auth.uid;
+
+        // Update: user can only update their own state
+        allow update: if isAuthenticated()
+          && resource.data.userId == request.auth.uid
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('userId')
+          && fieldUnchanged('recordId');
+
+        allow delete: if false;
+      }
+
+      // ─── Share Tokens ────────────────────────────────────
+      // Path: workspaces/{workspaceId}/shareTokens/{tokenId}
+      // Secure share foundation. Only token HASH stored, never plaintext.
+
+      match /shareTokens/{tokenId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: only creator can revoke; immutable fields protected
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('recordId')
+          && fieldUnchanged('tokenHash')
+          && fieldUnchanged('createdBy')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow delete: if false;
+      }
     }
 
     // ─── Organizations ──────────────────────────────────────

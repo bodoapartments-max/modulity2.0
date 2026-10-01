@@ -2310,7 +2310,460 @@ describe('record provenance immutability (moduleId, moduleVersion, recordType)',
 });
 
 // ═══════════════════════════════════════════════════════
-// 21. DENY BY DEFAULT
+// 21. DELIVERIES (Step 5)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/deliveries/{deliveryId}', () => {
+  it('workspace owner can create delivery', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+      deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user1' },
+      recipientUserId: 'user2', status: 'PENDING',
+    }));
+  });
+
+  it('non-owner cannot create delivery in personal workspace', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user2');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+      deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user2' },
+      recipientUserId: 'user1', status: 'PENDING',
+    }));
+  });
+
+  it('cannot create delivery with spoofed sender', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+      deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'fake' },
+      recipientUserId: 'user2', status: 'PENDING',
+    }));
+  });
+
+  it('cannot create delivery with wrong workspaceId', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      deliveryId: 'del1', workspaceId: 'wrong-ws', recordId: 'rec1',
+      deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user1' },
+      recipientUserId: 'user2', status: 'PENDING',
+    }));
+  });
+
+  it('delivery immutable fields protected on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+        deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+        deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      recordId: 'rec-hacked',
+    }));
+  });
+
+  it('delivery status update allowed', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+        deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+        deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+      status: 'DELIVERED',
+    }));
+  });
+
+  it('delivery cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1'), {
+        deliveryId: 'del1', workspaceId: 'ws-p', recordId: 'rec1',
+        deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'deliveries', 'del1')));
+  });
+
+  it('org member can create delivery in org workspace', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    const db = authedDb('member1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-o', 'deliveries', 'del1'), {
+      deliveryId: 'del1', workspaceId: 'ws-o', recordId: 'rec1',
+      deliveryType: 'SHARE', sender: { actorType: 'USER', actorId: 'member1' },
+      recipientUserId: 'owner1', status: 'PENDING',
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 22. FORM REQUESTS (Step 5)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/formRequests/{requestId}', () => {
+  it('workspace owner can create form request', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+      requester: { actorType: 'USER', actorId: 'user1' },
+      recipientUserId: 'user2', status: 'PENDING',
+    }));
+  });
+
+  it('form request immutable fields protected on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      moduleId: 'mod-hacked',
+    }));
+  });
+
+  it('form request moduleVersion immutable on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      moduleVersion: 99,
+    }));
+  });
+
+  it('form request status update allowed', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      status: 'CANCELLED',
+    }));
+  });
+
+  it('form request cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user2', status: 'PENDING',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 23. FOLDERS & FOLDER ITEMS (Step 5)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/folders/{folderId}', () => {
+  it('workspace owner can create folder', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+      folderId: 'folder1', workspaceId: 'ws-p', name: 'Important',
+      scope: 'USER', ownerUserId: 'user1',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('folder immutable fields protected on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+        folderId: 'folder1', workspaceId: 'ws-p', name: 'Important',
+        scope: 'USER', ownerUserId: 'user1',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+      createdBy: { actorType: 'USER', actorId: 'hacker' },
+    }));
+  });
+
+  it('user can delete own USER-scoped folder', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+        folderId: 'folder1', workspaceId: 'ws-p', name: 'Mine',
+        scope: 'USER', ownerUserId: 'user1',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(deleteDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1')));
+  });
+});
+
+describe('workspaces/{wsId}/folders/{folderId}/items/{itemId}', () => {
+  it('workspace owner can add folder item', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+        folderId: 'folder1', workspaceId: 'ws-p', name: 'My Folder',
+        scope: 'USER', ownerUserId: 'user1',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1', 'items', 'item1'), {
+      itemId: 'item1', folderId: 'folder1', recordId: 'rec1', addedBy: 'user1',
+    }));
+  });
+
+  it('non-owner cannot add folder item to personal workspace', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+        folderId: 'folder1', workspaceId: 'ws-p', name: 'My Folder',
+        scope: 'USER', ownerUserId: 'user1',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user2');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1', 'items', 'item1'), {
+      itemId: 'item1', folderId: 'folder1', recordId: 'rec1', addedBy: 'user2',
+    }));
+  });
+
+  it('folder item cannot be updated', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1'), {
+        folderId: 'folder1', workspaceId: 'ws-p', name: 'My Folder',
+        scope: 'USER', ownerUserId: 'user1',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1', 'items', 'item1'), {
+        itemId: 'item1', folderId: 'folder1', recordId: 'rec1', addedBy: 'user1',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'folders', 'folder1', 'items', 'item1'), {
+      recordId: 'rec-different',
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 24. USER RECORD STATE (Step 5)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/userRecordState/{stateId}', () => {
+  it('user can create own record state', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+      stateId: 'user1_rec1', workspaceId: 'ws-p',
+      userId: 'user1', recordId: 'rec1', starred: true,
+    }));
+  });
+
+  it('user cannot create state for another user', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user2_rec1'), {
+      stateId: 'user2_rec1', workspaceId: 'ws-p',
+      userId: 'user2', recordId: 'rec1', starred: true,
+    }));
+  });
+
+  it('user can read own record state', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+        stateId: 'user1_rec1', workspaceId: 'ws-p',
+        userId: 'user1', recordId: 'rec1', starred: true,
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1')));
+  });
+
+  it('user cannot read another user state', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+        stateId: 'user1_rec1', workspaceId: 'ws-p',
+        userId: 'user1', recordId: 'rec1', starred: true,
+      });
+    });
+    const db = authedDb('user2');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1')));
+  });
+
+  it('user can update own record state', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+        stateId: 'user1_rec1', workspaceId: 'ws-p',
+        userId: 'user1', recordId: 'rec1', starred: false,
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+      starred: true,
+    }));
+  });
+
+  it('user record state immutable fields protected', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+        stateId: 'user1_rec1', workspaceId: 'ws-p',
+        userId: 'user1', recordId: 'rec1', starred: false,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+      recordId: 'rec-hacked',
+    }));
+  });
+
+  it('user record state cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1'), {
+        stateId: 'user1_rec1', workspaceId: 'ws-p',
+        userId: 'user1', recordId: 'rec1', starred: true,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'userRecordState', 'user1_rec1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 25. SHARE TOKENS (Step 5)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/shareTokens/{tokenId}', () => {
+  it('workspace owner can create share token', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+      tokenId: 'tok1', workspaceId: 'ws-p', recordId: 'rec1',
+      tokenHash: 'abc123hash', scope: 'READ', status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+      maxRedemptions: 1, redemptionCount: 0,
+    }));
+  });
+
+  it('cannot create share token with spoofed actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+      tokenId: 'tok1', workspaceId: 'ws-p', recordId: 'rec1',
+      tokenHash: 'abc123hash', scope: 'READ', status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'someone-else' },
+      maxRedemptions: 1, redemptionCount: 0,
+    }));
+  });
+
+  it('share token immutable fields protected on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+        tokenId: 'tok1', workspaceId: 'ws-p', recordId: 'rec1',
+        tokenHash: 'abc123hash', scope: 'READ', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+        maxRedemptions: 1, redemptionCount: 0,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+      tokenHash: 'hacked-hash',
+    }));
+  });
+
+  it('share token status update allowed', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+        tokenId: 'tok1', workspaceId: 'ws-p', recordId: 'rec1',
+        tokenHash: 'abc123hash', scope: 'READ', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+        maxRedemptions: 1, redemptionCount: 0,
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+      status: 'REVOKED',
+    }));
+  });
+
+  it('share token cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1'), {
+        tokenId: 'tok1', workspaceId: 'ws-p', recordId: 'rec1',
+        tokenHash: 'abc123hash', scope: 'READ', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+        maxRedemptions: 1, redemptionCount: 0,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'shareTokens', 'tok1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 26. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

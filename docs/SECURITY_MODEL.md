@@ -372,6 +372,26 @@ These fields, combined with `workspaceId`, form the authoritative historical int
 - Code reservations: owner create/read, update denied, delete denied, cross-workspace read/create denied, spoofed actor denied, mismatched workspaceId denied, org ADMIN create, org MEMBER denied, unauthenticated denied.
 - Record provenance: moduleId immutable, moduleVersion immutable, recordType immutable, status update allowed, data update allowed.
 
+### Step 5 — New Collection Security Rules
+
+All new workspace-scoped collections enforce:
+- Authentication required for all operations
+- Workspace isolation (PERSONAL: ownerUserId check, ORGANIZATION: active membership check)
+- Actor validation via `isValidClientActor` for create operations
+- Immutable field protection via `fieldUnchanged` for update operations
+- Deny-by-default for delete (except USER-scoped folders by owner)
+
+| Collection | Read | Create | Update | Delete |
+|-----------|------|--------|--------|--------|
+| deliveries | Workspace member | Workspace member + actor validation | Workspace member + immutable fields | Denied |
+| formRequests | Workspace member | Workspace member + actor validation | Workspace member + immutable fields (moduleId, moduleVersion, requester, recipientUserId) | Denied |
+| folders | Workspace member | Workspace member + actor validation | Workspace member + immutable fields | USER-scoped: owner only |
+| folders/{id}/items | Workspace member | Workspace member | Denied | Workspace member |
+| userRecordState | Own user only | Own user only (userId match) | Own user only + immutable fields | Denied |
+| shareTokens | Workspace member | Workspace member + actor validation | Workspace member + immutable fields (tokenHash, createdBy) | Denied |
+
+**User Record State** has the strictest isolation: users can only read/write their own starred state. Cross-user state leakage is prevented at the Firestore Security Rules level.
+
 ---
 
 ## 13. API Security

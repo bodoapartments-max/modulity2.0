@@ -150,6 +150,13 @@ export default function ModuleDetailPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-neutral-100">
+          <Link
+            to={`/app/modules/${moduleId}/records`}
+            className="px-4 py-2 border border-primary-300 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors"
+          >
+            View Records
+          </Link>
+
           {(mod.status === 'ACTIVE' || mod.status === 'DRAFT') && (
             <Link
               to={`/app/modules/${moduleId}/form`}

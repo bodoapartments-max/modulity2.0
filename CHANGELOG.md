@@ -2,6 +2,33 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## [Step 5] — Record Operations & Collaboration Engine
+
+### Added
+- **Record Query Engine** — Paginated, filtered, sorted Record queries with bucket views (ALL, OWN, STARRED, SENT, RECEIVED, ARCHIVED)
+- **Record Operation Service** — Priority changes, archive/unarchive, bulk operations (up to 50), submitted-data immutability enforcement
+- **Record Delivery Service** — Record sharing/sending with lifecycle state machine (PENDING → DELIVERED → OPENED → ACKNOWLEDGED → ACCEPTED/DECLINED → COMPLETED/REVOKED)
+- **Record Folder Service** — Workspace and user-scoped folders, folder items, starred state
+- **Form Request Service** — Form request creation with locked Module Version, recipient lifecycle, atomic completion creating canonical Record
+- **Secure Share Service** — QR/link foundation with SHA-256 token hashing, revocation, expiration, redemption limits
+- **Record List UI** — Global Record list page (`/app/records`) with bucket tabs, filtering, sorting, pagination, bulk operations
+- **Module Record List UI** — Module-scoped Record list (`/app/modules/:moduleId/records`) with "View Records" link from Module detail
+- **Record Table component** — Reusable sortable table with selection, starring, status/priority badges
+- **Firestore Security Rules** — Rules for deliveries, formRequests, folders, folder items, userRecordState, shareTokens
+- **Firestore Indexes** — Composite indexes for all new collections (firestore.indexes.json)
+- **Unit tests** — Domain model tests for recordQuery, delivery, formRequest, folder, userRecordState, secureShare
+- **Emulator security tests** — Rules tests for all new collections (delivery, formRequest, folder, userRecordState, shareToken)
+- **Infrastructure wiring** — All new repositories and services registered in services.js/repositories.js
+
+### Architecture
+- RecordService remains focused on canonical Record CRUD + lifecycle
+- Six new focused services prevent monolith accumulation
+- All services use factory pattern with dependency injection
+- Workspace isolation enforced at Firestore Security Rules level
+- User Record State isolated per-user (no cross-user leakage)
+- Form Requests lock Module Version at creation (immutable provenance)
+- Share tokens store only SHA-256 hashes (plaintext never persisted)
+
 ## [Unreleased]
 
 ### Added

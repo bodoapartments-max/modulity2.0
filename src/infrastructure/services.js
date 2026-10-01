@@ -16,6 +16,12 @@ import { createEntityTypeService } from '../core/data/entityTypeService.js';
 import { createEntityService } from '../core/data/entityService.js';
 import { createRelationshipService } from '../core/data/relationshipService.js';
 import { createRecordService } from '../core/data/recordService.js';
+import { createRecordQueryService } from '../core/data/recordQueryService.js';
+import { createRecordOperationService } from '../core/data/recordOperationService.js';
+import { createRecordDeliveryService } from '../core/data/recordDeliveryService.js';
+import { createRecordFolderService } from '../core/data/recordFolderService.js';
+import { createFormRequestService } from '../core/data/formRequestService.js';
+import { createSecureShareService } from '../core/data/secureShareService.js';
 import { createFileService } from '../core/data/fileService.js';
 import { createModuleService } from '../modules/moduleService.js';
 import { createModuleSubmissionService } from '../modules/moduleSubmissionService.js';
@@ -34,6 +40,37 @@ function createServices() {
   const recordSvc = createRecordService({
     recordRepo: repositories.records,
     entityRepo: repositories.entities,
+  });
+
+  const recordQuerySvc = createRecordQueryService({
+    recordRepo: repositories.records,
+    deliveryRepo: repositories.deliveries,
+    userRecordStateRepo: repositories.userRecordState,
+  });
+
+  const recordOpSvc = createRecordOperationService({
+    recordRepo: repositories.records,
+  });
+
+  const deliverySvc = createRecordDeliveryService({
+    deliveryRepo: repositories.deliveries,
+    recordRepo: repositories.records,
+  });
+
+  const folderSvc = createRecordFolderService({
+    folderRepo: repositories.folders,
+    userRecordStateRepo: repositories.userRecordState,
+  });
+
+  const formRequestSvc = createFormRequestService({
+    formRequestRepo: repositories.formRequests,
+    moduleRepo: repositories.modules,
+    recordService: recordSvc,
+  });
+
+  const secureShareSvc = createSecureShareService({
+    shareTokenRepo: repositories.shareTokens,
+    recordRepo: repositories.records,
   });
 
   return {
@@ -76,6 +113,12 @@ function createServices() {
       recordService: recordSvc,
       entityService: entitySvc,
     }),
+    recordQuery: recordQuerySvc,
+    recordOperation: recordOpSvc,
+    delivery: deliverySvc,
+    folder: folderSvc,
+    formRequest: formRequestSvc,
+    secureShare: secureShareSvc,
   };
 }
 

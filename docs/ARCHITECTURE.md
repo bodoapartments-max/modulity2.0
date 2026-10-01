@@ -79,6 +79,21 @@ A lower layer never imports from a higher layer. Circular dependencies are forbi
 | `files`         | File upload, storage metadata, attachments                                    |
 | `entitlements`  | Capability checks derived from plans / subscriptions                          |
 
+### Step 5 — Record Operations & Collaboration Engine
+
+The Record Operations layer is organized into focused, independently testable services:
+
+| Service | Responsibility |
+|---------|---------------|
+| RecordQueryService | Paginated queries, filtering, sorting, bucket views (ALL, OWN, STARRED, SENT, RECEIVED, ARCHIVED) |
+| RecordOperationService | Priority changes, archive/unarchive, bulk operations, submitted-data immutability |
+| RecordDeliveryService | Record sharing/sending, delivery lifecycle, sent/received views |
+| RecordFolderService | Folders, folder items, starred state (user record state) |
+| FormRequestService | Form request creation with locked Module Version, lifecycle, atomic completion |
+| SecureShareService | QR/link foundation, token generation/hashing, redemption |
+
+**Central Invariant:** ONE BUSINESS SUBMISSION = ONE CANONICAL RECORD. Everything else is a view, relationship, delivery, assignment, organization mechanism, or projection around that Record.
+
 ### Modules
 
 | Subsystem   | Responsibility                                                      |

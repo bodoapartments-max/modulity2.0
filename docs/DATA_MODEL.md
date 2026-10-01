@@ -439,3 +439,55 @@ Records created from a Module include:
 - `entityReferenceIds` — derived query index
 
 The authoritative historical interpretation key is: `workspaceId` + `moduleId` + `moduleVersion`. Do NOT use the current Module schema, module name, or recordType alone to determine historical form structure.
+
+## Record Operations & Collaboration (Step 5)
+
+### Deliveries
+Path: `workspaces/{workspaceId}/deliveries/{deliveryId}`
+
+A Delivery shares an existing canonical Record with a recipient. It is NOT a Record copy. The canonical Record remains at its original path.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| deliveryId | string | Unique delivery ID |
+| workspaceId | string | Workspace scope |
+| recordId | string | Reference to canonical Record |
+| deliveryType | string | SHARE or ASSIGNMENT |
+| sender | ActorRef | Who sent the record |
+| recipientUserId | string | Target user |
+| status | string | PENDING → DELIVERED → OPENED → ACKNOWLEDGED → ACCEPTED/DECLINED → COMPLETED/REVOKED |
+| message | string? | Optional context |
+| shareTokenId | string? | Optional link to secure share token |
+
+### Form Requests
+Path: `workspaces/{workspaceId}/formRequests/{requestId}`
+
+A Form Request asks another person to create a NEW Record using a specific Module. The request locks the exact Module Version at creation time (immutable).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| requestId | string | Unique request ID |
+| workspaceId | string | Workspace scope |
+| moduleId | string | Module defining the form (immutable) |
+| moduleVersion | number | LOCKED version at creation time (immutable) |
+| requester | ActorRef | Who created the request |
+| recipientUserId | string | Who should fill the form |
+| status | string | PENDING → OPENED → IN_PROGRESS → COMPLETED/DECLINED/CANCELLED/EXPIRED |
+| resultRecordId | string? | The Record created on completion |
+
+### Folders
+Path: `workspaces/{workspaceId}/folders/{folderId}`
+Items: `workspaces/{workspaceId}/folders/{folderId}/items/{itemId}`
+
+Folders organize Records without copying them. Scope can be WORKSPACE (shared) or USER (personal).
+
+### User Record State
+Path: `workspaces/{workspaceId}/userRecordState/{compositeId}`
+where compositeId = `userId_recordId` (deterministic)
+
+Per-user state (starred) that does NOT pollute canonical Record data.
+
+### Share Tokens
+Path: `workspaces/{workspaceId}/shareTokens/{tokenId}`
+
+Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the token is stored — never the plaintext. QR codes encode an opaque capability token reference, not Record contents.

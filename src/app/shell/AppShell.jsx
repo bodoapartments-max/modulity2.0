@@ -28,6 +28,8 @@ const ModuleDetailPage = lazy(() => import('../../features/modules/ui/ModuleDeta
 const EditModulePage = lazy(() => import('../../features/modules/ui/EditModulePage.jsx'));
 const ModuleFormPage = lazy(() => import('../../features/modules/ui/ModuleFormPage.jsx'));
 const RecordDetailPage = lazy(() => import('../../features/records/ui/RecordDetailPage.jsx'));
+const RecordListPage = lazy(() => import('../../features/records/ui/RecordListPage.jsx'));
+const ModuleRecordListPage = lazy(() => import('../../features/records/ui/ModuleRecordListPage.jsx'));
 
 function PageLoader() {
   return (
@@ -65,6 +67,8 @@ function AppShell() {
               <Route path="modules/:moduleId" element={<ModuleDetailPage />} />
               <Route path="modules/:moduleId/edit" element={<EditModulePage />} />
               <Route path="modules/:moduleId/form" element={<ModuleFormPage />} />
+              <Route path="modules/:moduleId/records" element={<ModuleRecordListPage />} />
+              <Route path="records" element={<RecordListPage />} />
               <Route path="records/:recordId" element={<RecordDetailPage />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>

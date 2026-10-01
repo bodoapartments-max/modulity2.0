@@ -1,0 +1,109 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "moduleId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recordType", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "priority", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy.actorId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "_updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "deliveries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sender.actorId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "deliveries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipientUserId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "deliveries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recordId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "formRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requester.actorId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "formRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipientUserId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "folders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scope", "order": "ASCENDING" },
+        { "fieldPath": "ownerUserId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userRecordState",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "starred", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

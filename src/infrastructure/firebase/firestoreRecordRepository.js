@@ -15,6 +15,9 @@ import {
   updateDoc,
   query,
   where,
+  orderBy,
+  limit as firestoreLimit,
+  startAfter as firestoreStartAfter,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -79,6 +82,15 @@ export function createFirestoreRecordRepository(db) {
     if (filters.recordType) {
       q = query(q, where('recordType', '==', filters.recordType));
     }
+    if (filters.moduleId) {
+      q = query(q, where('moduleId', '==', filters.moduleId));
+    }
+    if (filters.priority) {
+      q = query(q, where('priority', '==', filters.priority));
+    }
+    if (filters.createdByUserId) {
+      q = query(q, where('createdBy.actorId', '==', filters.createdByUserId));
+    }
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
   }
@@ -96,5 +108,79 @@ export function createFirestoreRecordRepository(db) {
     return mapFromFirestore(snap);
   }
 
-  return { getById, listByWorkspace, listByStatus, listByEntityRef, query: queryRecords, create, update };
+  /**
+   * Paginated query with sorting and filtering.
+   * Supports cursor-based pagination using Firestore startAfter.
+   *
+   * @param {string} workspaceId
+   * @param {import('../../core/data/recordQuery.js').RecordQueryParams} queryParams
+   * @returns {Promise<import('../../core/data/recordQuery.js').PaginatedResult>}
+   */
+  async function paginatedQuery(workspaceId, queryParams) {
+    const constraints = [];
+
+    // Status filter
+    if (queryParams.status) {
+      constraints.push(where('status', '==', queryParams.status));
+    }
+
+    // Module scope filter
+    if (queryParams.moduleId) {
+      constraints.push(where('moduleId', '==', queryParams.moduleId));
+    }
+
+    // Record type filter
+    if (queryParams.recordType) {
+      constraints.push(where('recordType', '==', queryParams.recordType));
+    }
+
+    // Priority filter
+    if (queryParams.priority) {
+      constraints.push(where('priority', '==', queryParams.priority));
+    }
+
+    // OWN bucket — filter by creator
+    if (queryParams.bucket === 'OWN' && queryParams.userId) {
+      constraints.push(where('createdBy.actorId', '==', queryParams.userId));
+    }
+
+    // ARCHIVED bucket — filter by status
+    if (queryParams.bucket === 'ARCHIVED') {
+      constraints.push(where('status', '==', 'ARCHIVED'));
+    }
+
+    // Sort — map sortField to Firestore field names
+    const firestoreSortField = queryParams.sortField === 'createdAt' ? '_createdAt'
+      : queryParams.sortField === 'updatedAt' ? '_updatedAt'
+      : queryParams.sortField || '_createdAt';
+    constraints.push(orderBy(firestoreSortField, queryParams.sortDirection || 'desc'));
+
+    // Deterministic tie-breaker using document ID
+    // (Firestore naturally orders by doc ID within same sort value)
+
+    // Pagination cursor
+    if (queryParams.startAfter) {
+      constraints.push(firestoreStartAfter(queryParams.startAfter));
+    }
+
+    // Limit — fetch one extra to detect hasMore
+    const fetchLimit = queryParams.limit + 1;
+    constraints.push(firestoreLimit(fetchLimit));
+
+    const q = query(recordsCol(workspaceId), ...constraints);
+    const snap = await getDocs(q);
+    const docs = snap.docs.map(mapFromFirestore);
+
+    const hasMore = docs.length > queryParams.limit;
+    const items = hasMore ? docs.slice(0, queryParams.limit) : docs;
+    const lastDoc = hasMore ? snap.docs[queryParams.limit - 1] : null;
+
+    return {
+      items,
+      nextCursor: lastDoc || null,
+      hasMore,
+    };
+  }
+
+  return { getById, listByWorkspace, listByStatus, listByEntityRef, query: queryRecords, create, update, paginatedQuery };
 }
