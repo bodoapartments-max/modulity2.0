@@ -59,7 +59,7 @@ Industry-specific operational objects:
 - Theatre: Production, Performance, Rehearsal, Prop, Costume
 - School: Student, Class, Course
 
-### Entity Type Registry (Step 3)
+### Entity Type Registry (Step 3, hardened Step 3.1)
 
 Entity Types are registered per workspace with metadata:
 
@@ -70,10 +70,19 @@ Entity Types are registered per workspace with metadata:
 - `description`, `icon`
 - `status` — ACTIVE | INACTIVE | ARCHIVED
 - `schemaVersion`
-- `fields` — typed field definitions (key, label, type, required)
+- `fields` — typed field definitions (key, label, type, required, constraints)
 - `workspaceId` — workspace ownership
 
 Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, `file-reference`.
+
+**Step 3.1 hardening:**
+- Field keys validated against `/^[a-zA-Z][a-zA-Z0-9_]*$/`
+- Duplicate field keys rejected within an Entity Type
+- Select fields require non-empty options array
+- Number min/max consistency enforced
+- Text minLength/maxLength consistency enforced
+- `required` must be boolean
+- Entity creation requires Entity Type with status `ACTIVE`
 
 ### Entity Model (Step 3 — Implemented)
 
@@ -92,14 +101,26 @@ Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, 
 
 An Entity exists once. Modules reference it. Example: Room 214 is referenced by Reservation, Housekeeping, Maintenance and Damage Report modules.
 
-### Actor Reference (Step 3)
+### Canonical EntityReference (Step 3, hardened Step 3.1)
+
+```js
+{ entityId, entityTypeId, workspaceId }
+```
+
+- One canonical `validateEntityReference()` function validates structure
+- Resolution verifies: workspace match, entity existence, type integrity (`ref.entityTypeId == entity.entityTypeId`)
+- Used by EntityService, RecordService, and future consumers
+
+### Actor Reference (Step 3, hardened Step 3.1)
 
 Reusable typed actor identity:
 
 - `actorType` — USER | INTERNAL_AGENT | EXTERNAL_INTEGRATION
-- `actorId` — actor identifier
+- `actorId` — actor identifier (non-empty string)
 
 Used across entities, records, relationships, files, and events.
+
+**Step 3.1 restriction:** Clients may only write `actorType: 'USER'` with `actorId == auth.uid`. Trusted actor types blocked from client writes.
 
 ---
 

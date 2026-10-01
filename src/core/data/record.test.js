@@ -65,6 +65,17 @@ describe('record', () => {
     expect(Object.isFrozen(record.entityReferences[0])).toBe(true);
   });
 
+  it('stores entityReferenceIds frozen', () => {
+    const record = createRecord({ ...baseArgs, entityReferenceIds: ['entity-1', 'entity-2'] });
+    expect(Object.isFrozen(record.entityReferenceIds)).toBe(true);
+    expect(record.entityReferenceIds).toEqual(['entity-1', 'entity-2']);
+  });
+
+  it('defaults entityReferenceIds to empty array', () => {
+    const record = createRecord(baseArgs);
+    expect(record.entityReferenceIds).toEqual([]);
+  });
+
   it('returns a frozen result', () => {
     const record = createRecord(baseArgs);
     expect(Object.isFrozen(record)).toBe(true);

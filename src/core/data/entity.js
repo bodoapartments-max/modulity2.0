@@ -94,3 +94,27 @@ export function createEntityReference({ entityId, entityTypeId, workspaceId }) {
 
   return Object.freeze({ entityId, entityTypeId, workspaceId });
 }
+
+/**
+ * Validates an EntityReference structure (without persistence lookup).
+ * Use this canonical validator across services to avoid duplicated logic.
+ *
+ * @param {Object} ref
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+export function validateEntityReference(ref) {
+  const errors = [];
+  if (!ref || typeof ref !== 'object') {
+    return { valid: false, errors: ['EntityReference must be an object'] };
+  }
+  if (!ref.entityId || typeof ref.entityId !== 'string') {
+    errors.push('entityId is required and must be a string');
+  }
+  if (!ref.entityTypeId || typeof ref.entityTypeId !== 'string') {
+    errors.push('entityTypeId is required and must be a string');
+  }
+  if (!ref.workspaceId || typeof ref.workspaceId !== 'string') {
+    errors.push('workspaceId is required and must be a string');
+  }
+  return { valid: errors.length === 0, errors };
+}

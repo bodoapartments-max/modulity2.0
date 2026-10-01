@@ -112,6 +112,17 @@ export function createEntityType({
 }
 
 /**
+ * Regular expression for valid field keys: alphanumeric + underscore, starting with a letter.
+ */
+const FIELD_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+
+/**
+ * Canonical date format: ISO 8601 date string (YYYY-MM-DD).
+ * Full ISO datetime strings are also accepted.
+ */
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
+
+/**
  * Validates a field definition.
  *
  * @param {FieldDefinition} field
@@ -119,17 +130,156 @@ export function createEntityType({
  */
 export function validateFieldDefinition(field) {
   const errors = [];
-  if (!field.key) errors.push('Field key is required');
+  if (!field.key) {
+    errors.push('Field key is required');
+  } else if (!FIELD_KEY_PATTERN.test(field.key)) {
+    errors.push(`Field key "${field.key}" must start with a letter and contain only alphanumeric characters and underscores`);
+  }
   if (!field.label) errors.push('Field label is required');
-  if (!field.type) errors.push('Field type is required');
-  if (field.type && !Object.values(FIELD_TYPES).includes(field.type)) {
+  if (!field.type) {
+    errors.push('Field type is required');
+  } else if (!Object.values(FIELD_TYPES).includes(field.type)) {
     errors.push(`Unknown field type: ${field.type}`);
+  }
+
+  if (typeof field.required !== 'undefined' && typeof field.required !== 'boolean') {
+    errors.push('Field required must be a boolean');
+  }
+
+  // Select-specific validation
+  if (field.type === FIELD_TYPES.SELECT) {
+    if (!field.options || !Array.isArray(field.options) || field.options.length === 0) {
+      errors.push('Select field must have a non-empty options array');
+    }
+  }
+
+  // min/max for number fields
+  if (field.type === FIELD_TYPES.NUMBER) {
+    if (field.min !== undefined && field.max !== undefined && field.min > field.max) {
+      errors.push('Field min must not exceed max');
+    }
+  }
+
+  // minLength/maxLength for text fields
+  if (field.type === FIELD_TYPES.TEXT) {
+    if (field.minLength !== undefined && field.maxLength !== undefined && field.minLength > field.maxLength) {
+      errors.push('Field minLength must not exceed maxLength');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Validates a full set of field definitions for uniqueness and consistency.
+ *
+ * @param {FieldDefinition[]} fields
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+export function validateFieldDefinitions(fields) {
+  const errors = [];
+  const keys = new Set();
+  for (const field of fields) {
+    const result = validateFieldDefinition(field);
+    if (!result.valid) errors.push(...result.errors);
+    if (field.key) {
+      if (keys.has(field.key)) {
+        errors.push(`Duplicate field key: "${field.key}"`);
+      }
+      keys.add(field.key);
+    }
   }
   return { valid: errors.length === 0, errors };
 }
 
 /**
+ * Validates a single field value against its field definition.
+ *
+ * @param {*} value
+ * @param {FieldDefinition} field
+ * @returns {string|null} — error message or null if valid
+ */
+export function validateFieldValue(value, field) {
+  const isEmpty = value === undefined || value === null || value === '';
+  if (isEmpty) {
+    return field.required ? `${field.label} is required` : null;
+  }
+
+  switch (field.type) {
+    case FIELD_TYPES.TEXT: {
+      if (typeof value !== 'string') return `${field.label} must be a string`;
+      if (field.minLength !== undefined && value.length < field.minLength) {
+        return `${field.label} must be at least ${field.minLength} characters`;
+      }
+      if (field.maxLength !== undefined && value.length > field.maxLength) {
+        return `${field.label} must be at most ${field.maxLength} characters`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.NUMBER: {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return `${field.label} must be a finite number`;
+      }
+      if (field.min !== undefined && value < field.min) {
+        return `${field.label} must be at least ${field.min}`;
+      }
+      if (field.max !== undefined && value > field.max) {
+        return `${field.label} must be at most ${field.max}`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.DATE: {
+      if (typeof value !== 'string' || !ISO_DATE_PATTERN.test(value)) {
+        return `${field.label} must be a valid ISO date string (YYYY-MM-DD)`;
+      }
+      if (Number.isNaN(Date.parse(value))) {
+        return `${field.label} is not a valid date`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.BOOLEAN: {
+      if (typeof value !== 'boolean') return `${field.label} must be a boolean`;
+      return null;
+    }
+
+    case FIELD_TYPES.SELECT: {
+      if (!field.options || !Array.isArray(field.options)) {
+        return `${field.label} has no configured options`;
+      }
+      if (!field.options.includes(value)) {
+        return `${field.label} must be one of: ${field.options.join(', ')}`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.ENTITY_REFERENCE: {
+      if (typeof value !== 'object' || value === null) {
+        return `${field.label} must be an entity reference object`;
+      }
+      if (!value.entityId || !value.entityTypeId || !value.workspaceId) {
+        return `${field.label} must have entityId, entityTypeId, and workspaceId`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.FILE_REFERENCE: {
+      if (typeof value !== 'string' || value.length === 0) {
+        return `${field.label} must be a non-empty file ID string`;
+      }
+      return null;
+    }
+
+    default:
+      return `${field.label} has unknown type: ${field.type}`;
+  }
+}
+
+/**
  * Validates entity data against the type's field definitions.
+ * Rejects undeclared fields (strict schema governance).
  *
  * @param {Object} data
  * @param {FieldDefinition[]} fields
@@ -137,10 +287,20 @@ export function validateFieldDefinition(field) {
  */
 export function validateEntityData(data, fields) {
   const errors = {};
+  const declaredKeys = new Set(fields.map((f) => f.key));
+
+  // Validate each declared field
   for (const field of fields) {
-    if (field.required && (data[field.key] === undefined || data[field.key] === null || data[field.key] === '')) {
-      errors[field.key] = `${field.label} is required`;
+    const error = validateFieldValue(data[field.key], field);
+    if (error) errors[field.key] = error;
+  }
+
+  // Reject undeclared fields
+  for (const key of Object.keys(data)) {
+    if (!declaredKeys.has(key)) {
+      errors[key] = `Undeclared field: "${key}" is not in the schema`;
     }
   }
+
   return { valid: Object.keys(errors).length === 0, errors };
 }

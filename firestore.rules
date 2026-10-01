@@ -53,6 +53,14 @@ service cloud.firestore {
         || request.resource.data[field] == resource.data[field];
     }
 
+    // Actor identity enforcement for client writes.
+    // Clients may only claim actorType == 'USER' and actorId == their own uid.
+    // INTERNAL_AGENT and EXTERNAL_INTEGRATION must enter through a trusted backend.
+    function isValidClientActor(actorField) {
+      return actorField.actorType == 'USER'
+        && actorField.actorId == request.auth.uid;
+    }
+
     // ─── Users (Person/Profile) ─────────────────────────────
     // Path: users/{userId}
     // Only the owner can read/write their profile.
@@ -159,9 +167,11 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // Actor enforcement: client must claim USER + own uid.
         allow create: if isAuthenticated()
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -200,8 +210,11 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // Actor enforcement: client must claim USER + own uid.
         allow create: if isAuthenticated()
           && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -240,9 +253,11 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // Actor enforcement: client must claim USER + own uid.
         allow create: if isAuthenticated()
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -281,8 +296,11 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // Actor enforcement: uploadedBy must claim USER + own uid.
         allow create: if isAuthenticated()
           && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.uploadedBy != null
+          && isValidClientActor(request.resource.data.uploadedBy)
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)

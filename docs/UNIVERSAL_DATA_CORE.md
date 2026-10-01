@@ -62,13 +62,44 @@ Each Entity Type has:
 
 ```js
 {
-  key: "roomNumber",
+  key: "roomNumber",       // must match /^[a-zA-Z][a-zA-Z0-9_]*$/
   label: "Room Number",
-  type: "text",        // text | number | date | boolean | select | entity-reference | file-reference
+  type: "text",            // text | number | date | boolean | select | entity-reference | file-reference
   required: true,
-  options: []          // for select type
+  options: [],             // for select type (required for select, rejected for others)
+  min: 0, max: 100,        // for number type
+  minLength: 1, maxLength: 50, // for text type
 }
 ```
+
+**Field definition validation (Step 3.1):**
+- `key` must start with a letter and contain only `[a-zA-Z0-9_]`
+- `key` must be unique within an Entity Type
+- `type` must be one of the supported `FIELD_TYPES`
+- `required` must be a boolean if provided
+- Select fields require a non-empty `options` array
+- Number `min` must not exceed `max`
+- Text `minLength` must not exceed `maxLength`
+
+**Data validation (Step 3.1):**
+
+| Type | Validation |
+|------|------------|
+| `text` | string, optional minLength/maxLength |
+| `number` | finite number, optional min/max |
+| `date` | ISO 8601 string (YYYY-MM-DD or full datetime), parseable |
+| `boolean` | actual boolean value |
+| `select` | value must be in configured options |
+| `entity-reference` | canonical EntityReference structure `{ entityId, entityTypeId, workspaceId }` |
+| `file-reference` | non-empty string (file ID) |
+
+### Unknown-Field Policy
+
+**Undeclared fields in Entity data are REJECTED.**
+
+Entity data is schema-governed. If a field key is not defined in the Entity Type's `fields` array, `validateEntityData()` rejects it with an error. This prevents schema drift, garbage data, and bypasses of required-field validation.
+
+This policy applies uniformly to: Web UI, future Form Renderer, Mobile, Internal Agent, External API, and Imports.
 
 Core Entity Types are seeded idempotently per workspace. Domain types are created by users/organizations without changing Core code.
 
@@ -115,7 +146,16 @@ Business workflow states (e.g. "under repair", "occupied") do NOT belong in Enti
 }
 ```
 
-References resolve to the current Entity. Entity data is NOT copied into Records. The Reference Resolver enforces workspace isolation — cross-workspace references are DENIED by default.
+References resolve to the current Entity. Entity data is NOT copied into Records.
+
+**Reference integrity enforcement (Step 3.1):**
+
+1. **Structural validation**: `validateEntityReference()` checks entityId, entityTypeId, workspaceId are non-empty strings.
+2. **Workspace isolation**: cross-workspace references are DENIED.
+3. **Entity existence**: referenced entity must exist.
+4. **Type integrity**: `ref.entityTypeId` must match the actual entity's `entityTypeId`. A reference claiming ROOM must not resolve to a VEHICLE.
+
+One canonical `validateEntityReference()` function is shared across EntityService, RecordService, and future consumers. No duplicated validation logic.
 
 ---
 
@@ -163,7 +203,8 @@ Step 3 fully validates ENTITY relationships. Module/File relationships deferred.
   createdBy,          // ActorRef, immutable
   submittedBy,        // ActorRef, optional
   data,               // structured record payload
-  entityReferences,   // array of entity IDs for array-contains queries
+  entityReferences,   // canonical EntityReference[] (source of truth)
+  entityReferenceIds, // derived string[] for array-contains queries (index only)
   attachments,        // file IDs
   createdAt,
   updatedAt,
@@ -246,12 +287,95 @@ All workspace data subcollections enforce:
 | Entities by type | `where('entityTypeId', '==', typeId)` |
 | Entities by status | `where('status', '==', status)` |
 | Relationships for object | `where('source.objectType/objectId')` + `where('target.objectType/objectId')` |
-| Records by entity reference | `where('entityReferences', 'array-contains', entityId)` |
+| Records by entity reference | `where('entityReferenceIds', 'array-contains', entityId)` |
 | Records by status | `where('status', '==', status)` |
 | Records by type | `where('recordType', '==', type)` |
 | Entity types by category | `where('category', '==', category)` |
 
 All queries are workspace-scoped (bounded by subcollection path). No unbounded client-side scans.
+
+---
+
+## Record Reference Indexing Strategy (Step 3.1)
+
+Records reference Entities via two complementary fields:
+
+```js
+entityReferences: [
+  { entityId: "room-1", entityTypeId: "room-type", workspaceId: "ws-1" },
+  { entityId: "guest-1", entityTypeId: "core:person", workspaceId: "ws-1" },
+]
+
+entityReferenceIds: ["room-1", "guest-1"]
+```
+
+- **`entityReferences`** is the **source of truth** — canonical EntityReference objects with full type and workspace information.
+- **`entityReferenceIds`** is a **derived index** — flat ID array for efficient Firestore `array-contains` queries.
+- `entityReferenceIds` is always derived from `entityReferences`. It is never set independently.
+- This avoids two independent sources of truth while enabling efficient querying.
+
+---
+
+## Actor Identity Security (Step 3.1)
+
+### Architectural Rule
+
+```
+CLIENTS MAY NOT SELF-ASSERT TRUSTED ACTOR TYPES.
+```
+
+INTERNAL_AGENT and EXTERNAL_INTEGRATION actions must eventually enter through a trusted backend/API boundary.
+
+### Firestore Rules Enforcement
+
+For all client-created workspace data (entities, records, relationships, files):
+
+- `createdBy.actorType` must be `USER`
+- `createdBy.actorId` must equal `request.auth.uid`
+- `INTERNAL_AGENT` and `EXTERNAL_INTEGRATION` are rejected by client writes
+- `createdBy` / `uploadedBy` are immutable after creation
+
+### Canonical Date Representation
+
+All date field values use **ISO 8601** string format:
+
+- Short form: `YYYY-MM-DD` (e.g. `2024-03-15`)
+- Full form: `YYYY-MM-DDTHH:mm:ssZ` (e.g. `2024-03-15T10:30:00Z`)
+
+Validation uses `Date.parse()` and confirms the result is a valid date.
+
+---
+
+## Entity Lifecycle Validation (Step 3.1)
+
+### Entity Creation
+
+1. Entity Type must exist in the same workspace
+2. Entity Type must be `ACTIVE` (not `ARCHIVED` or `INACTIVE`)
+3. Entity data is validated against Entity Type schema
+4. Undeclared fields are rejected
+5. Required fields must be present
+6. Field values must match their declared type
+
+### Entity Update
+
+1. Immutable fields preserved: `entityId`, `workspaceId`, `entityTypeId`, `createdBy`, `createdAt`
+2. If `data` changes, the complete resulting data is revalidated against the Entity Type schema
+3. If `attachments` change, each attachment is validated as a non-empty string
+
+### Record Creation
+
+1. All `entityReferences` validated: canonical structure, workspace match, entity existence, type integrity
+2. `entityReferenceIds` derived from validated references
+3. Attachments validated
+
+### Record Draft Update
+
+1. Only `DRAFT` records can be updated
+2. Changes merged with existing state
+3. All entity references revalidated against workspace/existence/type integrity
+4. `entityReferenceIds` recomputed from merged references
+5. A valid Record at creation cannot become invalid through updates
 
 ---
 

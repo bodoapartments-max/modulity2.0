@@ -6,7 +6,7 @@
  * @module core/data/entityTypeService
  */
 
-import { createEntityType, ENTITY_TYPE_CATEGORIES, validateFieldDefinition } from './entityType.js';
+import { createEntityType, ENTITY_TYPE_CATEGORIES, validateFieldDefinitions } from './entityType.js';
 import { CORE_ENTITY_TYPES } from './coreEntityTypes.js';
 import { generateId } from '../utils/generateId.js';
 import { eventBus, createEvent } from '../events/eventBus.js';
@@ -36,10 +36,10 @@ export function createEntityTypeService({ entityTypeRepo }) {
       throw new AppError('conflict', `Entity type with code "${code}" already exists`);
     }
 
-    for (const field of fields) {
-      const result = validateFieldDefinition(field);
+    if (fields.length > 0) {
+      const result = validateFieldDefinitions(fields);
       if (!result.valid) {
-        throw new AppError('validation_error', `Invalid field "${field.key}": ${result.errors.join(', ')}`);
+        throw new AppError('validation_error', `Invalid field definitions: ${result.errors.join('; ')}`);
       }
     }
 
@@ -102,11 +102,9 @@ export function createEntityTypeService({ entityTypeRepo }) {
     delete safeChanges.createdAt;
 
     if (safeChanges.fields) {
-      for (const field of safeChanges.fields) {
-        const result = validateFieldDefinition(field);
-        if (!result.valid) {
-          throw new AppError('validation_error', `Invalid field "${field.key}": ${result.errors.join(', ')}`);
-        }
+      const result = validateFieldDefinitions(safeChanges.fields);
+      if (!result.valid) {
+        throw new AppError('validation_error', `Invalid field definitions: ${result.errors.join('; ')}`);
       }
     }
 

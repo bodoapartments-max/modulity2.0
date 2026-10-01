@@ -37,7 +37,8 @@ export const RECORD_PRIORITIES = Object.freeze({
  * @property {Object} createdBy         — ActorRef
  * @property {Object|null} submittedBy  — ActorRef
  * @property {Object} data              — validated form payload
- * @property {import('./entity.js').EntityReference[]} entityReferences
+ * @property {import('./entity.js').EntityReference[]} entityReferences — canonical references (source of truth)
+ * @property {string[]} entityReferenceIds — derived from entityReferences for array-contains queries (index only)
  * @property {string[]} attachments     — file IDs
  * @property {string[]} createdEntityIds — entity IDs created from this record
  * @property {string} schemaVersion
@@ -63,6 +64,7 @@ export function createRecord({
   submittedBy = null,
   data = {},
   entityReferences = [],
+  entityReferenceIds = [],
   attachments = [],
   createdEntityIds = [],
   schemaVersion = '1.0.0',
@@ -97,6 +99,7 @@ export function createRecord({
     entityReferences: Object.freeze(
       entityReferences.map((r) => Object.freeze({ ...r })),
     ),
+    entityReferenceIds: Object.freeze([...entityReferenceIds]),
     attachments: Object.freeze([...attachments]),
     createdEntityIds: Object.freeze([...createdEntityIds]),
     schemaVersion,

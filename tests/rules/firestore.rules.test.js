@@ -1449,7 +1449,165 @@ describe('cross-workspace data isolation', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 16. DENY BY DEFAULT
+// 16. ACTOR IDENTITY ENFORCEMENT
+// ═══════════════════════════════════════════════════════
+
+describe('actor identity enforcement', () => {
+  // ─── Entity actor spoofing ─────────────────────────
+  it('cannot create entity claiming another USER as createdBy', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-spoof'), {
+      entityId: 'ent-spoof', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+      displayName: 'Spoofed', status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'someone-else' },
+    }));
+  });
+
+  it('cannot create entity claiming INTERNAL_AGENT actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-agent'), {
+      entityId: 'ent-agent', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+      displayName: 'Agent Car', status: 'ACTIVE',
+      createdBy: { actorType: 'INTERNAL_AGENT', actorId: 'user1' },
+    }));
+  });
+
+  it('cannot create entity claiming EXTERNAL_INTEGRATION actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-ext'), {
+      entityId: 'ent-ext', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+      displayName: 'External Car', status: 'ACTIVE',
+      createdBy: { actorType: 'EXTERNAL_INTEGRATION', actorId: 'user1' },
+    }));
+  });
+
+  // ─── Record actor spoofing ─────────────────────────
+  it('cannot create record claiming another USER as createdBy', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-spoof'), {
+      recordId: 'rec-spoof', workspaceId: 'ws-p', recordType: 'TEST',
+      status: 'DRAFT',
+      createdBy: { actorType: 'USER', actorId: 'someone-else' },
+    }));
+  });
+
+  it('cannot create record claiming INTERNAL_AGENT actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-agent'), {
+      recordId: 'rec-agent', workspaceId: 'ws-p', recordType: 'TEST',
+      status: 'DRAFT',
+      createdBy: { actorType: 'INTERNAL_AGENT', actorId: 'user1' },
+    }));
+  });
+
+  // ─── Relationship actor spoofing ───────────────────
+  it('cannot create relationship claiming another USER as createdBy', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel-spoof'), {
+      relationshipId: 'rel-spoof', workspaceId: 'ws-p', relationshipType: 'PART_OF',
+      source: { objectType: 'ENTITY', objectId: 'ent1' },
+      target: { objectType: 'ENTITY', objectId: 'ent2' },
+      status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'someone-else' },
+    }));
+  });
+
+  it('cannot create relationship claiming INTERNAL_AGENT actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel-agent'), {
+      relationshipId: 'rel-agent', workspaceId: 'ws-p', relationshipType: 'PART_OF',
+      source: { objectType: 'ENTITY', objectId: 'ent1' },
+      target: { objectType: 'ENTITY', objectId: 'ent2' },
+      status: 'ACTIVE',
+      createdBy: { actorType: 'INTERNAL_AGENT', actorId: 'user1' },
+    }));
+  });
+
+  // ─── File actor spoofing ───────────────────────────
+  it('cannot create file claiming another USER as uploadedBy', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file-spoof'), {
+      fileId: 'file-spoof', workspaceId: 'ws-p', name: 'photo.jpg',
+      mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
+      uploadedBy: { actorType: 'USER', actorId: 'someone-else' },
+    }));
+  });
+
+  it('cannot create file claiming EXTERNAL_INTEGRATION actor', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file-ext'), {
+      fileId: 'file-ext', workspaceId: 'ws-p', name: 'photo.jpg',
+      mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
+      uploadedBy: { actorType: 'EXTERNAL_INTEGRATION', actorId: 'user1' },
+    }));
+  });
+
+  // ─── Positive: valid actor succeeds ────────────────
+  it('entity creation with valid USER actor succeeds', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-valid'), {
+      entityId: 'ent-valid', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+      displayName: 'Valid Car', status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('record creation with valid USER actor succeeds', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-valid'), {
+      recordId: 'rec-valid', workspaceId: 'ws-p', recordType: 'TEST',
+      status: 'DRAFT',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  // ─── Immutable actor fields on update ──────────────
+  it('entity createdBy cannot be changed to different actor on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+      createdBy: { actorType: 'USER', actorId: 'attacker' },
+    }));
+  });
+
+  it('record createdBy cannot be changed to different actor on update', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', recordType: 'TEST',
+        status: 'DRAFT',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      createdBy: { actorType: 'USER', actorId: 'attacker' },
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 17. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

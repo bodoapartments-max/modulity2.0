@@ -7,8 +7,8 @@
  * @module core/data/entityService
  */
 
-import { createEntity, ENTITY_STATUSES } from './entity.js';
-import { validateEntityData } from './entityType.js';
+import { createEntity, ENTITY_STATUSES, validateEntityReference } from './entity.js';
+import { validateEntityData, ENTITY_TYPE_STATUSES } from './entityType.js';
 import { generateId } from '../utils/generateId.js';
 import { eventBus, createEvent } from '../events/eventBus.js';
 import { AppError } from '../errors/appError.js';
@@ -21,11 +21,16 @@ import { AppError } from '../errors/appError.js';
 export function createEntityService({ entityRepo, entityTypeRepo }) {
   /**
    * Creates a new Entity after validating against its EntityType schema.
+   * Entity Type must exist and be ACTIVE.
    */
   async function createNewEntity({ workspaceId, entityTypeId, displayName, data = {}, attachments = [], sourceRecordId = null, createdBy }) {
     const entityType = await entityTypeRepo.getById(workspaceId, entityTypeId);
     if (!entityType) {
       throw new AppError('not_found', `Entity type not found: ${entityTypeId}`);
+    }
+
+    if (entityType.status !== ENTITY_TYPE_STATUSES.ACTIVE) {
+      throw new AppError('forbidden', `Cannot create entity with ${entityType.status} entity type: ${entityTypeId}`);
     }
 
     if (entityType.fields && entityType.fields.length > 0) {
@@ -62,6 +67,9 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     return entityRepo.getById(workspaceId, entityId);
   }
 
+  /**
+   * Updates an Entity. If data changes, re-validates against Entity Type schema.
+   */
   async function updateEntity(workspaceId, entityId, changes, actor) {
     const existing = await entityRepo.getById(workspaceId, entityId);
     if (!existing) {
@@ -74,6 +82,17 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     delete safeChanges.entityTypeId;
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
+
+    // Re-validate data against Entity Type schema when data changes
+    if (safeChanges.data !== undefined) {
+      const entityType = await entityTypeRepo.getById(workspaceId, existing.entityTypeId);
+      if (entityType && entityType.fields && entityType.fields.length > 0) {
+        const validation = validateEntityData(safeChanges.data, entityType.fields);
+        if (!validation.valid) {
+          throw new AppError('validation_error', 'Entity data validation failed', validation.errors);
+        }
+      }
+    }
 
     const updated = await entityRepo.update(workspaceId, entityId, safeChanges);
 
@@ -99,9 +118,16 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
   }
 
   /**
-   * Resolves a single entity reference, enforcing workspace isolation.
+   * Resolves a single entity reference, enforcing workspace isolation and type integrity.
+   * Verifies: workspace match, entity existence, entityTypeId match.
    */
   async function resolveEntityReference(ref, callerWorkspaceId) {
+    // Structural validation
+    const structResult = validateEntityReference(ref);
+    if (!structResult.valid) {
+      throw new AppError('validation_error', 'Invalid entity reference', structResult.errors);
+    }
+
     if (ref.workspaceId !== callerWorkspaceId) {
       throw new AppError('forbidden', 'Cross-workspace entity reference is denied');
     }
@@ -109,11 +135,18 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     if (!entity) {
       throw new AppError('not_found', `Entity not found: ${ref.entityId}`);
     }
+
+    // Entity Type integrity: ref must match the actual entity's type
+    if (ref.entityTypeId !== entity.entityTypeId) {
+      throw new AppError('validation_error',
+        `Entity type mismatch: reference claims ${ref.entityTypeId} but entity is ${entity.entityTypeId}`);
+    }
+
     return entity;
   }
 
   /**
-   * Resolves multiple entity references, enforcing workspace isolation.
+   * Resolves multiple entity references, enforcing workspace isolation and type integrity.
    */
   async function resolveEntityReferences(refs, callerWorkspaceId) {
     return Promise.all(refs.map((ref) => resolveEntityReference(ref, callerWorkspaceId)));

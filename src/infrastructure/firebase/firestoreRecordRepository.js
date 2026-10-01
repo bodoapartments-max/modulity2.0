@@ -65,7 +65,7 @@ export function createFirestoreRecordRepository(db) {
   async function listByEntityRef(workspaceId, entityId) {
     const q = query(
       recordsCol(workspaceId),
-      where('entityReferences', 'array-contains', entityId),
+      where('entityReferenceIds', 'array-contains', entityId),
     );
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);

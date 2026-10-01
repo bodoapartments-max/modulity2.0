@@ -82,6 +82,23 @@ All notable changes to Modulity 2.0 will be documented in this file.
   - `docs/UNIVERSAL_DATA_CORE.md` documenting full architecture, query strategy, security rules, multi-industry proof.
   - Updated `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`.
 
+- Step 3.1: Universal Data Integrity Hardening.
+  - Full field type validation: text (string, minLength, maxLength), number (finite, min, max), date (ISO 8601), boolean, select (option set), entity-reference (canonical structure), file-reference (non-empty string).
+  - Unknown-field policy: undeclared fields in Entity data are rejected.
+  - Field definition hardening: key format validation (`/^[a-zA-Z][a-zA-Z0-9_]*$/`), duplicate key rejection, select options required, min/max consistency, minLength/maxLength consistency, required must be boolean.
+  - `validateFieldDefinitions()` validates entire field set including cross-field uniqueness.
+  - Canonical `validateEntityReference()` shared across EntityService, RecordService, and future consumers.
+  - Entity Reference type integrity: `ref.entityTypeId` must match resolved entity's actual `entityTypeId`.
+  - Record reference dual-storage: canonical `entityReferences[]` (source of truth) + derived `entityReferenceIds[]` (query index).
+  - Entity Type existence and ACTIVE status check before Entity creation.
+  - Entity update revalidation: data changes revalidated against Entity Type schema.
+  - Record draft update revalidation: entityReferences, data, attachments revalidated; entityReferenceIds recomputed.
+  - Actor identity enforcement in Firestore Rules: `isValidClientActor()` enforces `actorType == 'USER'` and `actorId == request.auth.uid` for all workspace data creates.
+  - INTERNAL_AGENT and EXTERNAL_INTEGRATION rejected from client writes.
+  - 13 new Firebase Emulator security tests (112 total) covering actor spoofing, trusted actor type rejection, cross-collection actor identity, and immutable actor fields.
+  - 53 new unit tests (243 total) for field type validation, field definition validation, entity reference validation, record reference indexing, and actor ref edge cases.
+  - Updated `docs/UNIVERSAL_DATA_CORE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`, `CHANGELOG.md`.
+
 ### Notes
 
 - No Modulity V1 code imported.

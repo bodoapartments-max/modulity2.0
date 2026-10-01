@@ -148,6 +148,24 @@ When adding any new collection that is scoped to an organization or workspace:
 | Create invitation (non-OWNER role) | ADMIN or OWNER |
 | Read invitations | ADMIN or OWNER |
 
+### Actor Identity Enforcement (Step 3.1)
+
+```
+CLIENTS MAY NOT SELF-ASSERT TRUSTED ACTOR TYPES.
+```
+
+For all client-created workspace data (entities, records, relationships, files):
+
+| Rule | Enforcement |
+|------|-------------|
+| `createdBy.actorType` must be `USER` | `isValidClientActor()` helper in rules |
+| `createdBy.actorId` must equal `request.auth.uid` | `isValidClientActor()` helper in rules |
+| `INTERNAL_AGENT` rejected from client writes | `isValidClientActor()` blocks non-USER types |
+| `EXTERNAL_INTEGRATION` rejected from client writes | `isValidClientActor()` blocks non-USER types |
+| `createdBy` / `uploadedBy` immutable after creation | `fieldUnchanged('createdBy')` on update rules |
+
+Trusted actor types (`INTERNAL_AGENT`, `EXTERNAL_INTEGRATION`) must eventually enter through a trusted backend/API boundary (Cloud Functions, Admin SDK, or similar).
+
 ### Trusted Server Operations (Deferred)
 
 The following operations require Cloud Functions or another trusted backend:
@@ -157,8 +175,10 @@ The following operations require Cloud Functions or another trusted backend:
 | Ownership transfer | Prevents zero-owner state; needs transactional verification |
 | Invitation acceptance | Must verify token and create membership server-side |
 | Role escalation to OWNER | Only existing OWNERs should grant OWNER; currently blocked in rules |
+| INTERNAL_AGENT writes | Trusted actor type; cannot be self-asserted by browser clients |
+| EXTERNAL_INTEGRATION writes | Trusted actor type; requires authenticated backend boundary |
 
-These are documented and deferred to Step 3. The current rules enforce the safest practical boundary: OWNER role cannot be granted via client writes (except during initial org bootstrap by the creator).
+These are documented and deferred. The current rules enforce the safest practical boundary: OWNER role cannot be granted via client writes (except during initial org bootstrap by the creator). Trusted actor types are blocked from all client writes.
 
 ### Event/Audit Boundary
 

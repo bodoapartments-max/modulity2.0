@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEntity, createEntityReference, ENTITY_STATUSES } from './entity.js';
+import { createEntity, createEntityReference, validateEntityReference, ENTITY_STATUSES } from './entity.js';
 
 describe('entity', () => {
   const actorRef = { actorType: 'USER', actorId: 'user-1' };
@@ -75,6 +75,48 @@ describe('entity', () => {
 
     it('rejects a missing workspaceId', () => {
       expect(() => createEntityReference({ entityId: 'entity-1', entityTypeId: 'type-1' })).toThrow('workspaceId is required for EntityReference');
+    });
+  });
+
+  describe('validateEntityReference', () => {
+    it('passes for a valid reference', () => {
+      const result = validateEntityReference({ entityId: 'e1', entityTypeId: 'et1', workspaceId: 'ws1' });
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('fails for null', () => {
+      const result = validateEntityReference(null);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('EntityReference must be an object');
+    });
+
+    it('fails for non-object', () => {
+      const result = validateEntityReference('not-an-object');
+      expect(result.valid).toBe(false);
+    });
+
+    it('fails for missing entityId', () => {
+      const result = validateEntityReference({ entityTypeId: 'et1', workspaceId: 'ws1' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toMatch(/entityId is required/);
+    });
+
+    it('fails for missing entityTypeId', () => {
+      const result = validateEntityReference({ entityId: 'e1', workspaceId: 'ws1' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toMatch(/entityTypeId is required/);
+    });
+
+    it('fails for missing workspaceId', () => {
+      const result = validateEntityReference({ entityId: 'e1', entityTypeId: 'et1' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toMatch(/workspaceId is required/);
+    });
+
+    it('fails for non-string entityId', () => {
+      const result = validateEntityReference({ entityId: 42, entityTypeId: 'et1', workspaceId: 'ws1' });
+      expect(result.valid).toBe(false);
     });
   });
 });

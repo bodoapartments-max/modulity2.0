@@ -29,6 +29,14 @@ describe('actorRef', () => {
     expect(() => createActorRef({ actorType: ACTOR_TYPES.USER })).toThrow('actorId is required');
   });
 
+  it('rejects an empty actorId', () => {
+    expect(() => createActorRef({ actorType: ACTOR_TYPES.USER, actorId: '' })).toThrow('actorId is required');
+  });
+
+  it('rejects a null actorType', () => {
+    expect(() => createActorRef({ actorType: null, actorId: 'user-1' })).toThrow('Invalid actorType');
+  });
+
   it('creates a correct USER reference with userActor', () => {
     const actor = userActor('user-1');
     expect(actor).toEqual({ actorType: 'USER', actorId: 'user-1' });

@@ -83,6 +83,34 @@ Key concepts:
 - All data is under `workspaces/{workspaceId}/` subcollections with explicit Firestore Security Rules.
 - See `docs/UNIVERSAL_DATA_CORE.md` for full architecture.
 
+## Step 3.1 — Universal Data Integrity Hardening
+
+Step 3.1 hardened validation, reference integrity, and actor security without changing product scope:
+
+### Validation
+- `validateEntityData()` now validates actual field types (text/number/date/boolean/select/entity-reference/file-reference).
+- `validateFieldDefinition()` validates key format, type support, constraints consistency, select options.
+- `validateFieldDefinitions()` rejects duplicate field keys across an Entity Type.
+- `validateFieldValue()` provides per-field type-specific validation.
+- Undeclared fields in Entity data are **rejected** (schema-governed unknown-field policy).
+- Canonical date representation: ISO 8601 (YYYY-MM-DD or full datetime).
+
+### Reference Integrity
+- `validateEntityReference()` — canonical structural validator shared across services.
+- Entity Reference resolution verifies `ref.entityTypeId == entity.entityTypeId` (type integrity).
+- Record `entityReferences[]` stores canonical objects (source of truth).
+- Record `entityReferenceIds[]` is a derived flat array for `array-contains` queries (index only).
+- Entity creation requires Entity Type with `ACTIVE` status.
+
+### Actor Security
+- Firestore Rules enforce `createdBy.actorType == 'USER'` and `actorId == auth.uid` via `isValidClientActor()`.
+- `INTERNAL_AGENT` and `EXTERNAL_INTEGRATION` rejected from all client writes.
+- Actor fields immutable after creation.
+
+### Revalidation
+- Entity updates revalidate data against Entity Type schema.
+- Record draft updates revalidate entityReferences, data, and attachments.
+
 ## Step 2 Architecture Notes
 
 - **Workspace** is the central operating context. All future modules/records operate within a workspace.

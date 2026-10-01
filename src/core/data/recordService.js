@@ -8,9 +8,22 @@
  */
 
 import { createRecord, RECORD_STATUSES } from './record.js';
+import { validateEntityReference } from './entity.js';
 import { generateId } from '../utils/generateId.js';
 import { eventBus, createEvent } from '../events/eventBus.js';
 import { AppError } from '../errors/appError.js';
+
+/**
+ * Derives a flat array of entity IDs from canonical EntityReference objects.
+ * This is used as a denormalized index field for array-contains queries.
+ * The canonical references remain the source of truth.
+ *
+ * @param {import('./entity.js').EntityReference[]} refs
+ * @returns {string[]}
+ */
+export function deriveEntityReferenceIds(refs) {
+  return refs.map((r) => r.entityId);
+}
 
 /**
  * @param {Object} deps
@@ -19,16 +32,28 @@ import { AppError } from '../errors/appError.js';
  */
 export function createRecordService({ recordRepo, entityRepo }) {
   /**
-   * Validates that all entity references belong to the record's workspace.
+   * Validates entity references: structure, workspace isolation, existence, type integrity.
    */
   async function validateEntityReferences(workspaceId, entityReferences) {
     for (const ref of entityReferences) {
+      // Structural validation using canonical validator
+      const structResult = validateEntityReference(ref);
+      if (!structResult.valid) {
+        throw new AppError('validation_error', `Invalid entity reference: ${structResult.errors.join(', ')}`);
+      }
+
       if (ref.workspaceId !== workspaceId) {
         throw new AppError('forbidden', `Cross-workspace entity reference denied: ${ref.entityId}`);
       }
       const entity = await entityRepo.getById(ref.workspaceId, ref.entityId);
       if (!entity) {
         throw new AppError('not_found', `Referenced entity not found: ${ref.entityId}`);
+      }
+
+      // Entity Type integrity: ref must match the actual entity's type
+      if (ref.entityTypeId !== entity.entityTypeId) {
+        throw new AppError('validation_error',
+          `Entity type mismatch: reference claims ${ref.entityTypeId} but entity is ${entity.entityTypeId}`);
       }
     }
   }
@@ -50,6 +75,9 @@ export function createRecordService({ recordRepo, entityRepo }) {
       await validateEntityReferences(workspaceId, entityReferences);
     }
 
+    // Derive ID index from canonical references
+    const entityReferenceIds = deriveEntityReferenceIds(entityReferences);
+
     const record = createRecord({
       recordId: generateId(),
       workspaceId,
@@ -61,6 +89,7 @@ export function createRecordService({ recordRepo, entityRepo }) {
       submittedBy,
       data,
       entityReferences,
+      entityReferenceIds,
       attachments,
       submittedAt,
     });
@@ -81,6 +110,10 @@ export function createRecordService({ recordRepo, entityRepo }) {
     return recordRepo.getById(workspaceId, recordId);
   }
 
+  /**
+   * Updates a draft Record. Re-validates entityReferences if changed.
+   * Derives entityReferenceIds from canonical references when references change.
+   */
   async function updateDraftRecord(workspaceId, recordId, changes, actor) {
     const existing = await recordRepo.getById(workspaceId, recordId);
     if (!existing) {
@@ -95,6 +128,19 @@ export function createRecordService({ recordRepo, entityRepo }) {
     delete safeChanges.workspaceId;
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
+
+    // Re-validate entity references if changed
+    if (safeChanges.entityReferences !== undefined) {
+      const refs = safeChanges.entityReferences;
+      if (!Array.isArray(refs)) {
+        throw new AppError('validation_error', 'entityReferences must be an array');
+      }
+      if (refs.length > 0) {
+        await validateEntityReferences(workspaceId, refs);
+      }
+      // Re-derive ID index from new canonical references
+      safeChanges.entityReferenceIds = deriveEntityReferenceIds(refs);
+    }
 
     const updated = await recordRepo.update(workspaceId, recordId, safeChanges);
 
