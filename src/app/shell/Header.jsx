@@ -1,0 +1,80 @@
+/**
+ * Header
+ *
+ * Authenticated application header. Contains placeholders for future workspace
+ * switcher, notifications, chat, settings, and user menu.
+ */
+
+import { useAuth } from '../providers/AuthProvider.jsx';
+import IconButton from '../../design-system/components/IconButton/IconButton.jsx';
+import Dropdown from '../../design-system/components/Dropdown/Dropdown.jsx';
+import { DropdownItem } from '../../design-system/components/Dropdown/Dropdown.jsx';
+
+function MenuIcon(props) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+    </svg>
+  );
+}
+
+function Header({ onOpenMobileMenu }) {
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.displayName || user?.email || 'User';
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        <div className="lg:hidden">
+          <IconButton
+            icon={MenuIcon}
+            label="Open navigation menu"
+            variant="ghost"
+            size="md"
+            onClick={onOpenMobileMenu}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-6 w-6 rounded bg-primary-600" aria-hidden="true" />
+          <span className="text-lg font-semibold text-neutral-900">Modulity</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 lg:gap-4">
+        {/* Placeholders for future header items */}
+        <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Workspace switcher (coming soon)">
+          Workspace
+        </div>
+        <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
+        <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Notifications (coming soon)">
+          Notifications
+        </div>
+        <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
+        <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Chat (coming soon)">
+          Chat
+        </div>
+
+        <Dropdown
+          align="right"
+          trigger={
+            <button
+              type="button"
+              className="ml-2 flex max-w-[10rem] items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+            >
+              <span className="truncate">{displayName}</span>
+              <span className="h-6 w-6 rounded-full bg-primary-100 text-xs font-semibold leading-6 text-primary-700" aria-hidden="true">
+                {displayName.charAt(0).toUpperCase()}
+              </span>
+            </button>
+          }
+        >
+          <DropdownItem disabled>Settings (coming soon)</DropdownItem>
+          <DropdownItem onClick={() => signOut()}>Sign out</DropdownItem>
+        </Dropdown>
+      </div>
+    </header>
+  );
+}
+
+export default Header;

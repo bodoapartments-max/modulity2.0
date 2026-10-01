@@ -2,9 +2,9 @@
 
 A modular operations platform that lets individuals and organizations build their own operational systems from records, modules, forms, entities, workflows, widgets and reports.
 
-> **Step 0 — Architecture Blueprint & Project Constitution**
+> **Step 1 — Application Foundation**
 >
-> This repository currently contains architecture documentation and minimal project scaffolding only. No application features have been implemented yet.
+> The first real application foundation is in place: design system, configuration, authentication architecture, routing, responsive shell, and CI.
 
 ---
 
@@ -25,14 +25,11 @@ All architecture decisions live in `docs/`:
 - [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)
 - [docs/MIGRATION.md](./docs/MIGRATION.md)
 
----
+Step 1 implementation notes:
 
-## Project Status
-
-- Clean rebuild from Modulity V1.
-- No legacy source code imported.
-- Architecture defined, runtime scaffolding initialized.
-- Next: Step 1 — Foundation.
+- [docs/CONFIGURATION.md](./docs/CONFIGURATION.md)
+- [docs/IDENTITY.md](./docs/IDENTITY.md)
+- [docs/FIREBASE_SETUP.md](./docs/FIREBASE_SETUP.md)
 
 ---
 
@@ -40,7 +37,30 @@ All architecture decisions live in `docs/`:
 
 ```bash
 npm install
-npm run dev
 ```
 
-See `.env.example` for required environment variables.
+Create a local environment file and fill in your Firebase development project values:
+
+```bash
+cp .env.example .env
+```
+
+```bash
+npm run dev        # start dev server
+npm run build      # production build
+npm run lint       # ESLint
+npm run test       # Vitest
+npm run test:e2e   # Playwright (when tests exist)
+```
+
+See [docs/FIREBASE_SETUP.md](./docs/FIREBASE_SETUP.md) for Firebase configuration instructions.
+
+---
+
+## Project Status
+
+- Clean rebuild from Modulity V1.
+- No legacy source code imported.
+- Architecture defined, runtime scaffolding initialized.
+- Step 1 complete: authentication, routing, responsive shell, design system, CI.
+- Next: Step 2 — Organizations, memberships, and the first core modules.
