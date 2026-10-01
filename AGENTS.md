@@ -111,6 +111,33 @@ Step 3.1 hardened validation, reference integrity, and actor security without ch
 - Entity updates revalidate data against Entity Type schema.
 - Record draft updates revalidate entityReferences, data, and attachments.
 
+## Step 4 — Module Engine + Form Schema + Form Renderer
+
+Step 4 added the deterministic Module runtime under `src/modules/`:
+
+| File | Purpose |
+|------|---------|
+| `module.js` | Module Definition domain model, statuses, code validation |
+| `moduleRepository.js` | Provider-independent repository contract |
+| `moduleService.js` | Module CRUD, lifecycle, versioning, code uniqueness |
+| `moduleSubmissionService.js` | Orchestrator: Module → validation → RecordService |
+| `demoModules.js` | ROOM_INSPECTION and VEHICLE_INSPECTION demo schemas |
+| `forms/formSchemaValidator.js` | Schema validation, form values validation, entity ref extraction |
+| `forms/fieldRegistry.js` | Deterministic field type → React component mapping |
+| `forms/FormRenderer.jsx` | Generic schema-driven Form Renderer |
+| `forms/displayFormatter.js` | Canonical value → human display formatting |
+| `forms/fields/*.jsx` | 12 field components + FieldWrapper + UnsupportedField |
+
+Key concepts:
+- **MODULE != FORM != RECORD != ENTITY**. A Module is a definition. A Form is a rendered interface. A Record is persisted data. An Entity is a persistent business object.
+- **One field system**: `FIELD_TYPES` in `entityType.js` extended with form types. `ENTITY_FIELD_TYPES` subset for Entity Type validation. Full set for Form Schema validation.
+- **ModuleSubmissionService** is the orchestrator: loads Module, validates status, validates form data, extracts entity references, delegates to RecordService, creates exactly ONE canonical Record.
+- **Module identity**: `moduleId` (immutable internal), `moduleCode` (stable human/developer-facing, unique per workspace, immutable after creation).
+- **Module lifecycle**: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable. ACTIVE increments version on schema changes. Archived preserved for historical Records.
+- **Records store**: `moduleId`, `moduleVersion` (via Module's `version`), `recordType` (from `recordConfig`).
+- **Firestore Rules**: `workspaces/{workspaceId}/modules/{moduleId}` with full workspace isolation, actor validation, immutable field protection, archived module protection, delete denied.
+- **UI**: ModulesPage, CreateModulePage (manual builder), ModuleDetailPage, EditModulePage, ModuleFormPage (submission), RecordDetailPage.
+
 ## Step 2 Architecture Notes
 
 - **Workspace** is the central operating context. All future modules/records operate within a workspace.

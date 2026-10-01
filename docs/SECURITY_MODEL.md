@@ -277,6 +277,46 @@ Audit events are append-only and include:
 
 ---
 
+## 12b. Module Security Rules (Step 4)
+
+Path: `workspaces/{workspaceId}/modules/{moduleId}`
+
+### Read
+- Authenticated + workspace access (personal owner or org active member).
+
+### Create
+- Authenticated + workspace access.
+- `workspaceId` field must match path.
+- `createdBy` must be valid client actor (`actorType == 'USER'`, `actorId == request.auth.uid`).
+- Organization workspaces: requires ADMIN or OWNER role.
+
+### Update
+- Authenticated + workspace access.
+- Organization workspaces: requires ADMIN or OWNER role.
+- Immutable fields protected: `workspaceId`, `moduleId`, `moduleCode`, `createdBy`, `createdAt`, `_createdAt`.
+- Archived modules cannot be modified (except re-archiving, which is a no-op).
+
+### Delete
+- Denied. Modules must not be hard-deleted when historical Records may reference them.
+
+### Submission Trust Boundary
+- Client may create DRAFT records.
+- ModuleSubmissionService validates form data at application layer before creating SUBMITTED records.
+- Future: trusted backend enforcement may be needed for stronger submitted-record guarantees.
+
+### Emulator Test Coverage (21 tests)
+- Personal workspace: owner create/read, non-owner denied.
+- Organization workspace: OWNER/ADMIN create, MEMBER create denied, MEMBER read allowed.
+- Cross-workspace isolation: personal workspace, org workspace.
+- Actor spoofing: wrong actorId, non-USER actorType.
+- Workspace field mismatch.
+- Immutable field changes: workspaceId, moduleId, moduleCode, createdBy.
+- Archived module update protection.
+- Delete denied.
+- Unauthenticated access denied.
+
+---
+
 ## 13. API Security
 
 - All endpoints require authentication.

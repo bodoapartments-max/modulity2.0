@@ -17,6 +17,7 @@ import { createFirestoreEntityRepository } from './firebase/firestoreEntityRepos
 import { createFirestoreRelationshipRepository } from './firebase/firestoreRelationshipRepository.js';
 import { createFirestoreRecordRepository } from './firebase/firestoreRecordRepository.js';
 import { createFirestoreFileRepository } from './firebase/firestoreFileRepository.js';
+import { createFirestoreModuleRepository } from './firebase/firestoreModuleRepository.js';
 
 function createRepositories() {
   if (!firebaseDb) {
@@ -36,6 +37,7 @@ function createRepositories() {
     relationships: createFirestoreRelationshipRepository(firebaseDb),
     records: createFirestoreRecordRepository(firebaseDb),
     files: createFirestoreFileRepository(firebaseDb),
+    modules: createFirestoreModuleRepository(firebaseDb),
   };
 }
 

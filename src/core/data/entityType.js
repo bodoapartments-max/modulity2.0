@@ -19,18 +19,43 @@ export const ENTITY_TYPE_STATUSES = Object.freeze({
 });
 
 /**
- * Supported field types for entity schema definitions.
- * The future Form Engine will reuse these.
+ * Supported field types shared across Entity Type schemas and Module Form schemas.
+ * One coherent field system — Entity Types and Modules use the same primitives.
+ *
+ * Core types (usable in Entity Type schemas and Form schemas):
+ *   text, number, date, boolean, select, entity-reference, file-reference
+ *
+ * Extended types (usable in Form schemas, not typical for Entity Type schemas):
+ *   textarea, email, phone, url, datetime
  */
 export const FIELD_TYPES = Object.freeze({
   TEXT: 'text',
+  TEXTAREA: 'textarea',
   NUMBER: 'number',
   DATE: 'date',
+  DATETIME: 'datetime',
   BOOLEAN: 'boolean',
   SELECT: 'select',
+  EMAIL: 'email',
+  PHONE: 'phone',
+  URL: 'url',
   ENTITY_REFERENCE: 'entity-reference',
   FILE_REFERENCE: 'file-reference',
 });
+
+/**
+ * Field types valid for Entity Type schemas (subset of all FIELD_TYPES).
+ * Entity Types use the core field primitives.
+ */
+export const ENTITY_FIELD_TYPES = Object.freeze([
+  FIELD_TYPES.TEXT,
+  FIELD_TYPES.NUMBER,
+  FIELD_TYPES.DATE,
+  FIELD_TYPES.BOOLEAN,
+  FIELD_TYPES.SELECT,
+  FIELD_TYPES.ENTITY_REFERENCE,
+  FIELD_TYPES.FILE_REFERENCE,
+]);
 
 /**
  * @typedef {Object} FieldDefinition
@@ -123,13 +148,31 @@ const FIELD_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
 /**
+ * Canonical datetime format: ISO 8601 datetime with time component required.
+ */
+const ISO_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+
+/** Basic email pattern (not exhaustive; server should verify). */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Basic phone pattern: allows digits, spaces, dashes, parens, +. */
+const PHONE_PATTERN = /^[+]?[\d\s\-().]{3,30}$/;
+
+/** Basic URL pattern: http(s) required. */
+const URL_PATTERN = /^https?:\/\/.+/;
+
+/**
  * Validates a field definition.
  *
  * @param {FieldDefinition} field
+ * @param {Object} [opts]
+ * @param {string[]} [opts.allowedTypes] — restrict to a subset (e.g. ENTITY_FIELD_TYPES)
  * @returns {{ valid: boolean, errors: string[] }}
  */
-export function validateFieldDefinition(field) {
+export function validateFieldDefinition(field, opts = {}) {
   const errors = [];
+  const allowedTypes = opts.allowedTypes || Object.values(FIELD_TYPES);
+
   if (!field.key) {
     errors.push('Field key is required');
   } else if (!FIELD_KEY_PATTERN.test(field.key)) {
@@ -138,7 +181,7 @@ export function validateFieldDefinition(field) {
   if (!field.label) errors.push('Field label is required');
   if (!field.type) {
     errors.push('Field type is required');
-  } else if (!Object.values(FIELD_TYPES).includes(field.type)) {
+  } else if (!allowedTypes.includes(field.type)) {
     errors.push(`Unknown field type: ${field.type}`);
   }
 
@@ -160,10 +203,17 @@ export function validateFieldDefinition(field) {
     }
   }
 
-  // minLength/maxLength for text fields
-  if (field.type === FIELD_TYPES.TEXT) {
+  // minLength/maxLength for text and textarea fields
+  if (field.type === FIELD_TYPES.TEXT || field.type === FIELD_TYPES.TEXTAREA) {
     if (field.minLength !== undefined && field.maxLength !== undefined && field.minLength > field.maxLength) {
       errors.push('Field minLength must not exceed maxLength');
+    }
+  }
+
+  // entity-reference must declare entityTypeId
+  if (field.type === FIELD_TYPES.ENTITY_REFERENCE) {
+    if (field.entityTypeId !== undefined && typeof field.entityTypeId !== 'string') {
+      errors.push('Entity reference field entityTypeId must be a string');
     }
   }
 
@@ -174,13 +224,15 @@ export function validateFieldDefinition(field) {
  * Validates a full set of field definitions for uniqueness and consistency.
  *
  * @param {FieldDefinition[]} fields
+ * @param {Object} [opts]
+ * @param {string[]} [opts.allowedTypes] — restrict to a subset (e.g. ENTITY_FIELD_TYPES)
  * @returns {{ valid: boolean, errors: string[] }}
  */
-export function validateFieldDefinitions(fields) {
+export function validateFieldDefinitions(fields, opts = {}) {
   const errors = [];
   const keys = new Set();
   for (const field of fields) {
-    const result = validateFieldDefinition(field);
+    const result = validateFieldDefinition(field, opts);
     if (!result.valid) errors.push(...result.errors);
     if (field.key) {
       if (keys.has(field.key)) {
@@ -217,6 +269,17 @@ export function validateFieldValue(value, field) {
       return null;
     }
 
+    case FIELD_TYPES.TEXTAREA: {
+      if (typeof value !== 'string') return `${field.label} must be a string`;
+      if (field.minLength !== undefined && value.length < field.minLength) {
+        return `${field.label} must be at least ${field.minLength} characters`;
+      }
+      if (field.maxLength !== undefined && value.length > field.maxLength) {
+        return `${field.label} must be at most ${field.maxLength} characters`;
+      }
+      return null;
+    }
+
     case FIELD_TYPES.NUMBER: {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
         return `${field.label} must be a finite number`;
@@ -240,6 +303,16 @@ export function validateFieldValue(value, field) {
       return null;
     }
 
+    case FIELD_TYPES.DATETIME: {
+      if (typeof value !== 'string' || !ISO_DATETIME_PATTERN.test(value)) {
+        return `${field.label} must be a valid ISO datetime string`;
+      }
+      if (Number.isNaN(Date.parse(value))) {
+        return `${field.label} is not a valid datetime`;
+      }
+      return null;
+    }
+
     case FIELD_TYPES.BOOLEAN: {
       if (typeof value !== 'boolean') return `${field.label} must be a boolean`;
       return null;
@@ -249,8 +322,34 @@ export function validateFieldValue(value, field) {
       if (!field.options || !Array.isArray(field.options)) {
         return `${field.label} has no configured options`;
       }
-      if (!field.options.includes(value)) {
-        return `${field.label} must be one of: ${field.options.join(', ')}`;
+      // Support both string options and {value, label} object options
+      const allowedValues = field.options.map((o) => (typeof o === 'object' && o !== null ? o.value : o));
+      if (!allowedValues.includes(value)) {
+        return `${field.label} must be one of: ${allowedValues.join(', ')}`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.EMAIL: {
+      if (typeof value !== 'string') return `${field.label} must be a string`;
+      if (!EMAIL_PATTERN.test(value)) {
+        return `${field.label} must be a valid email address`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.PHONE: {
+      if (typeof value !== 'string') return `${field.label} must be a string`;
+      if (!PHONE_PATTERN.test(value)) {
+        return `${field.label} must be a valid phone number`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.URL: {
+      if (typeof value !== 'string') return `${field.label} must be a string`;
+      if (!URL_PATTERN.test(value)) {
+        return `${field.label} must be a valid URL starting with http:// or https://`;
       }
       return null;
     }

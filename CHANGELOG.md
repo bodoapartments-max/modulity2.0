@@ -99,11 +99,45 @@ All notable changes to Modulity 2.0 will be documented in this file.
   - 53 new unit tests (243 total) for field type validation, field definition validation, entity reference validation, record reference indexing, and actor ref edge cases.
   - Updated `docs/UNIVERSAL_DATA_CORE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`, `CHANGELOG.md`.
 
+- Step 4: Module Engine + Form Schema + Form Renderer.
+  - Module Definition domain model (`src/modules/module.js`) with moduleId, workspaceId, moduleCode, name, description, category, status, version, formSchema, recordConfig, displayConfig, primaryEntityTypeId, createdBy, timestamps.
+  - Module identity: `moduleId` is immutable internal ID, `moduleCode` is stable human/developer-facing code (unique within workspace, immutable after creation).
+  - Module lifecycle: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable. ACTIVE modules increment version on schema changes. Archived modules preserved for historical Record interpretation.
+  - Module versioning: integer `version` on Module; Records store `moduleId` + `moduleVersion`.
+  - Shared field system: extended `FIELD_TYPES` in `entityType.js` with form-oriented types (textarea, email, phone, url, datetime). One coherent field system with `ENTITY_FIELD_TYPES` subset for Entity Type validation and full set for Form Schema validation.
+  - Validation patterns: `ISO_DATETIME_PATTERN`, `EMAIL_PATTERN`, `PHONE_PATTERN`, `URL_PATTERN` added to core field validators.
+  - Form Schema embedded in Module Definition: `{ schemaVersion, fields[] }` with ordered field definitions.
+  - Form Schema Validator (`src/modules/forms/formSchemaValidator.js`): validates schema structure, validates form values against schema, extracts entity references, rejects undeclared fields, enforces entity reference integrity.
+  - Structured validation error model: `{ valid: boolean, errors: { [fieldKey]: string } }`.
+  - Field Registry (`src/modules/forms/fieldRegistry.js`): deterministic mapping from field type to React component, falls back to `UnsupportedField` for unknown types.
+  - Generic Form Renderer (`src/modules/forms/FormRenderer.jsx`): schema-driven, renders fields in schema order via Field Registry, client-side validation, submit/draft buttons, accessible, no module-specific hardcoded JSX.
+  - 12 field components: TextField, TextareaField, NumberField, DateField, DateTimeField, BooleanField, SelectField, EmailField, PhoneField, UrlField, EntityReferenceField, FileReferenceField, plus UnsupportedField fallback.
+  - FieldWrapper component for consistent label, required indicator, help text, error display, and accessibility (aria-invalid, aria-describedby).
+  - EntityReferenceField: loads entities from workspace filtered by entityTypeId, stores canonical `{ entityId, entityTypeId, workspaceId }`.
+  - FileReferenceField: text input placeholder for file reference IDs (full upload deferred).
+  - Display Formatter (`src/modules/forms/displayFormatter.js`): formats canonical Record values for human display.
+  - ModuleService (`src/modules/moduleService.js`): CRUD, lifecycle transitions, code uniqueness, version management, immutable field protection, form schema validation.
+  - ModuleSubmissionService (`src/modules/moduleSubmissionService.js`): orchestrator that loads Module, validates status, validates form values, extracts/resolves entity references, delegates to RecordService, creates exactly ONE canonical Record, emits platform events.
+  - Module Repository contract (`src/modules/moduleRepository.js`) and Firestore adapter (`src/infrastructure/firebase/firestoreModuleRepository.js`).
+  - Wired into `infrastructure/repositories.js` and `infrastructure/services.js`.
+  - Module management UI: ModulesPage (list), CreateModulePage (manual builder), ModuleDetailPage (detail + preview), EditModulePage (DRAFT editing), ModuleFormPage (submission flow), RecordDetailPage (record display).
+  - Manual Module Builder: define module name, code, category, form fields with type selection, options, entity type, required state, field ordering.
+  - Route-level lazy loading for all module/record pages.
+  - "My Modules" sidebar link enabled.
+  - Demo modules: ROOM_INSPECTION (entity-reference, date, select, textarea, file-reference) and VEHICLE_INSPECTION (text, number, date, boolean, select, textarea).
+  - Firestore Security Rules for `workspaces/{workspaceId}/modules/{moduleId}`: workspace ownership, authenticated access, actor validation (USER + own uid), immutable fields (workspaceId, moduleId, moduleCode, createdBy, createdAt), archived module protection, org workspace requires ADMIN/OWNER for create/update, delete denied.
+  - 21 new Firebase Emulator security tests (133 total): module create/read for personal/org workspaces, cross-workspace isolation, actor spoofing, workspace mismatch, immutable field changes, archived module protection, delete protection, unauthenticated access.
+  - 79 new unit tests (322 total): Module domain model, validateModuleCode, ModuleService (CRUD, lifecycle, versioning, immutability), Form Schema validation, form values validation, entity reference extraction, ModuleSubmissionService (submission pipeline, status checks, validation, draft/submit), demo module schemas, Field Registry, Display Formatter.
+  - Updated `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `docs/UNIVERSAL_DATA_CORE.md`.
+
 ### Notes
 
 - No Modulity V1 code imported.
-- Module Engine, Form Renderer, full Record UI, ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 3.
+- ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 4.
 - Invitation acceptance, ownership transfer, OWNER role escalation still require Cloud Functions.
-- File upload binary handling is deferred — only metadata model and storage contract established.
+- File upload binary handling is deferred — only metadata model and storage contract established. FileReferenceField uses text input placeholder.
 - Schema migration framework is documented conceptually but not implemented.
 - Cross-workspace sharing is denied by default; future sharing system deferred.
+- Module code uniqueness is enforced via query-based check in ModuleService; race conditions are possible under concurrent writes (documented; transaction-based enforcement may be added in future).
+- Submitted Record trust boundary: application-layer validation via ModuleSubmissionService; future trusted backend enforcement may be needed for stronger guarantees.
+- Rich text, signature, location, image, currency, multiselect, radio, domain-entity-reference, user-reference field types are documented in MODULE_CONTRACT.md but not yet implemented in the Field Registry (UnsupportedField fallback renders).

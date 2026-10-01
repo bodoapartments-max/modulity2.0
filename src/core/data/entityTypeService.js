@@ -6,7 +6,7 @@
  * @module core/data/entityTypeService
  */
 
-import { createEntityType, ENTITY_TYPE_CATEGORIES, validateFieldDefinitions } from './entityType.js';
+import { createEntityType, ENTITY_TYPE_CATEGORIES, ENTITY_FIELD_TYPES, validateFieldDefinitions } from './entityType.js';
 import { CORE_ENTITY_TYPES } from './coreEntityTypes.js';
 import { generateId } from '../utils/generateId.js';
 import { eventBus, createEvent } from '../events/eventBus.js';
@@ -37,7 +37,7 @@ export function createEntityTypeService({ entityTypeRepo }) {
     }
 
     if (fields.length > 0) {
-      const result = validateFieldDefinitions(fields);
+      const result = validateFieldDefinitions(fields, { allowedTypes: ENTITY_FIELD_TYPES });
       if (!result.valid) {
         throw new AppError('validation_error', `Invalid field definitions: ${result.errors.join('; ')}`);
       }
@@ -102,7 +102,7 @@ export function createEntityTypeService({ entityTypeRepo }) {
     delete safeChanges.createdAt;
 
     if (safeChanges.fields) {
-      const result = validateFieldDefinitions(safeChanges.fields);
+      const result = validateFieldDefinitions(safeChanges.fields, { allowedTypes: ENTITY_FIELD_TYPES });
       if (!result.valid) {
         throw new AppError('validation_error', `Invalid field definitions: ${result.errors.join('; ')}`);
       }

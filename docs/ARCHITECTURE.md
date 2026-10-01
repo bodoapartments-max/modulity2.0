@@ -218,10 +218,44 @@ Firestore adapters in `infrastructure/firebase/`:
 - `firestoreRelationshipRepository.js`
 - `firestoreRecordRepository.js`
 - `firestoreFileRepository.js`
+- `firestoreModuleRepository.js`
 
 All data is workspace-scoped under `workspaces/{workspaceId}/` subcollections.
 
 See `docs/UNIVERSAL_DATA_CORE.md` for detailed architecture.
+
+---
+
+## 8b. Module Engine (Step 4)
+
+The Module Engine provides a deterministic runtime for schema-driven form rendering and Record creation.
+
+**Key principle:** `MODULE != FORM != RECORD != ENTITY`
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `module.js` | `modules/` | Module Definition domain model, statuses, code validation |
+| `moduleRepository.js` | `modules/` | Provider-independent Module repository contract |
+| `moduleService.js` | `modules/` | Module CRUD, lifecycle, versioning, code uniqueness |
+| `moduleSubmissionService.js` | `modules/` | Orchestrator: Module → validation → RecordService |
+| `demoModules.js` | `modules/` | ROOM_INSPECTION and VEHICLE_INSPECTION demo schemas |
+| `formSchemaValidator.js` | `modules/forms/` | Schema validation, form values validation, entity ref extraction |
+| `fieldRegistry.js` | `modules/forms/` | Deterministic field type → React component mapping |
+| `FormRenderer.jsx` | `modules/forms/` | Generic schema-driven Form Renderer |
+| `displayFormatter.js` | `modules/forms/` | Canonical value → human display formatting |
+| `fields/*.jsx` | `modules/forms/fields/` | 12 field components + FieldWrapper + UnsupportedField |
+
+**Shared field system:** `FIELD_TYPES` in `core/data/entityType.js` is extended with form-oriented types (textarea, email, phone, url, datetime). Entity Type validation uses the `ENTITY_FIELD_TYPES` subset. Form Schema validation uses the full set.
+
+**Runtime flow:**
+```
+Module Definition → Form Schema → FormRenderer → User Input → validateFormValues()
+→ extractEntityReferences() → ModuleSubmissionService → RecordService → Canonical Record
+```
+
+**Module storage:** `workspaces/{workspaceId}/modules/{moduleId}`
+
+See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 

@@ -13,7 +13,7 @@ const mainLinks = [
   { label: 'Dashboard', to: '/app', exact: true },
   { label: 'Entity Types', to: '/app/entity-types' },
   { label: 'Entities', to: '/app/entities' },
-  { label: 'My Modules', to: '/app/modules', disabled: true },
+  { label: 'My Modules', to: '/app/modules' },
   { label: 'List', to: '/app/list', disabled: true },
   { label: 'Ledger', to: '/app/ledger', disabled: true },
   { label: 'Widgets', to: '/app/widgets', disabled: true },

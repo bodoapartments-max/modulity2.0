@@ -22,6 +22,12 @@ const GroupsPage = lazy(() => import('../../features/groups/ui/GroupsPage.jsx'))
 const EntityTypesPage = lazy(() => import('../../features/entities/ui/EntityTypesPage.jsx'));
 const EntitiesPage = lazy(() => import('../../features/entities/ui/EntitiesPage.jsx'));
 const EntityDetailPage = lazy(() => import('../../features/entities/ui/EntityDetailPage.jsx'));
+const ModulesPage = lazy(() => import('../../features/modules/ui/ModulesPage.jsx'));
+const CreateModulePage = lazy(() => import('../../features/modules/ui/CreateModulePage.jsx'));
+const ModuleDetailPage = lazy(() => import('../../features/modules/ui/ModuleDetailPage.jsx'));
+const EditModulePage = lazy(() => import('../../features/modules/ui/EditModulePage.jsx'));
+const ModuleFormPage = lazy(() => import('../../features/modules/ui/ModuleFormPage.jsx'));
+const RecordDetailPage = lazy(() => import('../../features/records/ui/RecordDetailPage.jsx'));
 
 function PageLoader() {
   return (
@@ -54,6 +60,12 @@ function AppShell() {
               <Route path="entity-types" element={<EntityTypesPage />} />
               <Route path="entities" element={<EntitiesPage />} />
               <Route path="entities/:entityId" element={<EntityDetailPage />} />
+              <Route path="modules" element={<ModulesPage />} />
+              <Route path="modules/new" element={<CreateModulePage />} />
+              <Route path="modules/:moduleId" element={<ModuleDetailPage />} />
+              <Route path="modules/:moduleId/edit" element={<EditModulePage />} />
+              <Route path="modules/:moduleId/form" element={<ModuleFormPage />} />
+              <Route path="records/:recordId" element={<RecordDetailPage />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>
           </Suspense>

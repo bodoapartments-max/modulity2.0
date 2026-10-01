@@ -348,3 +348,56 @@ Chat is a platform capability, not part of the Record model. Messages may refere
 - Limit / current usage
 
 See `BILLING_MODEL.md` for details.
+
+---
+
+## Module Definition (Step 4)
+
+Path: `workspaces/{workspaceId}/modules/{moduleId}`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `moduleId` | string | Immutable. Internal identifier. |
+| `workspaceId` | string | Immutable. Workspace ownership. |
+| `moduleCode` | string | Immutable. Stable human/developer-facing code (e.g. `ROOM_INSPECTION`). Unique within workspace. |
+| `name` | string | Human-readable display name. Mutable. |
+| `description` | string | Optional. |
+| `category` | string | Organizational metadata (e.g. "Operations", "HR"). |
+| `status` | string | `DRAFT` / `ACTIVE` / `INACTIVE` / `ARCHIVED` |
+| `version` | number | Integer. Incremented on ACTIVE schema changes. |
+| `formSchema` | object | `{ schemaVersion, fields[] }` — ordered field definitions. |
+| `recordConfig` | object | `{ recordType }` — derived from moduleCode by default. |
+| `displayConfig` | object | `{ primaryField, listFields }` — presentation metadata. |
+| `primaryEntityTypeId` | string? | Entity Type this module primarily works with. |
+| `createdBy` | ActorRef | Immutable. |
+| `createdAt` | string | Immutable. |
+| `updatedAt` | string | Auto-updated. |
+
+### Form Schema
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "fields": [
+    {
+      "key": "room",
+      "label": "Room",
+      "type": "entity-reference",
+      "required": true,
+      "entityTypeId": "ROOM"
+    }
+  ]
+}
+```
+
+Field types use the shared `FIELD_TYPES` from `core/data/entityType.js`. Entity Types use the `ENTITY_FIELD_TYPES` subset; Form Schemas use the full set.
+
+### Module → Record Relationship
+
+Records created from a Module include:
+- `moduleId` — which Module created this Record
+- `moduleVersion` (via the Module's `version` at creation time)
+- `recordType` — from `recordConfig.recordType`
+- `data` — validated form values
+- `entityReferences` — canonical references extracted from form values
+- `entityReferenceIds` — derived query index
