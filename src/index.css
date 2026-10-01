@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply text-neutral-900 bg-neutral-50 antialiased;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body {
+    @apply min-h-screen;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}

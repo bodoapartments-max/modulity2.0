@@ -1,0 +1,204 @@
+# Modulity 2.0 — Event Model
+
+This document defines the event-driven foundation of Modulity 2.0. Events decouple producers from consumers and enable notifications, widgets, reports, agents and future automation.
+
+---
+
+## 1. Golden Rule
+
+Core subsystems produce events. Consumers react to events.
+
+The Core does not depend on consumers. Consumers depend on the event contract.
+
+A full workflow engine is intentionally out of scope for Step 0.
+
+---
+
+## 2. Event Envelope
+
+Every event has the following envelope:
+
+```json
+{
+  "eventId": "evt:<uuid>",
+  "eventType": "record.created",
+  "schemaVersion": "1.0.0",
+  "organizationId": "org:<uuid>",
+  "workspaceId": "org:<uuid>",
+  "timestamp": "2026-10-01T12:00:00.000Z",
+  "correlationId": "corr:<uuid>",
+  "causationId": "evt:<uuid-or-null>",
+  "actor": {
+    "type": "user",
+    "id": "usr:<uuid>"
+  },
+  "payload": {/* event-specific data */},
+  "metadata": {
+    "clientVersion": "...",
+    "source": "web"
+  }
+}
+```
+
+### Envelope Fields
+
+- `eventId` — immutable unique event ID
+- `eventType` — namespaced event type
+- `schemaVersion` — version of the event schema
+- `organizationId` — scope of the event
+- `timestamp` — server-authoritative UTC timestamp
+- `correlationId` — groups related events
+- `causationId` — references the event that caused this one
+- `actor` — user or service identity that triggered the event
+- `payload` — event-specific data
+- `metadata` — optional client/runtime metadata
+
+---
+
+## 3. Event Naming
+
+Use dot-namespaced lowercase event types:
+
+```
+<domain>.<resource>.<action>
+```
+
+Examples:
+
+- `record.created`
+- `record.updated`
+- `record.sent`
+- `record.viewed`
+- `record.submitted`
+- `record.approved`
+- `record.rejected`
+- `record.cancelled`
+- `record.archived`
+- `entity.created`
+- `entity.updated`
+- `entity.deleted`
+- `assignment.created`
+- `assignment.changed`
+- `assignment.removed`
+- `membership.created`
+- `membership.updated`
+- `membership.removed`
+- `ledger.book.opened`
+- `ledger.book.closed`
+- `ledger.sequence.allocated`
+- `share.created`
+- `share.revoked`
+- `widget.updated`
+- `report.generated`
+- `notification.delivered`
+- `entitlement.exceeded`
+
+---
+
+## 4. Core Event Types (v1)
+
+### Record Events
+
+| Event Type              | Payload Summary                                       |
+| ----------------------- | ----------------------------------------------------- |
+| `record.created`        | `recordId`, `moduleCode`, `creatorId`                 |
+| `record.updated`        | `recordId`, `changedFields`, `oldValues`, `newValues` |
+| `record.status.changed` | `recordId`, `oldStatus`, `newStatus`, `actorId`       |
+| `record.sent`           | `recordId`, `recipientId`, `shareType`                |
+| `record.viewed`         | `recordId`, `viewerId`                                |
+| `record.submitted`      | `recordId`, `submitterId`                             |
+| `record.approved`       | `recordId`, `approverId`                              |
+| `record.rejected`       | `recordId`, `rejecterId`, `reason`                    |
+| `record.cancelled`      | `recordId`, `reason`                                  |
+| `record.archived`       | `recordId`                                            |
+
+### Entity Events
+
+| Event Type       | Payload Summary                       |
+| ---------------- | ------------------------------------- |
+| `entity.created` | `entityId`, `entityType`, `creatorId` |
+| `entity.updated` | `entityId`, `changedFields`           |
+| `entity.deleted` | `entityId`                            |
+
+### Assignment Events
+
+| Event Type           | Payload Summary                                        |
+| -------------------- | ------------------------------------------------------ |
+| `assignment.created` | `assignmentId`, `targetType`, `targetId`, `assigneeId` |
+| `assignment.changed` | `assignmentId`, `oldAssigneeId`, `newAssigneeId`       |
+| `assignment.removed` | `assignmentId`, `reason`                               |
+
+### Ledger Events
+
+| Event Type                  | Payload Summary                             |
+| --------------------------- | ------------------------------------------- |
+| `ledger.book.opened`        | `bookId`, `moduleCode`, `allocationSize`    |
+| `ledger.book.closed`        | `bookId`, `lastSequenceNumber`              |
+| `ledger.sequence.allocated` | `sequenceId`, `recordId`, `referenceNumber` |
+
+### Membership & Workspace Events
+
+| Event Type             | Payload Summary                                    |
+| ---------------------- | -------------------------------------------------- |
+| `membership.created`   | `membershipId`, `userId`, `organizationId`, `role` |
+| `membership.updated`   | `membershipId`, `changedFields`                    |
+| `membership.removed`   | `membershipId`, `reason`                           |
+| `organization.created` | `organizationId`, `createdByUserId`                |
+
+### Sharing Events
+
+| Event Type      | Payload Summary                                  |
+| --------------- | ------------------------------------------------ |
+| `share.created` | `shareId`, `targetType`, `targetId`, `shareType` |
+| `share.revoked` | `shareId`                                        |
+
+---
+
+## 5. Event Consumers
+
+Consumers may include:
+
+- Notifications
+- Widgets
+- Reports
+- Agents
+- Audit log
+- Future Automations
+- Webhooks
+- Analytics
+
+Consumers must:
+
+- Validate the event envelope and schema version before processing.
+- Be idempotent if they produce side effects.
+- Handle unknown event types gracefully (ignore or log).
+
+---
+
+## 6. Event Bus
+
+The event bus:
+
+- Accepts events from Core subsystems.
+- Persists events durably.
+- Routes events to registered consumers.
+- Supports replay within a retention window.
+
+In early implementations the event bus may be synchronous within the same process. The contract remains the same for later distribution.
+
+---
+
+## 7. Idempotency & Ordering
+
+- Event consumers should be idempotent.
+- Ordering within a single `correlationId` is preserved when possible.
+- Global ordering is not guaranteed across unrelated events.
+- Causality is captured via `causationId`.
+
+---
+
+## 8. Schema Versioning
+
+- Event schemas are versioned independently of module versions.
+- Backward-compatible additions do not require a new major version.
+- Breaking changes require a new event type or schema version and a migration strategy.

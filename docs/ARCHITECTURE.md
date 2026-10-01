@@ -1,0 +1,204 @@
+# Modulity 2.0 — Architecture Overview
+
+This document describes the high-level structure, subsystem boundaries, and dependency direction of Modulity 2.0.
+
+---
+
+## 1. High-Level Layers
+
+```
+┌─────────────────────────────────────────────┐
+│  app/                                       │
+│  Shell, routing, auth context, entry point   │
+└──────────────┬──────────────────────────────┘
+               │ uses
+┌──────────────▼──────────────────────────────┐
+│  features/                                  │
+│  listview, folders, sharing, widgets, ...   │
+│  Each feature: ui/ + model.js               │
+└──────────────┬──────────────────────────────┘
+               │ uses
+┌──────────────▼──────────────────────────────┐
+│  modules/                                   │
+│  contracts, registry, runtime, forms, views │
+└──────────────┬──────────────────────────────┘
+               │ uses
+┌──────────────▼──────────────────────────────┐
+│  core/                                      │
+│  identity, workspace, membership, entities, │
+│  records, relationships, permissions,       │
+│  assignments, ledger, events, files,       │
+│  entitlements                               │
+└──────────────┬──────────────────────────────┘
+               │ uses
+┌──────────────▼──────────────────────────────┐
+│  integrations/                              │
+│  api, webhooks, billing adapters            │
+└──────────────┬──────────────────────────────┘
+               │ uses
+┌──────────────▼──────────────────────────────┐
+│  infrastructure/                            │
+│  firebase, persistence, config                │
+└─────────────────────────────────────────────┘
+
+Cross-cutting: design-system/ (used by app, features, modules)
+```
+
+---
+
+## 2. Dependency Direction
+
+- **Dependencies point inward.**
+- `app/` depends on `features/`, `modules/`, `design-system/`, `infrastructure/`.
+- `features/` depend on `modules/` and `core/`.
+- `modules/` depend on `core/` contracts.
+- `core/` depends only on `infrastructure/` abstractions, never on features or modules.
+- `integrations/` expose Core capabilities to the outside world.
+- `design-system/` has no business logic and depends on nothing.
+
+A lower layer never imports from a higher layer. Circular dependencies are forbidden.
+
+---
+
+## 3. Subsystem Responsibilities
+
+### Core
+
+| Subsystem       | Responsibility                                                                |
+| --------------- | ----------------------------------------------------------------------------- |
+| `identity`      | User accounts, authentication, user profiles, service identities              |
+| `workspace`     | Organizations / workspaces, creation, branding, settings                      |
+| `membership`    | User ↔ Organization membership, roles, groups, status                         |
+| `entities`      | Core entity definitions and instances (Employee, Vehicle, Room, etc.)         |
+| `records`       | Canonical Record creation, reading, updating, lifecycle transitions           |
+| `relationships` | Links between Records and Entities / Domain Entities                          |
+| `permissions`   | Centralized authorization: roles, permissions, module access, entitlements    |
+| `assignments`   | Who is assigned to a Record, Entity or task                                   |
+| `ledger`        | Durable historical registration, ledger books, sequences, numbered form books |
+| `events`        | Event bus, event contracts, event persistence                                 |
+| `files`         | File upload, storage metadata, attachments                                    |
+| `entitlements`  | Capability checks derived from plans / subscriptions                          |
+
+### Modules
+
+| Subsystem   | Responsibility                                                      |
+| ----------- | ------------------------------------------------------------------- |
+| `contracts` | Versioned Module Contract definitions                               |
+| `registry`  | Registration and discovery of modules in a workspace                |
+| `runtime`   | Module execution: form rendering, lifecycle transitions, validation |
+| `forms`     | Schema-driven form field components and renderer                    |
+| `views`     | ListView, TableView, DetailView, LedgerView projections             |
+
+### Agents
+
+| Subsystem      | Responsibility                                                       |
+| -------------- | -------------------------------------------------------------------- |
+| `contracts`    | Agent contract definitions (input/output, capabilities, validation)  |
+| `registry`     | Discover and register agents                                         |
+| `orchestrator` | Coordinate specialist agents without giving them direct state access |
+| `providers`    | Adapters for LLM/provider APIs                                       |
+
+### Features
+
+| Subsystem       | Responsibility                                               |
+| --------------- | ------------------------------------------------------------ |
+| `listview`      | Reusable Record List Engine                                  |
+| `folders`       | User and workspace folders for organizing Records            |
+| `favorites`     | Personal lightweight favorites                               |
+| `sharing`       | Share Records/forms via user, member, group, email, link, QR |
+| `notifications` | Notification delivery based on events                        |
+| `chat`          | User/group/organization messaging                            |
+| `widgets`       | Configuration-driven dashboard widgets                       |
+| `reports`       | Configuration-driven multi-module reports                    |
+| `worksets`      | Module packs / context-aware toolsets                        |
+
+### Integrations
+
+| Subsystem  | Responsibility                                  |
+| ---------- | ----------------------------------------------- |
+| `api`      | External API surface for agents and partners    |
+| `webhooks` | Outbound event delivery                         |
+| `billing`  | Billing provider adapters and subscription sync |
+
+### Infrastructure
+
+| Subsystem     | Responsibility                                                   |
+| ------------- | ---------------------------------------------------------------- |
+| `firebase`    | Firebase-specific adapters (auth, Firestore, Storage, Functions) |
+| `persistence` | Persistence abstractions and query helpers                       |
+| `config`      | Environment-based configuration                                  |
+
+### Design System
+
+Reusable, tokenized UI primitives. No business logic. Used by all higher layers.
+
+---
+
+## 4. Communication Between Subsystems
+
+- **Synchronous, in-process** calls use typed functions with explicit contracts.
+- **Asynchronous, decoupled** communication uses the `events` subsystem with versioned event envelopes.
+- **External** communication uses the `integrations/api` surface.
+
+No subsystem may reach into another subsystem's internal implementation. Use the documented contract.
+
+---
+
+## 5. Replaceability
+
+Every subsystem with an external dependency must expose an interface/contract so the implementation can be swapped:
+
+- Auth provider adapter in `identity`
+- Persistence adapter in `persistence`
+- File storage adapter in `files`
+- Billing provider adapter in `integrations/billing`
+- Agent provider adapter in `agents/providers`
+
+Changing a provider must never require rewriting Core business logic.
+
+---
+
+## 6. Canonical Data Projections
+
+The same Record data is presented in multiple ways:
+
+- Form View
+- List View
+- Table View
+- Detail View
+- Ledger View
+- Widget
+- Report
+
+These are read-only projections of the canonical Record. No view owns the Record. No view duplicates authoritative fields.
+
+---
+
+## 7. Event-Driven Foundation
+
+Core subsystems emit events such as:
+
+- `record.created`
+- `record.sent`
+- `record.viewed`
+- `record.submitted`
+- `entity.created`
+- `assignment.changed`
+- `ledger.book.closed`
+
+Consumers (notifications, widgets, reports, agents, future automation) react to the same events. The Core does not depend on consumers.
+
+A full workflow engine is intentionally out of scope for Step 0.
+
+---
+
+## 8. Performance Strategy
+
+- Route-level lazy loading in `app/`.
+- Module-level lazy loading for module runtime components.
+- Server-side / query filtering for lists and tables.
+- Pagination and cursor-based infinite scroll.
+- Limited real-time subscriptions scoped to the current view.
+- Indexed queries for common filters.
+- Optimistic UI only where safe and rollback is possible.
+- No loading of entire organization datasets on startup.
