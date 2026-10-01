@@ -158,6 +158,38 @@ Key changes:
 - **Firestore Rules**: version snapshots (no update, no delete), code reservations (no update, no delete), Record provenance fields (`moduleId`, `moduleVersion`, `recordType`) immutable on update.
 - **Trust boundary**: Browser validation is UX. ModuleSubmissionService is deterministic business validation. Firestore Rules are storage authorization. Rules cannot reproduce arbitrary schema validation — documented as trusted-submission limitation.
 
+## Step 5 — Record Operations & Collaboration Engine
+
+Step 5 added six focused services for Record-level operations:
+
+| Service | Location | Responsibility |
+|---------|----------|---------------|
+| `RecordQueryService` | `src/core/data/recordQueryService.js` | Paginated queries, bucket views (ALL, OWN, STARRED, SENT, RECEIVED, ARCHIVED) |
+| `RecordOperationService` | `src/core/data/recordOperationService.js` | Priority, archive/unarchive, bulk ops |
+| `RecordDeliveryService` | `src/core/data/recordDeliveryService.js` | Record sharing/sending, delivery lifecycle |
+| `RecordFolderService` | `src/core/data/recordFolderService.js` | Folders, folder items, starred state |
+| `FormRequestService` | `src/core/data/formRequestService.js` | Form request creation, atomic completion |
+| `SecureShareService` | `src/core/data/secureShareService.js` | Token generation/hashing, redemption |
+
+New domain models: `recordQuery.js`, `delivery.js`, `formRequest.js`, `folder.js`, `userRecordState.js`, `secureShare.js`.
+
+## Step 5.1 — Transaction, Idempotency & Concurrency Hardening
+
+Step 5.1 hardened atomicity and concurrency before Step 6 Ledger/Audit:
+
+| Invariant | How |
+|-----------|-----|
+| ONE FormRequest = ONE Record | Deterministic ID `req_{requestId}` + Firestore `runTransaction` |
+| Exact Module Version | `getVersionSnapshot()` not current Module |
+| Submitted data immutable | Firestore Rules freeze `data`/`entityReferences`/`entityReferenceIds` after DRAFT |
+| Share redemption safe | Firestore `runTransaction` for atomic count check+increment |
+| Recipients validated | Active membership check for org workspaces, owner check for personal |
+| Pagination stable | `documentId()` tie-breaker ordering |
+| `sourceRequestId` | Immutable Record ↔ FormRequest link |
+| Archive provenance | `archivedAt` + `archivedBy` for future Ledger |
+
+**Trusted submission limitation:** Completion runs as client-side Firestore transaction. Firestore Rules provide defense-in-depth (immutability, workspace isolation, actor validation) but cannot reproduce arbitrary schema validation. Full trusted-submission enforcement deferred to Cloud Function (Step 6+).
+
 ## Step 2 Architecture Notes
 
 - **Workspace** is the central operating context. All future modules/records operate within a workspace.

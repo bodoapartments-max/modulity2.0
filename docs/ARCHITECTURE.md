@@ -94,6 +94,22 @@ The Record Operations layer is organized into focused, independently testable se
 
 **Central Invariant:** ONE BUSINESS SUBMISSION = ONE CANONICAL RECORD. Everything else is a view, relationship, delivery, assignment, organization mechanism, or projection around that Record.
 
+### Step 5.1 — Transaction, Idempotency & Concurrency Hardening
+
+Hardening applied before Step 6 Ledger/Audit can depend on these services:
+
+| Invariant | Implementation |
+|-----------|---------------|
+| ONE FormRequest = AT MOST ONE Record | Deterministic Record ID (`req_{requestId}`) + Firestore `runTransaction` for atomic completion |
+| Completion uses exact locked Module Version | `getVersionSnapshot(moduleId, moduleVersion)` loads immutable snapshot, not current Module |
+| Submitted business data is immutable | Firestore Rules: `data`, `entityReferences`, `entityReferenceIds` frozen after DRAFT status |
+| Share token redemption concurrency-safe | Firestore `runTransaction` for atomic redemption count check + increment |
+| Recipients must be active members | Application-layer membership validation for deliveries and form requests |
+| Pagination is stable | Explicit `documentId()` tie-breaker ordering prevents duplicates/skips |
+| sourceRequestId links Record to FormRequest | Immutable provenance field on Record (null for normal, requestId for completed requests) |
+| Archive has provenance | `archivedAt` (server timestamp) + `archivedBy` (ActorRef) for Ledger |
+| SENT/RECEIVED/STARRED are real queries | Two-step bounded resolution via collaboration collections, not UI labels over ALL |
+
 ### Modules
 
 | Subsystem   | Responsibility                                                      |

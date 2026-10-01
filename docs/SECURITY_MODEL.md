@@ -392,6 +392,34 @@ All new workspace-scoped collections enforce:
 
 **User Record State** has the strictest isolation: users can only read/write their own starred state. Cross-user state leakage is prevented at the Firestore Security Rules level.
 
+### Step 5.1 — Transaction & Immutability Hardening
+
+**Record Submitted-Data Immutability (Firestore Rules):**
+- DRAFT records: `data`, `entityReferences`, `entityReferenceIds` may be updated.
+- SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED records: `data`, `entityReferences`, `entityReferenceIds` are immutable. Only operational metadata (`status`, `priority`, `archivedAt`, `archivedBy`, `_previousStatus`, `_updatedAt`) may change.
+- `sourceRequestId` and `submittedBy` are always immutable after creation.
+- A write changing `priority` + `data` simultaneously is denied.
+
+**FormRequest Completion Security:**
+- `resultRecordId` is immutable once set (non-null). A client cannot point a completed request at an arbitrary Record.
+- `requestId`, `moduleId`, `moduleVersion`, `requester`, `recipientUserId`, `_createdAt` are always immutable.
+- Completion uses a Firestore `runTransaction` to atomically create the Record and update the request — never two separate writes.
+- Deterministic Record ID (`req_{requestId}`) prevents duplicate Records from retries.
+
+**Share Token Redemption Security:**
+- Redemption uses a Firestore `runTransaction` for atomic check + increment of `redemptionCount`.
+- `redeemedByUserId` corresponds to `request.auth.uid` — callers cannot redeem on behalf of another user.
+- Expiration and revocation checked inside the transaction boundary, not before.
+
+**Recipient Membership Validation:**
+- Delivery and FormRequest creation validate that the recipient is an ACTIVE member of the Organization Workspace.
+- Personal Workspace recipients must be the workspace owner.
+- Suspended, LEFT, or non-member recipients are rejected at the application service layer.
+
+**Trusted Submission Limitation:**
+- FormRequest completion currently runs client-side Firestore transactions. While the transaction ensures atomicity and the deterministic ID prevents duplicates, a sophisticated client could theoretically construct a transaction with manipulated data. Full trusted-submission enforcement requires a Cloud Function or server boundary (deferred for Step 6+).
+- The Firestore Rules provide defense-in-depth: sourceRequestId immutability, resultRecordId immutability once set, and submitted data freezing.
+
 ---
 
 ## 13. API Security

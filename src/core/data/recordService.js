@@ -134,6 +134,8 @@ export function createRecordService({ recordRepo, entityRepo }) {
     delete safeChanges.moduleId;
     delete safeChanges.moduleVersion;
     delete safeChanges.recordType;
+    // Source request provenance is immutable
+    delete safeChanges.sourceRequestId;
 
     // Re-validate entity references if changed
     if (safeChanges.entityReferences !== undefined) {

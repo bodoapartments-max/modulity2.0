@@ -2,6 +2,32 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## [Step 5.1] — Transaction, Idempotency & Concurrency Hardening
+
+### Fixed
+- **FormRequest Atomic Completion** — Completion now uses a Firestore `runTransaction` to atomically create the Record AND mark the request COMPLETED. Previously these were separate writes that could leave orphan duplicates on network failure.
+- **FormRequest Idempotency** — Deterministic Record ID (`req_{requestId}`) ensures at most ONE Record per FormRequest. Retrying a completed request returns the existing result instead of creating a duplicate.
+- **Exact Module Version Validation** — Completion now loads the immutable Module Version SNAPSHOT (`getVersionSnapshot`) instead of the current Module document. If request locks v2 but Module is now v5, validation and recordType provenance use v2.
+- **SecureShare Redemption Concurrency** — Token redemption uses a Firestore `runTransaction` for atomic check-and-increment of redemptionCount. Two concurrent redemptions against maxRedemptions=1 result in exactly one success.
+- **Submitted Record Data Immutability** — Firestore Rules now enforce that `data`, `entityReferences`, and `entityReferenceIds` are immutable on SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED records. DRAFT records remain freely editable.
+- **ARCHIVED Query Normalization** — ARCHIVED bucket now forces `status: 'ARCHIVED'` regardless of any conflicting status filter, preventing incompatible dual constraints.
+- **Pagination Cursor Stability** — Added explicit `documentId()` tie-breaker ordering to prevent duplicates/skips when Records share identical sort-field timestamps.
+
+### Added
+- **sourceRequestId** — New immutable provenance field on Record. Normal Records: null. Records from FormRequest completion: the originating requestId. Links Record ↔ FormRequest deterministically.
+- **Archive Provenance** — `archivedAt` (server-authoritative timestamp) and `archivedBy` (canonical ActorRef) written when archiving, cleared on unarchive. Ready for Step 6 Ledger/Audit.
+- **Recipient Membership Validation** — Both RecordDeliveryService and FormRequestService now verify the recipient is an ACTIVE member of the Organization Workspace (or the owner for Personal Workspaces). Suspended/LEFT/non-member recipients are rejected.
+- **Date Range Filters** — `createdFrom` and `createdTo` implemented end-to-end: RecordQuery domain, Firestore repository (server-side `_createdAt` Timestamp filtering), and client-side filtering for collaboration bucket results.
+- **resultRecordId Immutability** — Once set on a FormRequest, `resultRecordId` cannot be changed via Firestore Rules. Prevents pointing a completed request at an arbitrary Record.
+- **Legacy Query Bounding** — `listByWorkspace()`, `listByStatus()`, `listByEntityRef()`, and `queryRecords()` now enforce an internal hard cap of 500 results. Browse operations should use `paginatedQuery()`.
+- **Unit Tests** — formRequestService, secureShareService, recordOperationService, recordDeliveryService, recordQueryService service-level tests (idempotency, concurrency, membership validation, provenance, bucket semantics)
+- **Emulator Security Tests** — Submitted Record data/entityReferences/sourceRequestId immutability, priority-only update allowed, priority+data denied, DRAFT data update allowed, archive-only update allowed, FormRequest resultRecordId immutability
+
+### Architecture
+- FormRequest completion no longer depends on RecordService. It builds the Record domain object directly and writes via `completeRequestAtomic` Firestore transaction.
+- SecureShare redemption no longer uses read-then-update. Uses `redeemTokenAtomic` Firestore transaction.
+- Services receive `membershipRepo` and `workspaceRepo` for recipient validation at the application layer (not just UI checks).
+
 ## [Step 5] — Record Operations & Collaboration Engine
 
 ### Added

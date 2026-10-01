@@ -2763,7 +2763,229 @@ describe('workspaces/{wsId}/shareTokens/{tokenId}', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 26. DENY BY DEFAULT
+// 26. STEP 5.1 — SUBMITTED RECORD IMMUTABILITY
+// ═══════════════════════════════════════════════════════
+
+describe('Step 5.1 — Submitted Record immutability', () => {
+  beforeEach(async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    // Seed a SUBMITTED record
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+        recordId: 'rec-sub', workspaceId: 'ws-p', recordType: 'INVOICE',
+        status: 'SUBMITTED', moduleId: 'mod-1', moduleVersion: 2,
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+        submittedBy: { actorType: 'USER', actorId: 'user1' },
+        data: { amount: 100, description: 'Test' },
+        entityReferences: [],
+        entityReferenceIds: [],
+        sourceRequestId: null,
+      });
+      // Seed a DRAFT record for comparison
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+        recordId: 'rec-draft', workspaceId: 'ws-p', recordType: 'INVOICE',
+        status: 'DRAFT', moduleId: 'mod-1', moduleVersion: 2,
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+        submittedBy: null,
+        data: { amount: 0 },
+        entityReferences: [],
+        entityReferenceIds: [],
+        sourceRequestId: null,
+      });
+    });
+  });
+
+  it('data mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      data: { amount: 999, description: 'Hacked' },
+    }));
+  });
+
+  it('entityReferences mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      entityReferences: [{ entityId: 'fake' }],
+    }));
+  });
+
+  it('entityReferenceIds mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      entityReferenceIds: ['fake-entity'],
+    }));
+  });
+
+  it('sourceRequestId mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      sourceRequestId: 'fake-request',
+    }));
+  });
+
+  it('submittedBy mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      submittedBy: { actorType: 'USER', actorId: 'hacker' },
+    }));
+  });
+
+  it('moduleId mutation denied', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      moduleId: 'mod-hacked',
+    }));
+  });
+
+  it('moduleVersion mutation denied', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      moduleVersion: 999,
+    }));
+  });
+
+  it('recordType mutation denied', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      recordType: 'HACKED',
+    }));
+  });
+
+  it('priority-only update allowed on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      priority: 'HIGH',
+    }));
+  });
+
+  it('status-only update allowed on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      status: 'ARCHIVED',
+    }));
+  });
+
+  it('priority + data mutation denied on SUBMITTED record', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      priority: 'HIGH',
+      data: { amount: 999 },
+    }));
+  });
+
+  it('archive-only update allowed (status + archivedAt + archivedBy)', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+      status: 'ARCHIVED',
+      archivedAt: new Date().toISOString(),
+      archivedBy: { actorType: 'USER', actorId: 'user1' },
+      _previousStatus: 'SUBMITTED',
+    }));
+  });
+
+  it('DRAFT record data update allowed', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+      data: { amount: 200, description: 'Updated draft' },
+    }));
+  });
+
+  it('DRAFT record entityReferences update allowed', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+      entityReferences: [{ entityId: 'ent-1', entityTypeId: 'type-1' }],
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 27. STEP 5.1 — FORM REQUEST COMPLETION RULES
+// ═══════════════════════════════════════════════════════
+
+describe('Step 5.1 — Form Request resultRecordId immutability', () => {
+  beforeEach(async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+  });
+
+  it('resultRecordId can be set when currently null', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod-1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user1', status: 'IN_PROGRESS', resultRecordId: null,
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      status: 'COMPLETED', resultRecordId: 'req_req1',
+    }));
+  });
+
+  it('resultRecordId cannot be changed once set', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod-1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user1', status: 'COMPLETED', resultRecordId: 'req_req1',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      resultRecordId: 'different-record',
+    }));
+  });
+
+  it('moduleId immutable on form request', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod-1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user1', status: 'IN_PROGRESS', resultRecordId: null,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      moduleId: 'mod-hacked',
+    }));
+  });
+
+  it('moduleVersion immutable on form request', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod-1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user1', status: 'IN_PROGRESS', resultRecordId: null,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      moduleVersion: 999,
+    }));
+  });
+
+  it('recipientUserId immutable on form request', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+        requestId: 'req1', workspaceId: 'ws-p', moduleId: 'mod-1', moduleVersion: 1,
+        requester: { actorType: 'USER', actorId: 'user1' },
+        recipientUserId: 'user1', status: 'IN_PROGRESS', resultRecordId: null,
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'formRequests', 'req1'), {
+      recipientUserId: 'hacked-user',
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 28. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

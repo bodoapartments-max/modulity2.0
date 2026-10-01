@@ -8,10 +8,16 @@
  *
  * Submitted Record mutability policy:
  *   - Module provenance (moduleId, moduleVersion, recordType) is ALWAYS immutable.
+ *   - sourceRequestId is ALWAYS immutable.
  *   - DRAFT records: data freely editable via RecordService.updateDraftRecord.
  *   - SUBMITTED/ACTIVE records: only status, priority, and operational metadata
  *     can be changed. Business data (record.data) is frozen after submission.
  *   - COMPLETED/CANCELLED/ARCHIVED: only status transitions allowed.
+ *
+ * Archive provenance:
+ *   - archivedAt: server-authoritative timestamp when archiving.
+ *   - archivedBy: canonical ActorRef of the user who archived.
+ *   - Both are written at archive time and cleared on unarchive.
  *
  * @module core/data/recordOperationService
  */
@@ -56,6 +62,8 @@ export function createRecordOperationService({ recordRepo }) {
   /**
    * Archives a Record. Preserves the Record and its historical provenance.
    * Any non-archived Record can be archived. Archive is reversible via unarchive.
+   *
+   * Archive provenance (archivedAt, archivedBy) is written for future Ledger/Audit.
    */
   async function archiveRecord(workspaceId, recordId, actor) {
     const existing = await recordRepo.getById(workspaceId, recordId);
@@ -66,9 +74,12 @@ export function createRecordOperationService({ recordRepo }) {
       return existing; // Idempotent
     }
 
+    const now = new Date().toISOString();
     const updated = await recordRepo.update(workspaceId, recordId, {
       status: RECORD_STATUSES.ARCHIVED,
       _previousStatus: existing.status,
+      archivedAt: now,
+      archivedBy: { actorType: actor.actorType, actorId: actor.actorId },
     });
 
     eventBus.emit(createEvent({
@@ -83,6 +94,7 @@ export function createRecordOperationService({ recordRepo }) {
 
   /**
    * Unarchives a Record. Restores to previous status if available.
+   * Clears archive provenance fields.
    */
   async function unarchiveRecord(workspaceId, recordId, actor) {
     const existing = await recordRepo.getById(workspaceId, recordId);
@@ -97,6 +109,8 @@ export function createRecordOperationService({ recordRepo }) {
     const updated = await recordRepo.update(workspaceId, recordId, {
       status: restoredStatus,
       _previousStatus: null,
+      archivedAt: null,
+      archivedBy: null,
     });
 
     eventBus.emit(createEvent({

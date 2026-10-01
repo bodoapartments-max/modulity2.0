@@ -55,6 +55,8 @@ function createServices() {
   const deliverySvc = createRecordDeliveryService({
     deliveryRepo: repositories.deliveries,
     recordRepo: repositories.records,
+    membershipRepo: repositories.memberships,
+    workspaceRepo: repositories.workspaces,
   });
 
   const folderSvc = createRecordFolderService({
@@ -65,7 +67,8 @@ function createServices() {
   const formRequestSvc = createFormRequestService({
     formRequestRepo: repositories.formRequests,
     moduleRepo: repositories.modules,
-    recordService: recordSvc,
+    membershipRepo: repositories.memberships,
+    workspaceRepo: repositories.workspaces,
   });
 
   const secureShareSvc = createSecureShareService({

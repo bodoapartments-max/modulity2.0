@@ -42,6 +42,7 @@ export const RECORD_PRIORITIES = Object.freeze({
  * @property {string[]} entityReferenceIds — derived from entityReferences for array-contains queries (index only)
  * @property {string[]} attachments       — file IDs
  * @property {string[]} createdEntityIds  — entity IDs created from this record
+ * @property {string|null} sourceRequestId — FormRequest that produced this Record (null for normal submissions, immutable)
  * @property {string} schemaVersion
  * @property {string} createdAt
  * @property {string} updatedAt
@@ -69,6 +70,7 @@ export function createRecord({
   entityReferenceIds = [],
   attachments = [],
   createdEntityIds = [],
+  sourceRequestId = null,
   schemaVersion = '1.0.0',
   createdAt,
   updatedAt,
@@ -111,6 +113,7 @@ export function createRecord({
     entityReferenceIds: Object.freeze([...entityReferenceIds]),
     attachments: Object.freeze([...attachments]),
     createdEntityIds: Object.freeze([...createdEntityIds]),
+    sourceRequestId,
     schemaVersion,
     createdAt: createdAt || new Date().toISOString(),
     updatedAt: updatedAt || new Date().toISOString(),

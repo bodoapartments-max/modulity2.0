@@ -108,6 +108,16 @@ describe('record', () => {
     expect(record.entityReferenceIds).toEqual([]);
   });
 
+  it('defaults sourceRequestId to null', () => {
+    const record = createRecord(baseArgs);
+    expect(record.sourceRequestId).toBeNull();
+  });
+
+  it('stores sourceRequestId when provided', () => {
+    const record = createRecord({ ...baseArgs, sourceRequestId: 'req-123' });
+    expect(record.sourceRequestId).toBe('req-123');
+  });
+
   it('returns a frozen result', () => {
     const record = createRecord(baseArgs);
     expect(Object.isFrozen(record)).toBe(true);

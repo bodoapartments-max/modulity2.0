@@ -7,11 +7,22 @@
  * This is SEPARATE from RecordService to avoid monolith.
  * RecordService = CRUD + lifecycle. RecordQueryService = read-only queries.
  *
+ * BUCKET QUERY SEMANTICS (Step 5.1):
+ *   - ALL, OWN, ARCHIVED: resolved directly via records collection (Firestore)
+ *   - STARRED: resolved via userRecordStateRepo → bounded fetch of starred Records
+ *   - SENT: resolved via deliveryRepo.listBySender → bounded fetch of sent Records
+ *   - RECEIVED: resolved via deliveryRepo.listByRecipient → bounded fetch of received Records
+ *
+ * These are REAL query semantics, not UI labels over ALL records.
+ *
  * @module core/data/recordQueryService
  */
 
 import { createRecordQuery, RECORD_BUCKETS, createPaginatedResult } from './recordQuery.js';
 import { AppError } from '../errors/appError.js';
+
+/** Max Records to resolve from collaboration bucket two-step queries. */
+const COLLABORATION_BUCKET_LIMIT = 200;
 
 /**
  * @param {Object} deps
@@ -60,6 +71,7 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
 
   /**
    * Queries starred records via user record state.
+   * Two-step bounded query: get starred IDs, then fetch Records.
    */
   async function queryStarredRecords(query) {
     if (!query.userId) {
@@ -74,18 +86,18 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
     if (starredIds.length === 0) {
       return createPaginatedResult([], null, false);
     }
-    // Fetch actual records for the starred IDs
+    // Bound the resolution to prevent loading an unbounded set
+    const boundedIds = starredIds.slice(0, COLLABORATION_BUCKET_LIMIT);
     const records = await Promise.all(
-      starredIds.map((id) => recordRepo.getById(query.workspaceId, id)),
+      boundedIds.map((id) => recordRepo.getById(query.workspaceId, id)),
     );
-    const filtered = records.filter(Boolean);
-    // Apply additional filters client-side for starred
-    const result = applyClientFilters(filtered, query);
-    return createPaginatedResult(result, null, false);
+    const filtered = applyClientFilters(records.filter(Boolean), query);
+    return createPaginatedResult(filtered, null, filtered.length >= COLLABORATION_BUCKET_LIMIT);
   }
 
   /**
-   * Queries sent deliveries.
+   * Queries records sent by the user.
+   * Two-step bounded query: get sent delivery recordIds, then fetch Records.
    */
   async function querySentRecords(query) {
     if (!query.userId) {
@@ -95,7 +107,7 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
       return createPaginatedResult([], null, false);
     }
     const deliveries = await deliveryRepo.listBySender(query.workspaceId, query.userId);
-    const recordIds = [...new Set(deliveries.map((d) => d.recordId))];
+    const recordIds = [...new Set(deliveries.map((d) => d.recordId))].slice(0, COLLABORATION_BUCKET_LIMIT);
     if (recordIds.length === 0) {
       return createPaginatedResult([], null, false);
     }
@@ -103,11 +115,12 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
       recordIds.map((id) => recordRepo.getById(query.workspaceId, id)),
     );
     const result = applyClientFilters(records.filter(Boolean), query);
-    return createPaginatedResult(result, null, false);
+    return createPaginatedResult(result, null, result.length >= COLLABORATION_BUCKET_LIMIT);
   }
 
   /**
-   * Queries received deliveries.
+   * Queries records received by the user.
+   * Two-step bounded query: get received delivery recordIds, then fetch Records.
    */
   async function queryReceivedRecords(query) {
     if (!query.userId) {
@@ -117,7 +130,7 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
       return createPaginatedResult([], null, false);
     }
     const deliveries = await deliveryRepo.listByRecipient(query.workspaceId, query.userId);
-    const recordIds = [...new Set(deliveries.map((d) => d.recordId))];
+    const recordIds = [...new Set(deliveries.map((d) => d.recordId))].slice(0, COLLABORATION_BUCKET_LIMIT);
     if (recordIds.length === 0) {
       return createPaginatedResult([], null, false);
     }
@@ -125,7 +138,7 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
       recordIds.map((id) => recordRepo.getById(query.workspaceId, id)),
     );
     const result = applyClientFilters(records.filter(Boolean), query);
-    return createPaginatedResult(result, null, false);
+    return createPaginatedResult(result, null, result.length >= COLLABORATION_BUCKET_LIMIT);
   }
 
   /**
@@ -139,15 +152,13 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
     if (query.bucket === RECORD_BUCKETS.OWN && query.userId) {
       filters.createdByUserId = query.userId;
     }
-    if (query.bucket === RECORD_BUCKETS.ARCHIVED) {
-      filters.status = 'ARCHIVED';
-    }
     return filters;
   }
 
   /**
-   * Client-side filters for collaboration buckets where server query
-   * already narrowed results by recordId.
+   * Client-side filters for collaboration buckets where the server query
+   * already narrowed results by recordId. Also handles date range filtering
+   * for collaboration bucket results.
    */
   function applyClientFilters(records, query) {
     let result = [...records];
@@ -162,6 +173,15 @@ export function createRecordQueryService({ recordRepo, deliveryRepo = null, user
     }
     if (query.recordType) {
       result = result.filter((r) => r.recordType === query.recordType);
+    }
+    // Date range filters for collaboration bucket results
+    if (query.createdFrom) {
+      const fromDate = new Date(query.createdFrom);
+      result = result.filter((r) => r.createdAt && new Date(r.createdAt) >= fromDate);
+    }
+    if (query.createdTo) {
+      const toDate = new Date(query.createdTo);
+      result = result.filter((r) => r.createdAt && new Date(r.createdAt) <= toDate);
     }
     // Sort
     result.sort((a, b) => {

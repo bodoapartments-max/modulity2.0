@@ -7,7 +7,8 @@
  *   - QR codes NEVER contain sensitive Record business data.
  *   - Only the SHA-256 hash of the token is stored in Firestore.
  *   - The plaintext token is returned once to the creator and never stored.
- *   - Redemption requires a trusted boundary (deferred for public sharing).
+ *   - Redemption uses a Firestore transaction for concurrency safety.
+ *   - redeemedByUserId is derived from the authenticated caller, never client-provided.
  *   - External/public QR redemption cannot be claimed secure without a backend.
  *
  * @module core/data/secureShareService
@@ -20,7 +21,7 @@ import { AppError } from '../errors/appError.js';
 
 /**
  * @param {Object} deps
- * @param {Object} deps.shareTokenRepo
+ * @param {Object} deps.shareTokenRepo — must implement redeemTokenAtomic(workspaceId, tokenId, userId)
  * @param {Object} deps.recordRepo
  */
 export function createSecureShareService({ shareTokenRepo, recordRepo }) {
@@ -104,53 +105,53 @@ export function createSecureShareService({ shareTokenRepo, recordRepo }) {
   /**
    * Redeems a share token.
    *
+   * CONCURRENCY-SAFE: Uses a Firestore transaction via shareTokenRepo.redeemTokenAtomic()
+   * to atomically check limits and increment redemptionCount. Two concurrent
+   * redemptions against maxRedemptions=1 will result in exactly one success.
+   *
+   * IDENTITY: userId is the authenticated caller (request.auth.uid).
+   * The caller CANNOT provide an arbitrary userId — it must correspond
+   * to their actual identity at the security boundary.
+   *
    * NOTE: Full public/anonymous redemption requires a trusted backend boundary.
    * This implementation handles authenticated-user redemption only.
-   * Public QR redemption is DEFERRED and NOT claimed to be secure.
    */
   async function redeemToken(workspaceId, plaintextToken, userId) {
+    if (!userId) {
+      throw new AppError('forbidden', 'Authenticated user identity is required for redemption');
+    }
+
     const tokenHash = await hashShareToken(plaintextToken);
     const token = await shareTokenRepo.getByHash(workspaceId, tokenHash);
     if (!token) {
       throw new AppError('not_found', 'Invalid or expired share token');
     }
 
-    if (token.status !== SHARE_TOKEN_STATUSES.ACTIVE) {
-      throw new AppError('forbidden', 'Token is no longer active');
+    // Delegate to transactional atomic redemption
+    try {
+      const result = await shareTokenRepo.redeemTokenAtomic(workspaceId, token.tokenId, userId);
+
+      eventBus.emit(createEvent({
+        eventType: 'share.redeemed',
+        workspaceId,
+        actor: { type: 'user', id: userId },
+        payload: { tokenId: token.tokenId, recordId: result.recordId, scope: result.scope },
+      }));
+
+      return result;
+    } catch (err) {
+      // Map transaction errors to AppError
+      if (err.message.includes('expired')) {
+        throw new AppError('forbidden', 'Token has expired');
+      }
+      if (err.message.includes('limit reached')) {
+        throw new AppError('forbidden', 'Token redemption limit reached');
+      }
+      if (err.message.includes('no longer active')) {
+        throw new AppError('forbidden', 'Token is no longer active');
+      }
+      throw err;
     }
-
-    // Check expiration
-    if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
-      await shareTokenRepo.update(workspaceId, token.tokenId, {
-        status: SHARE_TOKEN_STATUSES.EXPIRED,
-        updatedAt: new Date().toISOString(),
-      });
-      throw new AppError('forbidden', 'Token has expired');
-    }
-
-    // Check redemption limit
-    if (token.maxRedemptions > 0 && token.redemptionCount >= token.maxRedemptions) {
-      throw new AppError('forbidden', 'Token redemption limit reached');
-    }
-
-    // Update redemption count
-    const updated = await shareTokenRepo.update(workspaceId, token.tokenId, {
-      redemptionCount: token.redemptionCount + 1,
-      redeemedByUserId: userId,
-      status: (token.maxRedemptions > 0 && token.redemptionCount + 1 >= token.maxRedemptions)
-        ? SHARE_TOKEN_STATUSES.REDEEMED
-        : SHARE_TOKEN_STATUSES.ACTIVE,
-      updatedAt: new Date().toISOString(),
-    });
-
-    eventBus.emit(createEvent({
-      eventType: 'share.redeemed',
-      workspaceId,
-      actor: { type: 'user', id: userId },
-      payload: { tokenId: token.tokenId, recordId: token.recordId, scope: token.scope },
-    }));
-
-    return { token: updated, recordId: token.recordId, scope: token.scope };
   }
 
   /**

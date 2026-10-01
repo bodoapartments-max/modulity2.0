@@ -8,6 +8,11 @@
  *   - FormRequestService (asks someone to CREATE a new Record)
  *   - Assignment (assigns responsibility for work on a Record)
  *
+ * RECIPIENT VALIDATION:
+ *   - For Organization Workspaces, the recipient must be an ACTIVE member.
+ *   - Suspended, LEFT, or non-member recipients are rejected.
+ *   - For Personal Workspaces, the recipient must be the owner.
+ *
  * @module core/data/recordDeliveryService
  */
 
@@ -20,10 +25,36 @@ import { AppError } from '../errors/appError.js';
  * @param {Object} deps
  * @param {Object} deps.deliveryRepo
  * @param {Object} deps.recordRepo
+ * @param {Object} [deps.membershipRepo] — for org workspace recipient validation
+ * @param {Object} [deps.workspaceRepo] — for workspace type resolution
  */
-export function createRecordDeliveryService({ deliveryRepo, recordRepo }) {
+export function createRecordDeliveryService({ deliveryRepo, recordRepo, membershipRepo = null, workspaceRepo = null }) {
+  /**
+   * Validates that a recipient is an active member of the workspace.
+   */
+  async function validateRecipientMembership(workspaceId, recipientUserId) {
+    if (!workspaceRepo || !membershipRepo) return;
+
+    const ws = await workspaceRepo.getById(workspaceId);
+    if (!ws) {
+      throw new AppError('not_found', 'Workspace not found');
+    }
+
+    if (ws.type === 'PERSONAL') {
+      if (ws.ownerUserId !== recipientUserId) {
+        throw new AppError('forbidden', 'Recipient must be the workspace owner for personal workspaces');
+      }
+    } else if (ws.type === 'ORGANIZATION') {
+      const member = await membershipRepo.getByOrgAndUser(ws.organizationId, recipientUserId);
+      if (!member || member.status !== 'ACTIVE') {
+        throw new AppError('forbidden', 'Recipient must be an active member of the organization');
+      }
+    }
+  }
+
   /**
    * Sends/shares a Record with a recipient.
+   * Validates recipient membership before creating the delivery.
    */
   async function sendRecord({
     workspaceId,
@@ -44,6 +75,9 @@ export function createRecordDeliveryService({ deliveryRepo, recordRepo }) {
     if (sender.actorId === recipientUserId) {
       throw new AppError('validation_error', 'Cannot send a record to yourself');
     }
+
+    // Validate recipient is an active member
+    await validateRecipientMembership(workspaceId, recipientUserId);
 
     const delivery = createDelivery({
       deliveryId: generateId(),

@@ -66,6 +66,38 @@ describe('recordQuery', () => {
     const q = createRecordQuery(base);
     expect(Object.isFrozen(q)).toBe(true);
   });
+
+  it('accepts createdFrom and createdTo', () => {
+    const q = createRecordQuery({
+      ...base,
+      createdFrom: '2025-01-01T00:00:00Z',
+      createdTo: '2025-12-31T23:59:59Z',
+    });
+    expect(q.createdFrom).toBe('2025-01-01T00:00:00Z');
+    expect(q.createdTo).toBe('2025-12-31T23:59:59Z');
+  });
+
+  it('defaults createdFrom and createdTo to null', () => {
+    const q = createRecordQuery(base);
+    expect(q.createdFrom).toBeNull();
+    expect(q.createdTo).toBeNull();
+  });
+
+  it('normalizes ARCHIVED bucket to force status ARCHIVED', () => {
+    const q = createRecordQuery({ ...base, bucket: 'ARCHIVED', status: 'ACTIVE' });
+    expect(q.bucket).toBe('ARCHIVED');
+    expect(q.status).toBe('ARCHIVED');
+  });
+
+  it('ARCHIVED bucket without explicit status still sets status to ARCHIVED', () => {
+    const q = createRecordQuery({ ...base, bucket: 'ARCHIVED' });
+    expect(q.status).toBe('ARCHIVED');
+  });
+
+  it('non-ARCHIVED bucket preserves original status filter', () => {
+    const q = createRecordQuery({ ...base, bucket: 'ALL', status: 'SUBMITTED' });
+    expect(q.status).toBe('SUBMITTED');
+  });
 });
 
 describe('createPaginatedResult', () => {

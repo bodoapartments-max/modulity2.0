@@ -434,11 +434,16 @@ Records created from a Module include:
 - `moduleId` — which Module created this Record (immutable after creation)
 - `moduleVersion` — exact Module version used when the Record was created (immutable after creation, positive integer)
 - `recordType` — from `recordConfig.recordType` (immutable after creation)
-- `data` — validated form values
-- `entityReferences` — canonical references extracted from form values
-- `entityReferenceIds` — derived query index
+- `data` — validated form values (immutable after submission)
+- `entityReferences` — canonical references extracted from form values (immutable after submission)
+- `entityReferenceIds` — derived query index (immutable after submission)
+- `sourceRequestId` — FormRequest that produced this Record (null for normal submissions, immutable). Added in Step 5.1.
+- `archivedAt` — server-authoritative timestamp when archived (null when not archived). Added in Step 5.1.
+- `archivedBy` — canonical ActorRef who archived the Record (null when not archived). Added in Step 5.1.
 
 The authoritative historical interpretation key is: `workspaceId` + `moduleId` + `moduleVersion`. Do NOT use the current Module schema, module name, or recordType alone to determine historical form structure.
+
+**Step 5.1 Immutability Policy:** DRAFT records allow data/entityReferences editing. After submission (SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED), `data`, `entityReferences`, `entityReferenceIds`, `submittedBy`, and `sourceRequestId` are frozen at both the Firestore Rules and application service layers. Only operational metadata (`status`, `priority`, `archivedAt`, `archivedBy`, `_previousStatus`) may change.
 
 ## Record Operations & Collaboration (Step 5)
 

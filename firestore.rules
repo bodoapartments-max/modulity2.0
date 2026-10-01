@@ -242,6 +242,14 @@ service cloud.firestore {
 
       // ─── Records ─────────────────────────────────────────
       // Path: workspaces/{workspaceId}/records/{recordId}
+      //
+      // IMMUTABILITY POLICY (Step 5.1):
+      //   ALWAYS immutable: workspaceId, recordId, createdBy, createdAt, _createdAt,
+      //     moduleId, moduleVersion, recordType, sourceRequestId, submittedBy
+      //   DRAFT records: data/entityReferences may be updated (via RecordService).
+      //   SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED records:
+      //     data, entityReferences, entityReferenceIds are frozen.
+      //     Only operational fields may change: status, priority, _previousStatus, archivedAt, archivedBy.
 
       match /records/{recordId} {
         allow read: if isAuthenticated()
@@ -266,8 +274,10 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Module provenance fields are immutable: moduleId, moduleVersion, recordType
+        // Update: provenance + sourceRequestId always immutable.
+        // SUBMITTED+ records: data/entityReferences/submittedBy also immutable.
         allow update: if isAuthenticated()
+          // Always-immutable provenance fields
           && fieldUnchanged('workspaceId')
           && fieldUnchanged('recordId')
           && fieldUnchanged('createdBy')
@@ -276,6 +286,19 @@ service cloud.firestore {
           && fieldUnchanged('moduleId')
           && fieldUnchanged('moduleVersion')
           && fieldUnchanged('recordType')
+          && fieldUnchanged('sourceRequestId')
+          && fieldUnchanged('submittedBy')
+          // Submitted Record business data immutability:
+          // If status is not DRAFT, data/entityReferences/entityReferenceIds are frozen.
+          && (
+            resource.data.status == 'DRAFT'
+            || (
+              fieldUnchanged('data')
+              && fieldUnchanged('entityReferences')
+              && fieldUnchanged('entityReferenceIds')
+            )
+          )
+          // Workspace access
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -506,13 +529,22 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Update: immutable fields protected (moduleId, moduleVersion, requester, recipientUserId)
+        // Update: immutable fields protected.
+        // resultRecordId is immutable once set (prevents pointing at arbitrary Records).
+        // Completion must happen via atomic transaction (not client field manipulation).
         allow update: if isAuthenticated()
           && fieldUnchanged('workspaceId')
+          && fieldUnchanged('requestId')
           && fieldUnchanged('moduleId')
           && fieldUnchanged('moduleVersion')
           && fieldUnchanged('requester')
           && fieldUnchanged('recipientUserId')
+          && fieldUnchanged('_createdAt')
+          // resultRecordId: immutable once set (non-null)
+          && (
+            !(('resultRecordId' in resource.data) && resource.data.resultRecordId != null)
+            || fieldUnchanged('resultRecordId')
+          )
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)

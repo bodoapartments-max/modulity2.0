@@ -3,6 +3,11 @@
  *
  * Path: workspaces/{workspaceId}/records/{recordId}
  *
+ * Step 5.1 hardening:
+ *   - paginatedQuery: explicit documentId() tie-breaker for stable pagination
+ *   - Date filters: createdFrom / createdTo implemented server-side
+ *   - Legacy methods bounded with explicit limits
+ *
  * @module infrastructure/firebase/firestoreRecordRepository
  */
 
@@ -18,13 +23,18 @@ import {
   orderBy,
   limit as firestoreLimit,
   startAfter as firestoreStartAfter,
+  documentId,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 
 /**
  * @param {import('firebase/firestore').Firestore} db
  */
 export function createFirestoreRecordRepository(db) {
+  /** Internal hard cap for legacy unbounded methods. */
+  const LEGACY_QUERY_LIMIT = 500;
+
   function recordsCol(workspaceId) {
     return collection(db, 'workspaces', workspaceId, 'records');
   }
@@ -54,13 +64,23 @@ export function createFirestoreRecordRepository(db) {
     return mapFromFirestore(snap);
   }
 
+  /**
+   * Lists all records in a workspace.
+   * BOUNDED: returns at most LEGACY_QUERY_LIMIT records.
+   * For browse/list operations, prefer paginatedQuery().
+   */
   async function listByWorkspace(workspaceId) {
-    const snap = await getDocs(recordsCol(workspaceId));
+    const q = query(recordsCol(workspaceId), firestoreLimit(LEGACY_QUERY_LIMIT));
+    const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
   }
 
   async function listByStatus(workspaceId, status) {
-    const q = query(recordsCol(workspaceId), where('status', '==', status));
+    const q = query(
+      recordsCol(workspaceId),
+      where('status', '==', status),
+      firestoreLimit(LEGACY_QUERY_LIMIT),
+    );
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
   }
@@ -69,11 +89,17 @@ export function createFirestoreRecordRepository(db) {
     const q = query(
       recordsCol(workspaceId),
       where('entityReferenceIds', 'array-contains', entityId),
+      firestoreLimit(LEGACY_QUERY_LIMIT),
     );
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
   }
 
+  /**
+   * Legacy filter-based query.
+   * BOUNDED: returns at most LEGACY_QUERY_LIMIT records.
+   * For paginated browse, prefer paginatedQuery().
+   */
   async function queryRecords(workspaceId, filters = {}) {
     let q = recordsCol(workspaceId);
     if (filters.status) {
@@ -91,6 +117,7 @@ export function createFirestoreRecordRepository(db) {
     if (filters.createdByUserId) {
       q = query(q, where('createdBy.actorId', '==', filters.createdByUserId));
     }
+    q = query(q, firestoreLimit(LEGACY_QUERY_LIMIT));
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
   }
@@ -109,8 +136,9 @@ export function createFirestoreRecordRepository(db) {
   }
 
   /**
-   * Paginated query with sorting and filtering.
-   * Supports cursor-based pagination using Firestore startAfter.
+   * Paginated query with sorting, filtering, and date range.
+   * Uses explicit documentId() tie-breaker for deterministic pagination
+   * when multiple Records share identical sort-field values.
    *
    * @param {string} workspaceId
    * @param {import('../../core/data/recordQuery.js').RecordQueryParams} queryParams
@@ -119,7 +147,7 @@ export function createFirestoreRecordRepository(db) {
   async function paginatedQuery(workspaceId, queryParams) {
     const constraints = [];
 
-    // Status filter
+    // Status filter (already normalized for ARCHIVED bucket by domain layer)
     if (queryParams.status) {
       constraints.push(where('status', '==', queryParams.status));
     }
@@ -144,19 +172,26 @@ export function createFirestoreRecordRepository(db) {
       constraints.push(where('createdBy.actorId', '==', queryParams.userId));
     }
 
-    // ARCHIVED bucket — filter by status
-    if (queryParams.bucket === 'ARCHIVED') {
-      constraints.push(where('status', '==', 'ARCHIVED'));
+    // Date range filters — server-side using _createdAt Timestamp
+    if (queryParams.createdFrom) {
+      const fromDate = new Date(queryParams.createdFrom);
+      constraints.push(where('_createdAt', '>=', Timestamp.fromDate(fromDate)));
+    }
+    if (queryParams.createdTo) {
+      const toDate = new Date(queryParams.createdTo);
+      constraints.push(where('_createdAt', '<=', Timestamp.fromDate(toDate)));
     }
 
     // Sort — map sortField to Firestore field names
     const firestoreSortField = queryParams.sortField === 'createdAt' ? '_createdAt'
       : queryParams.sortField === 'updatedAt' ? '_updatedAt'
       : queryParams.sortField || '_createdAt';
-    constraints.push(orderBy(firestoreSortField, queryParams.sortDirection || 'desc'));
+    const direction = queryParams.sortDirection || 'desc';
+    constraints.push(orderBy(firestoreSortField, direction));
 
-    // Deterministic tie-breaker using document ID
-    // (Firestore naturally orders by doc ID within same sort value)
+    // Explicit deterministic tie-breaker using documentId()
+    // Ensures stable page boundaries when sort values are identical
+    constraints.push(orderBy(documentId(), direction));
 
     // Pagination cursor
     if (queryParams.startAfter) {

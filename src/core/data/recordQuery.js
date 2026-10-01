@@ -40,6 +40,8 @@ export const SORT_DIRECTIONS = Object.freeze({
  * @property {string|null} status — status filter
  * @property {string|null} priority — priority filter
  * @property {string|null} recordType — recordType filter
+ * @property {string|null} createdFrom — inclusive lower bound (ISO string)
+ * @property {string|null} createdTo — inclusive upper bound (ISO string)
  * @property {string} sortField — one of SORT_FIELDS (default: createdAt)
  * @property {string} sortDirection — one of SORT_DIRECTIONS (default: desc)
  * @property {*} startAfter — Firestore-compatible cursor for pagination (opaque)
@@ -48,6 +50,9 @@ export const SORT_DIRECTIONS = Object.freeze({
 
 /**
  * Creates a validated RecordQueryParams object.
+ *
+ * Normalizes ARCHIVED bucket: if bucket === ARCHIVED and status is separately
+ * set to something else, the ARCHIVED bucket takes precedence (status forced to ARCHIVED).
  *
  * @param {Object} params
  * @returns {RecordQueryParams}
@@ -60,6 +65,8 @@ export function createRecordQuery({
   status = null,
   priority = null,
   recordType = null,
+  createdFrom = null,
+  createdTo = null,
   sortField = SORT_FIELDS.CREATED_AT,
   sortDirection = SORT_DIRECTIONS.DESC,
   startAfter = null,
@@ -78,14 +85,20 @@ export function createRecordQuery({
   const parsedLimit = Number(limit);
   const clampedLimit = Math.max(1, Math.min(100, Number.isFinite(parsedLimit) ? parsedLimit : 25));
 
+  // ARCHIVED normalization: ARCHIVED bucket overrides any conflicting status filter
+  const resolvedBucket = bucket || RECORD_BUCKETS.ALL;
+  const resolvedStatus = resolvedBucket === RECORD_BUCKETS.ARCHIVED ? 'ARCHIVED' : status;
+
   return Object.freeze({
     workspaceId,
     userId,
     moduleId,
-    bucket: bucket || RECORD_BUCKETS.ALL,
-    status,
+    bucket: resolvedBucket,
+    status: resolvedStatus,
     priority,
     recordType,
+    createdFrom: createdFrom || null,
+    createdTo: createdTo || null,
     sortField: sortField || SORT_FIELDS.CREATED_AT,
     sortDirection: sortDirection || SORT_DIRECTIONS.DESC,
     startAfter,
