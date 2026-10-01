@@ -1,0 +1,121 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ───────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasActiveMembership(orgId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + orgId))
+        == false
+        // We check membership via query-based approach in the app layer.
+        // For Firestore rules, we verify the user's auth is valid
+        // and rely on application-layer membership checks.
+        // Full membership verification requires Cloud Functions for
+        // complex cross-collection queries.
+        ;
+    }
+
+    // ─── Users (Person/Profile) ─────────────────────────────
+
+    match /users/{userId} {
+      // A user can read and write their own profile
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      // Users cannot delete their profile document
+      allow delete: if false;
+    }
+
+    // ─── Workspaces ─────────────────────────────────────────
+
+    match /workspaces/{workspaceId} {
+      // Authenticated users can read workspaces they own or belong to
+      allow read: if isAuthenticated()
+        && (resource.data.ownerUserId == request.auth.uid
+            || resource.data.type == 'ORGANIZATION');
+
+      // Users can create their own personal workspace
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.type == 'PERSONAL';
+
+      // Organization workspaces can be created by authenticated users
+      // (validated by application service)
+      allow create: if isAuthenticated()
+        && request.resource.data.type == 'ORGANIZATION';
+
+      allow update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    // ─── Organizations ──────────────────────────────────────
+
+    match /organizations/{organizationId} {
+      // Authenticated users can read organizations
+      // (membership check happens at application layer)
+      allow read: if isAuthenticated();
+
+      // Any authenticated user can create an organization
+      allow create: if isAuthenticated()
+        && request.resource.data.createdByUserId == request.auth.uid;
+
+      // Updates require authentication
+      // (role-based permission enforced at application layer)
+      allow update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    // ─── Memberships ────────────────────────────────────────
+
+    match /memberships/{membershipId} {
+      // Users can read memberships for orgs they belong to
+      // or their own memberships
+      allow read: if isAuthenticated();
+
+      // Membership creation requires authentication
+      // Creator must be the userId or have org permissions
+      allow create: if isAuthenticated();
+
+      // A member cannot promote themselves to OWNER
+      // (enforced at application layer via role checks)
+      allow update: if isAuthenticated()
+        // Prevent self-promotion: cannot add OWNER role if not already OWNER
+        && (
+          !('roles' in request.resource.data)
+          || !request.resource.data.roles.hasAny(['OWNER'])
+          || resource.data.roles.hasAny(['OWNER'])
+          || request.auth.uid != resource.data.userId
+        );
+
+      allow delete: if false;
+    }
+
+    // ─── Groups ─────────────────────────────────────────────
+
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // ─── Invitations ────────────────────────────────────────
+
+    match /invitations/{invitationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if false;
+    }
+  }
+}

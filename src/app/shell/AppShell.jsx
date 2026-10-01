@@ -7,27 +7,24 @@
  * Mobile: fixed header + collapsible drawer sidebar.
  */
 
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './Header.jsx';
 import Sidebar from './Sidebar.jsx';
 import MobileDrawer from './MobileDrawer.jsx';
-import PageContainer from '../../design-system/components/PageContainer/PageContainer.jsx';
-import PageHeader from '../../design-system/components/PageHeader/PageHeader.jsx';
-import EmptyState from '../../design-system/components/EmptyState/EmptyState.jsx';
+import LoadingState from '../../design-system/components/LoadingState/LoadingState.jsx';
 
-function DashboardPlaceholder() {
+const DashboardPage = lazy(() => import('../../features/dashboard/ui/DashboardPage.jsx'));
+const CreateOrganizationPage = lazy(() => import('../../features/organization/ui/CreateOrganizationPage.jsx'));
+const OrganizationSettingsPage = lazy(() => import('../../features/organization/ui/OrganizationSettingsPage.jsx'));
+const PeoplePage = lazy(() => import('../../features/people/ui/PeoplePage.jsx'));
+const GroupsPage = lazy(() => import('../../features/groups/ui/GroupsPage.jsx'));
+
+function PageLoader() {
   return (
-    <PageContainer>
-      <PageHeader
-        title="Dashboard"
-        description="Your modular operations platform overview."
-      />
-      <EmptyState
-        title="Welcome to Modulity 2.0"
-        description="The dashboard is being prepared. Use the sidebar to navigate once features are available."
-      />
-    </PageContainer>
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <LoadingState message="Loading..." />
+    </div>
   );
 }
 
@@ -44,16 +41,20 @@ function AppShell() {
         </aside>
 
         <main className="flex-1 lg:pl-64">
-          <Routes>
-            <Route index element={<DashboardPlaceholder />} />
-            <Route path="*" element={<Navigate to="/app" replace />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route index element={<DashboardPage />} />
+              <Route path="create-organization" element={<CreateOrganizationPage />} />
+              <Route path="settings" element={<OrganizationSettingsPage />} />
+              <Route path="people" element={<PeoplePage />} />
+              <Route path="groups" element={<GroupsPage />} />
+              <Route path="*" element={<Navigate to="/app" replace />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
 
-      <MobileDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
-        <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
-      </MobileDrawer>
+      <MobileDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
     </div>
   );
 }

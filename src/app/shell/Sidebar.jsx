@@ -1,13 +1,15 @@
 /**
  * Sidebar
  *
- * Primary navigation sidebar. Future navigation items are shown as placeholders
- * because their features are not implemented in Step 1.
+ * Primary navigation sidebar. Shows workspace-aware navigation items.
+ * Organization-specific items (People, Groups, Settings) only appear
+ * when the current workspace is an Organization workspace.
  */
 
 import { NavLink } from 'react-router-dom';
+import { useWorkspace } from '../providers/WorkspaceProvider.jsx';
 
-const futureLinks = [
+const mainLinks = [
   { label: 'Dashboard', to: '/app', exact: true },
   { label: 'My Modules', to: '/app/modules', disabled: true },
   { label: 'List', to: '/app/list', disabled: true },
@@ -16,56 +18,73 @@ const futureLinks = [
   { label: 'Reports', to: '/app/reports', disabled: true },
 ];
 
+const orgLinks = [
+  { label: 'People', to: '/app/people' },
+  { label: 'Groups', to: '/app/groups' },
+  { label: 'Settings', to: '/app/settings' },
+];
+
+function SidebarLink({ link, onNavigate }) {
+  if (link.disabled) {
+    return (
+      <li>
+        <span
+          className="block rounded-md px-3 py-2 text-sm font-medium text-neutral-400"
+          aria-disabled="true"
+          title="Coming soon"
+        >
+          {link.label}
+        </span>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <NavLink
+        to={link.to}
+        end={link.exact}
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            isActive
+              ? 'bg-primary-50 text-primary-700'
+              : 'text-neutral-700 hover:bg-neutral-100'
+          }`
+        }
+      >
+        {link.label}
+      </NavLink>
+    </li>
+  );
+}
+
 function Sidebar({ onNavigate }) {
+  const { isOrganizationWorkspace } = useWorkspace();
+
   return (
     <nav className="flex h-full flex-col border-r border-neutral-200 bg-white px-3 py-4 lg:border-none">
       <div className="mb-4 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
         Menu
       </div>
       <ul className="space-y-1">
-        {futureLinks.map((link) => {
-          if (link.disabled) {
-            return (
-              <li key={link.to}>
-                <span
-                  className="block rounded-md px-3 py-2 text-sm font-medium text-neutral-400"
-                  aria-disabled="true"
-                  title="Coming soon"
-                >
-                  {link.label}
-                </span>
-              </li>
-            );
-          }
-
-          return (
-            <li key={link.to}>
-              <NavLink
-                to={link.to}
-                end={link.exact}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-neutral-700 hover:bg-neutral-100'
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            </li>
-          );
-        })}
+        {mainLinks.map((link) => (
+          <SidebarLink key={link.to} link={link} onNavigate={onNavigate} />
+        ))}
       </ul>
 
-      <div className="mt-auto px-3 py-4">
-        <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-3">
-          <p className="text-xs text-neutral-500">
-            Workspace and organization features are coming in a later step.
-          </p>
-        </div>
-      </div>
+      {isOrganizationWorkspace && (
+        <>
+          <div className="mb-4 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            Workspace
+          </div>
+          <ul className="space-y-1">
+            {orgLinks.map((link) => (
+              <SidebarLink key={link.to} link={link} onNavigate={onNavigate} />
+            ))}
+          </ul>
+        </>
+      )}
     </nav>
   );
 }

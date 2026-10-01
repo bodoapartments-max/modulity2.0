@@ -1,14 +1,16 @@
 /**
  * Header
  *
- * Authenticated application header. Contains placeholders for future workspace
- * switcher, notifications, chat, settings, and user menu.
+ * Authenticated application header. Contains workspace switcher,
+ * placeholder areas for notifications/chat, and user menu.
  */
 
 import { useAuth } from '../providers/AuthProvider.jsx';
+import { useWorkspace } from '../providers/WorkspaceProvider.jsx';
 import IconButton from '../../design-system/components/IconButton/IconButton.jsx';
 import Dropdown from '../../design-system/components/Dropdown/Dropdown.jsx';
 import { DropdownItem } from '../../design-system/components/Dropdown/Dropdown.jsx';
+import WorkspaceSwitcher from './WorkspaceSwitcher.jsx';
 
 function MenuIcon(props) {
   return (
@@ -20,6 +22,7 @@ function MenuIcon(props) {
 
 function Header({ onOpenMobileMenu }) {
   const { user, signOut } = useAuth();
+  const { currentWorkspace } = useWorkspace();
 
   const displayName = user?.displayName || user?.email || 'User';
 
@@ -42,10 +45,7 @@ function Header({ onOpenMobileMenu }) {
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
-        {/* Placeholders for future header items */}
-        <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Workspace switcher (coming soon)">
-          Workspace
-        </div>
+        <WorkspaceSwitcher />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
         <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Notifications (coming soon)">
           Notifications
@@ -69,7 +69,19 @@ function Header({ onOpenMobileMenu }) {
             </button>
           }
         >
-          <DropdownItem disabled>Settings (coming soon)</DropdownItem>
+          <DropdownItem onClick={() => window.location.hash = '#profile'} disabled>
+            Profile (coming soon)
+          </DropdownItem>
+          <DropdownItem
+            onClick={() => {
+              if (currentWorkspace?.organizationId) {
+                window.location.href = '/app/settings';
+              }
+            }}
+            disabled={!currentWorkspace?.organizationId}
+          >
+            {currentWorkspace?.organizationId ? 'Organization Settings' : 'Settings'}
+          </DropdownItem>
           <DropdownItem onClick={() => signOut()}>Sign out</DropdownItem>
         </Dropdown>
       </div>

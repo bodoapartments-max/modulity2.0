@@ -7,6 +7,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import config from '../config/config.js';
 
 function createFirebaseApp() {
@@ -19,18 +20,26 @@ function createFirebaseApp() {
 
   const app = initializeApp(config.firebase);
   const auth = getAuth(app);
+  const db = getFirestore(app);
 
   const emulatorHost = import.meta.env?.VITE_FIREBASE_AUTH_EMULATOR_HOST;
   if (emulatorHost && config.app.env === 'development') {
     connectAuthEmulator(auth, `http://${emulatorHost}`, { disableWarnings: true });
   }
 
-  return { app, auth };
+  const firestoreEmulatorHost = import.meta.env?.VITE_FIRESTORE_EMULATOR_HOST;
+  if (firestoreEmulatorHost && config.app.env === 'development') {
+    const [host, port] = firestoreEmulatorHost.split(':');
+    connectFirestoreEmulator(db, host, Number(port));
+  }
+
+  return { app, auth, db };
 }
 
 const firebase = createFirebaseApp();
 
 export const firebaseApp = firebase?.app ?? null;
 export const firebaseAuth = firebase?.auth ?? null;
+export const firebaseDb = firebase?.db ?? null;
 
 export default firebase;
