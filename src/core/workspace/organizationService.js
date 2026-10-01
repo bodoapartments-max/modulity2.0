@@ -1,11 +1,14 @@
 /**
  * Modulity 2.0 — Organization Application Service
  *
- * Handles organization creation as one logical operation:
+ * Handles organization creation as one atomic operation:
  *   1. Create Organization
  *   2. Create Organization Workspace
  *   3. Create OWNER Membership for creator
  *   4. Emit events
+ *
+ * Organization creation uses an atomic Firestore batch write to prevent
+ * partial state (e.g. organization without workspace or without owner).
  *
  * React-independent.
  */
@@ -21,12 +24,13 @@ import { eventBus, createEvent } from '../events/eventBus.js';
  * @param {import('./organizationRepository.js').OrganizationRepository} deps.organizationRepo
  * @param {import('./workspaceRepository.js').WorkspaceRepository} deps.workspaceRepo
  * @param {import('./membershipRepository.js').MembershipRepository} deps.membershipRepo
+ * @param {Function} deps.atomicBootstrap — createOrganizationAtomic(db, { organization, workspace, membership })
  * @returns {Object}
  */
-export function createOrganizationService({ organizationRepo, workspaceRepo, membershipRepo }) {
+export function createOrganizationService({ organizationRepo, workspaceRepo, membershipRepo, atomicBootstrap }) {
   /**
    * Creates an organization with its workspace and owner membership.
-   * This is one logical operation.
+   * Uses an atomic batch write — all three documents are created together or none.
    *
    * @param {Object} params
    * @param {string} params.name
@@ -39,7 +43,6 @@ export function createOrganizationService({ organizationRepo, workspaceRepo, mem
   async function createOrganizationWithWorkspace({ name, type, country, description = '', userId }) {
     const organizationId = generateId();
     const workspaceId = generateId();
-    const membershipId = generateId();
 
     const organization = createOrganization({
       organizationId,
@@ -59,18 +62,22 @@ export function createOrganizationService({ organizationRepo, workspaceRepo, mem
     });
 
     const membership = createMembership({
-      membershipId,
+      membershipId: `${organizationId}_${userId}`,
       organizationId,
       userId,
       status: MEMBERSHIP_STATUSES.ACTIVE,
       roles: [SYSTEM_ROLES.OWNER],
     });
 
-    const [createdOrg, createdWorkspace, createdMembership] = await Promise.all([
-      organizationRepo.create(organization),
-      workspaceRepo.create(workspace),
-      membershipRepo.create(membership),
-    ]);
+    if (atomicBootstrap) {
+      await atomicBootstrap({ organization, workspace, membership });
+    } else {
+      const [, , ] = await Promise.all([
+        organizationRepo.create(organization),
+        workspaceRepo.create(workspace),
+        membershipRepo.create(membership),
+      ]);
+    }
 
     const correlationId = `corr:${generateId()}`;
     const actor = { type: 'user', id: userId };
@@ -98,14 +105,14 @@ export function createOrganizationService({ organizationRepo, workspaceRepo, mem
       organizationId,
       workspaceId,
       actor,
-      payload: { membershipId, userId, role: SYSTEM_ROLES.OWNER },
+      payload: { membershipId: membership.membershipId, userId, role: SYSTEM_ROLES.OWNER },
       correlationId,
     }));
 
     return {
-      organization: createdOrg,
-      workspace: createdWorkspace,
-      membership: createdMembership,
+      organization,
+      workspace,
+      membership,
     };
   }
 

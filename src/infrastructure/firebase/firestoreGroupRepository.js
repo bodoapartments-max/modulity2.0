@@ -1,5 +1,11 @@
 /**
  * Modulity 2.0 — Firestore Group Repository
+ *
+ * Groups are stored as subcollections under organizations:
+ *   organizations/{organizationId}/groups/{groupId}
+ *
+ * This enables Firestore Security Rules to enforce organization-level
+ * access control using the parent organization path.
  */
 
 import {
@@ -10,19 +16,19 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  query,
-  where,
   serverTimestamp,
 } from 'firebase/firestore';
 import { createGroup } from '../../core/workspace/group.js';
-
-const COLLECTION = 'groups';
 
 /**
  * @param {import('firebase/firestore').Firestore} db
  * @returns {import('../../core/workspace/groupRepository.js').GroupRepository}
  */
 export function createFirestoreGroupRepository(db) {
+  function groupDocRef(organizationId, groupId) {
+    return doc(db, 'organizations', organizationId, 'groups', groupId);
+  }
+
   function toFirestore(group) {
     return {
       groupId: group.groupId,
@@ -46,7 +52,7 @@ export function createFirestoreGroupRepository(db) {
   }
 
   async function create(group) {
-    const ref = doc(db, COLLECTION, group.groupId);
+    const ref = groupDocRef(group.organizationId, group.groupId);
     await setDoc(ref, {
       ...toFirestore(group),
       _createdAt: serverTimestamp(),
@@ -55,24 +61,26 @@ export function createFirestoreGroupRepository(db) {
     return group;
   }
 
-  async function getById(groupId) {
-    const ref = doc(db, COLLECTION, groupId);
+  async function getById(groupId, organizationId) {
+    if (!organizationId) return null;
+    const ref = groupDocRef(organizationId, groupId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     return fromFirestore(snap.data());
   }
 
   async function getByOrganization(organizationId) {
-    const q = query(
-      collection(db, COLLECTION),
-      where('organizationId', '==', organizationId),
-    );
-    const snap = await getDocs(q);
+    const groupsCol = collection(db, 'organizations', organizationId, 'groups');
+    const snap = await getDocs(groupsCol);
     return snap.docs.map((d) => fromFirestore(d.data()));
   }
 
-  async function update(groupId, updates) {
-    const ref = doc(db, COLLECTION, groupId);
+  async function update(groupId, updates, organizationId) {
+    if (!organizationId && updates.organizationId) {
+      organizationId = updates.organizationId;
+    }
+    if (!organizationId) throw new Error('organizationId required for group update');
+    const ref = groupDocRef(organizationId, groupId);
     await updateDoc(ref, {
       ...updates,
       updatedAt: new Date().toISOString(),
@@ -82,8 +90,9 @@ export function createFirestoreGroupRepository(db) {
     return fromFirestore(snap.data());
   }
 
-  async function remove(groupId) {
-    const ref = doc(db, COLLECTION, groupId);
+  async function remove(groupId, organizationId) {
+    if (!organizationId) throw new Error('organizationId required for group deletion');
+    const ref = groupDocRef(organizationId, groupId);
     await deleteDoc(ref);
   }
 

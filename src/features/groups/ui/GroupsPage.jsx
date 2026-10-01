@@ -82,7 +82,7 @@ function GroupsPage() {
 
   const handleDelete = async (groupId) => {
     try {
-      await services.group.deleteGroup(groupId, user.userId, roles);
+      await services.group.deleteGroup(groupId, user.userId, roles, currentWorkspace.organizationId);
       await loadGroups();
     } catch (err) {
       setCreateError(err.message || 'Failed to delete group.');

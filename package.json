@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore \"npx vitest run --config vitest.rules.config.js\"",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.47.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.0.1",

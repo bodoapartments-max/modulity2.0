@@ -62,13 +62,16 @@ Supported organization types: `COMPANY`, `HOTEL`, `SCHOOL`, `THEATRE`, `ASSOCIAT
 
 ### Organization Creation Flow
 
-When a user creates an Organization, this happens as one logical operation:
+When a user creates an Organization, this happens as one **atomic batch write**:
 
 1. Create Organization document
 2. Create Organization Workspace document
-3. Create Membership with OWNER role for the creator
-4. Emit audit events
-5. Switch user into the new workspace
+3. Create Membership with OWNER role for the creator (subcollection)
+4. Create user membership index entry
+5. Emit audit events (after batch commits)
+6. Switch user into the new workspace
+
+All four Firestore writes happen in a single `writeBatch()` — either all succeed or none are written. This prevents orphaned organizations without workspaces or OWNER memberships.
 
 ---
 
@@ -127,16 +130,37 @@ The last selected workspace is persisted in localStorage but verified on load.
 
 ---
 
-## Firestore Collections
+## Firestore Data Architecture
 
-| Collection      | Document ID        | Key Fields                                    |
-| --------------- | ------------------ | --------------------------------------------- |
-| `users`         | userId             | displayName, email, phone, avatarUrl          |
-| `workspaces`    | workspaceId        | type, name, ownerUserId, organizationId       |
-| `organizations` | organizationId     | name, type, country, description, createdByUserId |
-| `memberships`   | membershipId       | organizationId, userId, status, roles         |
-| `groups`        | groupId            | organizationId, name, description             |
-| `invitations`   | invitationId       | organizationId, email, role, status, expiresAt |
+### Top-level Collections
+
+| Collection | Document ID | Key Fields |
+|---|---|---|
+| `users` | userId | displayName, email, phone, avatarUrl |
+| `workspaces` | workspaceId | type, name, ownerUserId, organizationId |
+| `organizations` | organizationId | name, type, country, description, createdByUserId |
+
+### Organization Subcollections
+
+All organization-scoped data is stored as subcollections under `organizations/{orgId}/`:
+
+| Subcollection | Document ID | Key Fields |
+|---|---|---|
+| `members` | userId | organizationId, userId, status, roles |
+| `groups` | groupId | organizationId, name, description |
+| `invitations` | invitationId | organizationId, email, role, status, expiresAt |
+
+### User Membership Index
+
+| Collection | Path | Purpose |
+|---|---|---|
+| `userMemberships` | `userMemberships/{userId}/orgs/{organizationId}` | Reverse index for "get all orgs for a user" lookups |
+
+The canonical membership data lives in `organizations/{orgId}/members/{userId}`. The `userMemberships` index is a lightweight copy for query efficiency, written atomically with the canonical doc.
+
+### Why Subcollections?
+
+The subcollection structure (`organizations/{orgId}/members/{userId}`) enables **deterministic Firestore Security Rule lookups**. Security Rules can verify membership via a single `exists()` or `get()` call using the document path — no queries needed. This is critical because Firestore Security Rules cannot perform queries.
 
 ---
 
@@ -152,6 +176,19 @@ Domain Models (core/workspace/*.js)
 Repository Contracts (core/workspace/*Repository.js)
  ↓
 Firestore Repositories (infrastructure/firebase/firestore*.js)
+ ↓
+Firestore Security Rules (firestore.rules)
 ```
 
-React components never call Firestore directly.
+React components never call Firestore directly. Security rules enforce authorization independently of the application layer.
+
+### Security Boundaries
+
+Authorization is enforced at **two layers**:
+
+1. **Application layer** (services): capability checks using `hasCapability(roles, capability)`
+2. **Database layer** (Firestore Security Rules): organization isolation, role verification, field protection
+
+Neither layer alone is sufficient. The application layer provides user-friendly error messages and prevents unnecessary network requests. The database layer prevents bypass via modified clients.
+
+See `docs/SECURITY_MODEL.md` for full details.

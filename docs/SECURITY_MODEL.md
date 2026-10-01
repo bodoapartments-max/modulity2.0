@@ -68,9 +68,89 @@ Every data query must be scoped to `organizationId` unless it is a global identi
 - Composite APIs never return data from multiple organizations in one response.
 - Admin features must still enforce explicit organization scoping.
 
+### Firestore Organization Isolation (Step 2.1)
+
+Organization-scoped data is stored as subcollections under `organizations/{organizationId}/`:
+
+- `members/{userId}` — membership documents
+- `groups/{groupId}` — group documents
+- `invitations/{invitationId}` — invitation documents
+
+This structure enables Firestore Security Rules to enforce organization isolation using the parent document path. A user from Organization A cannot read or modify Organization B data.
+
+**Membership Lookup Strategy:**
+
+Memberships use a deterministic path: `organizations/{orgId}/members/{userId}`. This allows Security Rules to verify membership via `exists()` and `get()` without queries:
+
+```
+function isActiveMember(orgId) {
+  return exists(.../organizations/$(orgId)/members/$(request.auth.uid))
+    && get(.../organizations/$(orgId)/members/$(request.auth.uid)).data.status == 'ACTIVE';
+}
+```
+
+A reverse index at `userMemberships/{userId}/orgs/{organizationId}` enables efficient "get all memberships for a user" lookups. The canonical membership data lives in the subcollection.
+
+### Future Collection Requirements
+
+**NO NEW WORKSPACE-SCOPED FIRESTORE COLLECTION MAY BE ADDED WITHOUT EXPLICIT SECURITY RULES AND CROSS-WORKSPACE NEGATIVE TESTS.**
+
+When adding any new collection that is scoped to an organization or workspace:
+
+1. Place it as a subcollection under `organizations/{orgId}/`
+2. Add read rules requiring `isActiveMember(orgId)`
+3. Add write rules requiring `isAdminOrOwner(orgId)` (or as appropriate)
+4. Add cross-organization negative tests in `tests/rules/`
+5. Document the collection in this file
+
 ---
 
-## 5. Service Identities & API Tokens
+## 5. Firestore Security Rules Architecture
+
+### Rule Patterns
+
+| Pattern | Implementation |
+|---|---|
+| `isActiveMember(orgId)` | Deterministic `exists()` + `get()` on `organizations/{orgId}/members/{uid}` |
+| `isAdminOrOwner(orgId)` | `isActiveMember` + `roles.hasAny(['ADMIN'])` or `roles.hasAny(['OWNER'])` |
+| `fieldUnchanged(field)` | Prevents modification of protected fields (type, ownerUserId, organizationId, userId, createdByUserId) |
+| Deny-by-default | Explicit `match /{document=**} { allow read, write: if false; }` catch-all |
+
+### Protected Operations
+
+| Operation | Required Authority |
+|---|---|
+| Read organization data | Active member |
+| Update organization profile | ADMIN or OWNER |
+| Add member (non-OWNER) | ADMIN or OWNER |
+| Change member roles | ADMIN or OWNER (no self-modification, no granting OWNER) |
+| Suspend member | ADMIN or OWNER |
+| Create/edit/delete group | ADMIN or OWNER |
+| Create invitation (non-OWNER role) | ADMIN or OWNER |
+| Read invitations | ADMIN or OWNER |
+
+### Trusted Server Operations (Deferred)
+
+The following operations require Cloud Functions or another trusted backend:
+
+| Operation | Reason |
+|---|---|
+| Ownership transfer | Prevents zero-owner state; needs transactional verification |
+| Invitation acceptance | Must verify token and create membership server-side |
+| Role escalation to OWNER | Only existing OWNERs should grant OWNER; currently blocked in rules |
+
+These are documented and deferred to Step 3. The current rules enforce the safest practical boundary: OWNER role cannot be granted via client writes (except during initial org bootstrap by the creator).
+
+### Event/Audit Boundary
+
+- The in-memory Event Bus is NOT durable audit history.
+- Platform Event != Durable Audit Record != Ledger Entry.
+- Client-emitted events are not authoritative security/audit evidence.
+- The future Audit/Ledger layer must use trusted persistent records.
+
+---
+
+## 7. Service Identities & API Tokens
 
 External agents and integrations use service identities.
 
@@ -81,7 +161,7 @@ External agents and integrations use service identities.
 
 ---
 
-## 6. Record & Entity Access
+## 8. Record & Entity Access
 
 A user can access a Record if:
 
@@ -99,7 +179,7 @@ Similar rules apply for update, approve, delete, etc.
 
 ---
 
-## 7. Input Validation
+## 9. Input Validation
 
 - All input is validated against schemas on the server.
 - Form data is validated by the Module Runtime using the module's form schema.
@@ -108,7 +188,7 @@ Similar rules apply for update, approve, delete, etc.
 
 ---
 
-## 8. Audit
+## 10. Audit
 
 Every security-relevant action produces an `AuditEvent`:
 
@@ -135,7 +215,7 @@ Audit events are append-only and include:
 
 ---
 
-## 9. Secrets Management
+## 11. Secrets Management
 
 - `.env.example` is committed with placeholder values.
 - `.env`, `.env.local`, provider credentials, payment keys, agent provider keys are never committed.
@@ -144,7 +224,7 @@ Audit events are append-only and include:
 
 ---
 
-## 10. Threat Mitigations
+## 12. Threat Mitigations
 
 | Threat                    | Mitigation                                     |
 | ------------------------- | ---------------------------------------------- |
@@ -158,7 +238,7 @@ Audit events are append-only and include:
 
 ---
 
-## 11. API Security
+## 13. API Security
 
 - All endpoints require authentication.
 - All endpoints validate `organizationId` against membership.

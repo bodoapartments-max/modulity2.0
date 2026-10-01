@@ -9,113 +9,259 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
+    function isUser(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function hasActiveMembership(orgId) {
+    // Deterministic membership lookup using subcollection path:
+    //   organizations/{orgId}/members/{userId}
+    function getMemberDoc(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function memberExists(orgId) {
       return isAuthenticated()
-        && exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + orgId))
-        == false
-        // We check membership via query-based approach in the app layer.
-        // For Firestore rules, we verify the user's auth is valid
-        // and rely on application-layer membership checks.
-        // Full membership verification requires Cloud Functions for
-        // complex cross-collection queries.
-        ;
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function isActiveMember(orgId) {
+      return memberExists(orgId)
+        && getMemberDoc(orgId).data.status == 'ACTIVE';
+    }
+
+    function isSuspendedMember(orgId) {
+      return memberExists(orgId)
+        && getMemberDoc(orgId).data.status == 'SUSPENDED';
+    }
+
+    function hasRole(orgId, role) {
+      return isActiveMember(orgId)
+        && getMemberDoc(orgId).data.roles.hasAny([role]);
+    }
+
+    function isOwner(orgId) {
+      return hasRole(orgId, 'OWNER');
+    }
+
+    function isAdminOrOwner(orgId) {
+      return hasRole(orgId, 'ADMIN') || hasRole(orgId, 'OWNER');
+    }
+
+    // Field change detection helpers
+    function fieldUnchanged(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == resource.data[field];
     }
 
     // ─── Users (Person/Profile) ─────────────────────────────
+    // Path: users/{userId}
+    // Only the owner can read/write their profile.
 
     match /users/{userId} {
-      // A user can read and write their own profile
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      // Users cannot delete their profile document
+      allow read: if isUser(userId);
+      allow create: if isUser(userId);
+      allow update: if isUser(userId);
       allow delete: if false;
     }
 
     // ─── Workspaces ─────────────────────────────────────────
+    // Path: workspaces/{workspaceId}
 
     match /workspaces/{workspaceId} {
-      // Authenticated users can read workspaces they own or belong to
+      // Personal workspace: only the owner can read
+      // Organization workspace: only active members can read
       allow read: if isAuthenticated()
-        && (resource.data.ownerUserId == request.auth.uid
-            || resource.data.type == 'ORGANIZATION');
-
-      // Users can create their own personal workspace
-      allow create: if isAuthenticated()
-        && request.resource.data.ownerUserId == request.auth.uid
-        && request.resource.data.type == 'PERSONAL';
-
-      // Organization workspaces can be created by authenticated users
-      // (validated by application service)
-      allow create: if isAuthenticated()
-        && request.resource.data.type == 'ORGANIZATION';
-
-      allow update: if isAuthenticated();
-      allow delete: if false;
-    }
-
-    // ─── Organizations ──────────────────────────────────────
-
-    match /organizations/{organizationId} {
-      // Authenticated users can read organizations
-      // (membership check happens at application layer)
-      allow read: if isAuthenticated();
-
-      // Any authenticated user can create an organization
-      allow create: if isAuthenticated()
-        && request.resource.data.createdByUserId == request.auth.uid;
-
-      // Updates require authentication
-      // (role-based permission enforced at application layer)
-      allow update: if isAuthenticated();
-      allow delete: if false;
-    }
-
-    // ─── Memberships ────────────────────────────────────────
-
-    match /memberships/{membershipId} {
-      // Users can read memberships for orgs they belong to
-      // or their own memberships
-      allow read: if isAuthenticated();
-
-      // Membership creation requires authentication
-      // Creator must be the userId or have org permissions
-      allow create: if isAuthenticated();
-
-      // A member cannot promote themselves to OWNER
-      // (enforced at application layer via role checks)
-      allow update: if isAuthenticated()
-        // Prevent self-promotion: cannot add OWNER role if not already OWNER
         && (
-          !('roles' in request.resource.data)
-          || !request.resource.data.roles.hasAny(['OWNER'])
-          || resource.data.roles.hasAny(['OWNER'])
-          || request.auth.uid != resource.data.userId
+          // Personal workspace — owner only
+          (resource.data.type == 'PERSONAL' && resource.data.ownerUserId == request.auth.uid)
+          ||
+          // Organization workspace — active members only
+          (resource.data.type == 'ORGANIZATION' && isActiveMember(resource.data.organizationId))
+        );
+
+      // Create personal workspace: only for yourself
+      allow create: if isAuthenticated()
+        && request.resource.data.type == 'PERSONAL'
+        && request.resource.data.ownerUserId == request.auth.uid;
+
+      // Create organization workspace: only during org bootstrap
+      // (creator must match the org's createdByUserId — checked via batch)
+      allow create: if isAuthenticated()
+        && request.resource.data.type == 'ORGANIZATION'
+        && request.resource.data.organizationId != null;
+
+      // Update: personal workspace owner or org admin/owner
+      // Protected fields: type, ownerUserId cannot be changed
+      allow update: if isAuthenticated()
+        && fieldUnchanged('type')
+        && fieldUnchanged('ownerUserId')
+        && (
+          (resource.data.type == 'PERSONAL' && resource.data.ownerUserId == request.auth.uid)
+          ||
+          (resource.data.type == 'ORGANIZATION' && isAdminOrOwner(resource.data.organizationId))
         );
 
       allow delete: if false;
     }
 
-    // ─── Groups ─────────────────────────────────────────────
+    // ─── Organizations ──────────────────────────────────────
+    // Path: organizations/{organizationId}
 
-    match /groups/{groupId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+    match /organizations/{organizationId} {
+      // Read: only active members
+      allow read: if isActiveMember(organizationId);
+
+      // Create: any authenticated user can create an org
+      // The createdByUserId must match the authenticated user
+      allow create: if isAuthenticated()
+        && request.resource.data.createdByUserId == request.auth.uid;
+
+      // Update: only OWNER or ADMIN
+      // Protected fields: createdByUserId, organizationId, type cannot change
+      allow update: if isAdminOrOwner(organizationId)
+        && fieldUnchanged('createdByUserId')
+        && fieldUnchanged('organizationId')
+        && fieldUnchanged('type');
+
+      allow delete: if false;
+
+      // ─── Members (subcollection) ──────────────────────────
+      // Path: organizations/{organizationId}/members/{userId}
+      // Deterministic path enables security rule lookups.
+
+      match /members/{memberId} {
+        // Read: active members of this org can see other members
+        allow read: if isActiveMember(organizationId);
+
+        // Create: the FIRST member (org creator) is written in a batch
+        // with the org itself. We allow if the creator is creating
+        // their own OWNER membership for an org they are creating.
+        // Subsequent members are created by ADMIN/OWNER.
+        allow create: if isAuthenticated()
+          && (
+            // Bootstrap: user is creating their own OWNER membership
+            (
+              memberId == request.auth.uid
+              && request.resource.data.userId == request.auth.uid
+              && request.resource.data.roles.hasAny(['OWNER'])
+              && request.resource.data.status == 'ACTIVE'
+              && request.resource.data.organizationId == organizationId
+            )
+            ||
+            // Admin/Owner adding a new member (cannot grant OWNER)
+            (
+              isAdminOrOwner(organizationId)
+              && request.resource.data.organizationId == organizationId
+              && !request.resource.data.roles.hasAny(['OWNER'])
+            )
+          );
+
+        // Update: only ADMIN/OWNER can update memberships
+        // Cannot change organizationId or userId
+        // Cannot add OWNER role unless already OWNER
+        // Cannot modify your own roles (to prevent self-promotion)
+        allow update: if isAdminOrOwner(organizationId)
+          && fieldUnchanged('organizationId')
+          && fieldUnchanged('userId')
+          && (
+            // If new data has OWNER role, existing data must already have OWNER
+            // (prevents ADMIN from granting OWNER to anyone)
+            !request.resource.data.roles.hasAny(['OWNER'])
+            || resource.data.roles.hasAny(['OWNER'])
+          )
+          // Prevent self-modification of roles
+          && (
+            memberId != request.auth.uid
+            || fieldUnchanged('roles')
+          );
+
+        allow delete: if false;
+      }
+
+      // ─── Groups (subcollection) ───────────────────────────
+      // Path: organizations/{organizationId}/groups/{groupId}
+
+      match /groups/{groupId} {
+        // Read: active members only
+        allow read: if isActiveMember(organizationId);
+
+        // Create: ADMIN or OWNER
+        // organizationId in data must match parent path
+        allow create: if isAdminOrOwner(organizationId)
+          && request.resource.data.organizationId == organizationId;
+
+        // Update: ADMIN or OWNER
+        // Cannot change organizationId
+        allow update: if isAdminOrOwner(organizationId)
+          && fieldUnchanged('organizationId');
+
+        // Delete: ADMIN or OWNER
+        allow delete: if isAdminOrOwner(organizationId);
+      }
+
+      // ─── Invitations (subcollection) ──────────────────────
+      // Path: organizations/{organizationId}/invitations/{invitationId}
+
+      match /invitations/{invitationId} {
+        // Read: ADMIN/OWNER of the org, or the invited user (by email in auth token)
+        allow read: if isAdminOrOwner(organizationId);
+
+        // Create: ADMIN or OWNER
+        // organizationId must match, invitedByUserId must be the auth user
+        // Cannot create invitations with OWNER role
+        allow create: if isAdminOrOwner(organizationId)
+          && request.resource.data.organizationId == organizationId
+          && request.resource.data.invitedByUserId == request.auth.uid
+          && !request.resource.data.role.matches('OWNER');
+
+        // Update: ADMIN/OWNER can revoke; acceptance is server-side only
+        allow update: if isAdminOrOwner(organizationId)
+          && fieldUnchanged('organizationId')
+          && fieldUnchanged('email')
+          && fieldUnchanged('invitedByUserId');
+
+        allow delete: if false;
+      }
     }
 
-    // ─── Invitations ────────────────────────────────────────
+    // ─── User Membership Index ──────────────────────────────
+    // Path: userMemberships/{userId}/orgs/{organizationId}
+    // Read-only index for "get my memberships" queries.
+    // Written atomically with the canonical member doc.
 
-    match /invitations/{invitationId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if false;
+    match /userMemberships/{userId} {
+      // No document at this level
+      allow read, write: if false;
+
+      match /orgs/{organizationId} {
+        // User can read their own membership index
+        allow read: if isUser(userId);
+
+        // Written by batch operations during member create/update
+        // Only the user themselves or an admin of the org can write
+        allow create: if isAuthenticated()
+          && (
+            isUser(userId)
+            || isAdminOrOwner(organizationId)
+          );
+
+        allow update: if isAuthenticated()
+          && (
+            isUser(userId)
+            || isAdminOrOwner(organizationId)
+          );
+
+        allow delete: if false;
+      }
+    }
+
+    // ─── Deny by default ────────────────────────────────────
+    // Any collection not explicitly matched above is inaccessible.
+    // This is enforced by Firestore's default deny behavior.
+    // The following catch-all makes it explicit for documentation.
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

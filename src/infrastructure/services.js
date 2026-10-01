@@ -6,10 +6,12 @@
  */
 
 import { repositories } from './repositories.js';
+import { firebaseDb } from './firebase/firebaseApp.js';
 import { createWorkspaceService } from '../core/workspace/workspaceService.js';
 import { createOrganizationService } from '../core/workspace/organizationService.js';
 import { createMembershipService } from '../core/workspace/membershipService.js';
 import { createGroupService } from '../core/workspace/groupService.js';
+import { createOrganizationAtomic } from './firebase/firestoreOrganizationBootstrap.js';
 
 function createServices() {
   if (!repositories) {
@@ -26,6 +28,9 @@ function createServices() {
       organizationRepo: repositories.organizations,
       workspaceRepo: repositories.workspaces,
       membershipRepo: repositories.memberships,
+      atomicBootstrap: firebaseDb
+        ? (params) => createOrganizationAtomic(firebaseDb, params)
+        : null,
     }),
     membership: createMembershipService({
       membershipRepo: repositories.memberships,

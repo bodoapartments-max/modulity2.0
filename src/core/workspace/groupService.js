@@ -54,15 +54,16 @@ export function createGroupService({ groupRepo }) {
   /**
    * Renames or updates a group.
    */
-  async function updateGroup(groupId, updates, userId, roles) {
+  async function updateGroup(groupId, updates, userId, roles, organizationId) {
     if (!hasCapability(roles, 'groups.edit')) {
       throw new AppError('forbidden', 'You do not have permission to edit groups.');
     }
 
-    const updated = await groupRepo.update(groupId, updates);
+    const updated = await groupRepo.update(groupId, updates, organizationId);
 
     eventBus.emit(createEvent({
       eventType: 'group.updated',
+      organizationId,
       actor: { type: 'user', id: userId },
       payload: { groupId, changedFields: Object.keys(updates) },
     }));
@@ -73,15 +74,16 @@ export function createGroupService({ groupRepo }) {
   /**
    * Deletes a group.
    */
-  async function deleteGroup(groupId, userId, roles) {
+  async function deleteGroup(groupId, userId, roles, organizationId) {
     if (!hasCapability(roles, 'groups.delete')) {
       throw new AppError('forbidden', 'You do not have permission to delete groups.');
     }
 
-    await groupRepo.remove(groupId);
+    await groupRepo.remove(groupId, organizationId);
 
     eventBus.emit(createEvent({
       eventType: 'group.deleted',
+      organizationId,
       actor: { type: 'user', id: userId },
       payload: { groupId },
     }));

@@ -35,6 +35,10 @@ coverage/
 test-results/
 playwright-report/
 
+# Firebase emulator data
+.firebase/
+firebase-export-*/
+
 # Misc
 .cache/
 *.pem

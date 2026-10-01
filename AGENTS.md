@@ -13,7 +13,8 @@ npm install
 npm run dev          # start dev server
 npm run build        # production build
 npm run lint         # ESLint
-npm run test         # Vitest
+npm run test         # Vitest (unit/component tests)
+npm run test:rules   # Firestore Security Rules tests (requires emulator)
 npm run test:e2e     # Playwright (when tests exist)
 ```
 
@@ -59,6 +60,25 @@ npm run test:e2e     # Playwright (when tests exist)
 - **WorkspaceProvider** initializes personal workspace + profile on first login, loads accessible workspaces, handles switching.
 - **Events** use the bus at `core/events/eventBus.js`. Services emit events for audit/tracking.
 - **Firestore Security Rules** are in `firestore.rules`. Application-layer checks complement them.
+
+## Step 2.1 Security Architecture
+
+- **Memberships** are subcollections at `organizations/{orgId}/members/{userId}` — deterministic path for Security Rules lookups.
+- **Groups and Invitations** are also subcollections under `organizations/{orgId}/`.
+- **User membership index** at `userMemberships/{userId}/orgs/{orgId}` enables "get my orgs" queries.
+- **Organization creation** uses atomic `writeBatch()` — org + workspace + membership + index in one commit.
+- **Security Rules** enforce organization isolation, role-based access, field immutability, and deny-by-default independently of app code.
+- **Security Rules tests** are in `tests/rules/` and run against the Firebase Emulator Suite.
+
+### Adding New Organization-Scoped Collections
+
+**NO NEW WORKSPACE-SCOPED FIRESTORE COLLECTION MAY BE ADDED WITHOUT EXPLICIT SECURITY RULES AND CROSS-WORKSPACE NEGATIVE TESTS.**
+
+1. Place as subcollection under `organizations/{orgId}/`
+2. Add `isActiveMember(organizationId)` read rule
+3. Add appropriate write rules (e.g. `isAdminOrOwner`)
+4. Add cross-org negative tests in `tests/rules/`
+5. Document in `docs/SECURITY_MODEL.md`
 
 ## Migration Note
 

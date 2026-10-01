@@ -45,10 +45,24 @@ All notable changes to Modulity 2.0 will be documented in this file.
   - `docs/WORKSPACE_MODEL.md` explaining workspace, membership, and people concepts.
   - 107 unit tests across 21 test files (61 new tests for Step 2).
 
+- Step 2.1: Firestore Security Hardening.
+  - Redesigned membership storage: subcollections at `organizations/{orgId}/members/{userId}` for deterministic Security Rules lookups.
+  - Moved groups to `organizations/{orgId}/groups/{groupId}` subcollection.
+  - Moved invitations to `organizations/{orgId}/invitations/{invitationId}` subcollection.
+  - Added `userMemberships/{userId}/orgs/{orgId}` reverse index for efficient user membership queries.
+  - Rewrote `firestore.rules` with organization isolation, role-based enforcement, field immutability, and deny-by-default.
+  - Organization creation now uses atomic `writeBatch()` (org + workspace + membership + index in one commit).
+  - Added `firestoreOrganizationBootstrap.js` for atomic org creation.
+  - Security Rules prevent: cross-org access, self-promotion, OWNER escalation by non-OWNER, field tampering (organizationId, userId, type, ownerUserId, createdByUserId), suspended member access, unauthorized invitation creation/read, and access to unknown collections.
+  - Added 64 Firebase Emulator Security Rules tests covering all attack vectors.
+  - Updated `docs/SECURITY_MODEL.md` with rule patterns, trusted operations, and future collection requirements.
+  - Updated `docs/WORKSPACE_MODEL.md` with new data architecture.
+  - Added `npm run test:rules` command for emulator-based Security Rules testing.
+
 ### Notes
 
 - No Modulity V1 code imported.
 - Module Engine, Records, Entities, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 2.
 - Invitation domain contract is defined; server-side acceptance requires Cloud Functions (documented, not implemented).
 - Connection system boundary is reserved but not implemented.
-- Full Firestore Security Rules enforcement for complex cross-collection queries requires Cloud Functions (documented).
+- Ownership transfer, invitation acceptance, and OWNER role escalation require trusted server operations (Cloud Functions) — documented and deferred to Step 3.
