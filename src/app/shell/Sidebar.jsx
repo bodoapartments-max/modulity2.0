@@ -11,6 +11,8 @@ import { useWorkspace } from '../providers/WorkspaceProvider.jsx';
 
 const mainLinks = [
   { label: 'Dashboard', to: '/app', exact: true },
+  { label: 'Entity Types', to: '/app/entity-types' },
+  { label: 'Entities', to: '/app/entities' },
   { label: 'My Modules', to: '/app/modules', disabled: true },
   { label: 'List', to: '/app/list', disabled: true },
   { label: 'Ledger', to: '/app/ledger', disabled: true },

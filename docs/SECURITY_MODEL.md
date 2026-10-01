@@ -91,17 +91,36 @@ function isActiveMember(orgId) {
 
 A reverse index at `userMemberships/{userId}/orgs/{organizationId}` enables efficient "get all memberships for a user" lookups. The canonical membership data lives in the subcollection.
 
+### Workspace Data Collections (Step 3)
+
+Universal Data Core collections are stored under `workspaces/{workspaceId}/`:
+
+| Collection | Read | Create | Update | Delete |
+|------------|------|--------|--------|--------|
+| `entityTypes` | workspace member | workspace member | admin/owner (DOMAIN only; CORE protected) | never |
+| `entities` | workspace member | workspace member | workspace member (immutable: workspaceId, entityId, createdBy) | never |
+| `relationships` | workspace member | workspace member | workspace member (immutable: workspaceId, createdBy) | never |
+| `records` | workspace member | workspace member | workspace member (immutable: workspaceId, recordId, createdBy) | never |
+| `files` | workspace member | workspace member | never | never |
+
+Access control for each subcollection resolves the parent workspace document to check:
+- Personal workspace: `ownerUserId == request.auth.uid`
+- Organization workspace: `isActiveMember(organizationId)`
+
+Entity Type updates for DOMAIN types in org workspaces require `isAdminOrOwner`. CORE Entity Types cannot be modified by any client.
+
 ### Future Collection Requirements
 
 **NO NEW WORKSPACE-SCOPED FIRESTORE COLLECTION MAY BE ADDED WITHOUT EXPLICIT SECURITY RULES AND CROSS-WORKSPACE NEGATIVE TESTS.**
 
 When adding any new collection that is scoped to an organization or workspace:
 
-1. Place it as a subcollection under `organizations/{orgId}/`
-2. Add read rules requiring `isActiveMember(orgId)`
-3. Add write rules requiring `isAdminOrOwner(orgId)` (or as appropriate)
-4. Add cross-organization negative tests in `tests/rules/`
-5. Document the collection in this file
+1. Place it as a subcollection under `workspaces/{workspaceId}/` or `organizations/{orgId}/`
+2. Add read rules requiring workspace ownership or `isActiveMember(orgId)`
+3. Add write rules with appropriate role requirements
+4. Protect immutable security fields (workspaceId, createdBy, etc.)
+5. Add cross-workspace and cross-organization negative tests in `tests/rules/`
+6. Document the collection in this file
 
 ---
 

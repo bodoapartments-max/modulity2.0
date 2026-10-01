@@ -192,7 +192,40 @@ A full workflow engine is intentionally out of scope for Step 0.
 
 ---
 
-## 8. Performance Strategy
+## 8. Universal Data Core (Step 3)
+
+Step 3 established the universal data layer under `core/data/`:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `actorRef.js` | `core/data/` | Typed actor identity (USER, INTERNAL_AGENT, EXTERNAL_INTEGRATION) |
+| `entityType.js` | `core/data/` | Entity Type model with schema/field definitions |
+| `coreEntityTypes.js` | `core/data/` | 8 platform Core Entity Types (PERSON, EMPLOYEE, etc.) |
+| `entity.js` | `core/data/` | Entity instance model with lifecycle |
+| `relationship.js` | `core/data/` | Workspace-scoped relationship model |
+| `record.js` | `core/data/` | Canonical Record foundation |
+| `file.js` | `core/data/` | File/attachment metadata |
+| `entityService.js` | `core/data/` | Entity CRUD, validation, reference resolution |
+| `entityTypeService.js` | `core/data/` | Entity Type registry, seeding, management |
+| `relationshipService.js` | `core/data/` | Relationship creation with integrity validation |
+| `recordService.js` | `core/data/` | Record creation, lifecycle, entity reference validation |
+| `fileService.js` | `core/data/` | File metadata registration |
+| `fileStorageContract.js` | `core/data/` | Provider-independent file storage interface |
+
+Firestore adapters in `infrastructure/firebase/`:
+- `firestoreEntityTypeRepository.js`
+- `firestoreEntityRepository.js`
+- `firestoreRelationshipRepository.js`
+- `firestoreRecordRepository.js`
+- `firestoreFileRepository.js`
+
+All data is workspace-scoped under `workspaces/{workspaceId}/` subcollections.
+
+See `docs/UNIVERSAL_DATA_CORE.md` for detailed architecture.
+
+---
+
+## 9. Performance Strategy
 
 - Route-level lazy loading in `app/`.
 - Module-level lazy loading for module runtime components.

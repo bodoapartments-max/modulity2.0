@@ -19,6 +19,9 @@ const CreateOrganizationPage = lazy(() => import('../../features/organization/ui
 const OrganizationSettingsPage = lazy(() => import('../../features/organization/ui/OrganizationSettingsPage.jsx'));
 const PeoplePage = lazy(() => import('../../features/people/ui/PeoplePage.jsx'));
 const GroupsPage = lazy(() => import('../../features/groups/ui/GroupsPage.jsx'));
+const EntityTypesPage = lazy(() => import('../../features/entities/ui/EntityTypesPage.jsx'));
+const EntitiesPage = lazy(() => import('../../features/entities/ui/EntitiesPage.jsx'));
+const EntityDetailPage = lazy(() => import('../../features/entities/ui/EntityDetailPage.jsx'));
 
 function PageLoader() {
   return (
@@ -48,6 +51,9 @@ function AppShell() {
               <Route path="settings" element={<OrganizationSettingsPage />} />
               <Route path="people" element={<PeoplePage />} />
               <Route path="groups" element={<GroupsPage />} />
+              <Route path="entity-types" element={<EntityTypesPage />} />
+              <Route path="entities" element={<EntitiesPage />} />
+              <Route path="entities/:entityId" element={<EntityDetailPage />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>
           </Suspense>

@@ -59,17 +59,47 @@ Industry-specific operational objects:
 - Theatre: Production, Performance, Rehearsal, Prop, Costume
 - School: Student, Class, Course
 
-### Entity Model
+### Entity Type Registry (Step 3)
+
+Entity Types are registered per workspace with metadata:
+
+- `typeId` — immutable internal ID
+- `code` — unique code (e.g. "ROOM")
+- `name` — display name
+- `category` — CORE | DOMAIN
+- `description`, `icon`
+- `status` — ACTIVE | INACTIVE | ARCHIVED
+- `schemaVersion`
+- `fields` — typed field definitions (key, label, type, required)
+- `workspaceId` — workspace ownership
+
+Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, `file-reference`.
+
+### Entity Model (Step 3 — Implemented)
 
 - `entityId` — immutable internal ID
-- `organizationId`
-- `entityType` — references a Core or Domain Entity definition
+- `workspaceId` — immutable, workspace ownership
+- `entityTypeId` — immutable after creation
 - `displayName`
-- `metadata` — type-specific attributes
-- Created/updated timestamps
-- Soft-delete flag
+- `status` — ACTIVE | INACTIVE | ARCHIVED
+- `data` — validated structured data per Entity Type schema
+- `attachments` — file IDs
+- `createdAt` — server-authoritative
+- `updatedAt` — server-authoritative
+- `createdBy` — ActorRef (immutable)
+- `sourceRecordId` — optional, links to creating Record
+- `schemaVersion`
 
 An Entity exists once. Modules reference it. Example: Room 214 is referenced by Reservation, Housekeeping, Maintenance and Damage Report modules.
+
+### Actor Reference (Step 3)
+
+Reusable typed actor identity:
+
+- `actorType` — USER | INTERNAL_AGENT | EXTERNAL_INTEGRATION
+- `actorId` — actor identifier
+
+Used across entities, records, relationships, files, and events.
 
 ---
 

@@ -12,6 +12,11 @@ import { createFirestoreMembershipRepository } from './firebase/firestoreMembers
 import { createFirestoreGroupRepository } from './firebase/firestoreGroupRepository.js';
 import { createFirestorePersonRepository } from './firebase/firestorePersonRepository.js';
 import { createFirestoreInvitationRepository } from './firebase/firestoreInvitationRepository.js';
+import { createFirestoreEntityTypeRepository } from './firebase/firestoreEntityTypeRepository.js';
+import { createFirestoreEntityRepository } from './firebase/firestoreEntityRepository.js';
+import { createFirestoreRelationshipRepository } from './firebase/firestoreRelationshipRepository.js';
+import { createFirestoreRecordRepository } from './firebase/firestoreRecordRepository.js';
+import { createFirestoreFileRepository } from './firebase/firestoreFileRepository.js';
 
 function createRepositories() {
   if (!firebaseDb) {
@@ -26,6 +31,11 @@ function createRepositories() {
     groups: createFirestoreGroupRepository(firebaseDb),
     persons: createFirestorePersonRepository(firebaseDb),
     invitations: createFirestoreInvitationRepository(firebaseDb),
+    entityTypes: createFirestoreEntityTypeRepository(firebaseDb),
+    entities: createFirestoreEntityRepository(firebaseDb),
+    relationships: createFirestoreRelationshipRepository(firebaseDb),
+    records: createFirestoreRecordRepository(firebaseDb),
+    files: createFirestoreFileRepository(firebaseDb),
   };
 }
 

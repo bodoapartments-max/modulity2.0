@@ -940,7 +940,516 @@ describe('cross-organization isolation', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 10. DENY BY DEFAULT
+// 10. WORKSPACE DATA — ENTITY TYPES
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/entityTypes/{typeId}', () => {
+  it('personal workspace owner can read entity types', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle'), {
+        typeId: 'core:vehicle', code: 'VEHICLE', name: 'Vehicle',
+        category: 'CORE', workspaceId: 'ws-personal', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle')));
+  });
+
+  it('other user cannot read personal workspace entity types', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle'), {
+        typeId: 'core:vehicle', code: 'VEHICLE', name: 'Vehicle',
+        category: 'CORE', workspaceId: 'ws-personal', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('user2');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle')));
+  });
+
+  it('org member can read org workspace entity types', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+        typeId: 'room-type', code: 'ROOM', name: 'Room',
+        category: 'DOMAIN', workspaceId: 'ws-org1', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('member1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type')));
+  });
+
+  it('non-member cannot read org workspace entity types', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+        typeId: 'room-type', code: 'ROOM', name: 'Room',
+        category: 'DOMAIN', workspaceId: 'ws-org1', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('outsider');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type')));
+  });
+
+  it('owner can create entity type in personal workspace', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type'), {
+      typeId: 'my-type', code: 'CUSTOM', name: 'Custom Type',
+      category: 'DOMAIN', workspaceId: 'ws-personal', status: 'ACTIVE',
+    }));
+  });
+
+  it('cannot create entity type with wrong workspaceId', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type'), {
+      typeId: 'my-type', code: 'CUSTOM', name: 'Custom Type',
+      category: 'DOMAIN', workspaceId: 'wrong-ws', status: 'ACTIVE',
+    }));
+  });
+
+  it('CORE entity type cannot be updated', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle'), {
+        typeId: 'core:vehicle', code: 'VEHICLE', name: 'Vehicle',
+        category: 'CORE', workspaceId: 'ws-personal', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'core:vehicle'), {
+      name: 'Modified Vehicle',
+    }));
+  });
+
+  it('DOMAIN entity type can be updated by org admin', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'admin1', roles: ['ADMIN'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+        typeId: 'room-type', code: 'ROOM', name: 'Room',
+        category: 'DOMAIN', workspaceId: 'ws-org1', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('admin1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+      name: 'Hotel Room',
+    }));
+  });
+
+  it('org member cannot update DOMAIN entity type', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+        typeId: 'room-type', code: 'ROOM', name: 'Room',
+        category: 'DOMAIN', workspaceId: 'ws-org1', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('member1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+      name: 'Modified Room',
+    }));
+  });
+
+  it('cannot change entity type category', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-domain'), {
+        typeId: 'my-domain', code: 'CUSTOM', name: 'Custom',
+        category: 'DOMAIN', workspaceId: 'ws-personal', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-domain'), {
+      category: 'CORE',
+    }));
+  });
+
+  it('entity type cannot be deleted', async () => {
+    await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type'), {
+        typeId: 'my-type', code: 'CUSTOM', name: 'Custom',
+        category: 'DOMAIN', workspaceId: 'ws-personal', status: 'ACTIVE',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 11. WORKSPACE DATA — ENTITIES
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/entities/{entityId}', () => {
+  it('personal workspace owner can read entities', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1')));
+  });
+
+  it('other user cannot read personal workspace entities', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user2');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1')));
+  });
+
+  it('org member can create entity in org workspace', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+      { userId: 'member1', roles: ['MEMBER'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    const db = authedDb('member1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-org1', 'entities', 'ent-new'), {
+      entityId: 'ent-new', workspaceId: 'ws-org1', entityTypeId: 'core:vehicle',
+      displayName: 'New Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'member1' },
+    }));
+  });
+
+  it('non-member cannot create entity in org workspace', async () => {
+    await setupOrg('org1', {}, [
+      { userId: 'owner1', roles: ['OWNER'] },
+    ]);
+    await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
+    const db = authedDb('outsider');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-org1', 'entities', 'ent-new'), {
+      entityId: 'ent-new', workspaceId: 'ws-org1', entityTypeId: 'core:vehicle',
+      displayName: 'Hacked', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'outsider' },
+    }));
+  });
+
+  it('cannot create entity with wrong workspaceId', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-new'), {
+      entityId: 'ent-new', workspaceId: 'wrong-ws', entityTypeId: 'core:vehicle',
+      displayName: 'Bad', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('cannot change entity workspaceId', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+      workspaceId: 'other-ws',
+    }));
+  });
+
+  it('cannot change entity createdBy', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+      createdBy: { actorType: 'USER', actorId: 'hacker' },
+    }));
+  });
+
+  it('entity cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
+        displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 12. WORKSPACE DATA — RECORDS
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/records/{recordId}', () => {
+  it('authorized record creation succeeds', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      recordId: 'rec1', workspaceId: 'ws-p', recordType: 'ROOM_INSPECTION',
+      status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('unauthorized record creation denied', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user2');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      recordId: 'rec1', workspaceId: 'ws-p', recordType: 'ROOM_INSPECTION',
+      status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user2' },
+    }));
+  });
+
+  it('cross-workspace record access denied', async () => {
+    await setupWorkspace('ws-p1', { type: 'PERSONAL', ownerUserId: 'user1', name: 'WS1' });
+    await setupWorkspace('ws-p2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'WS2' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p2', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p2', recordType: 'TEST',
+        status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p2', 'records', 'rec1')));
+  });
+
+  it('record workspaceId immutable', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', recordType: 'TEST',
+        status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      workspaceId: 'other-ws',
+    }));
+  });
+
+  it('record createdBy immutable', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-p', recordType: 'TEST',
+        status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+      createdBy: { actorType: 'USER', actorId: 'hacker' },
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 13. WORKSPACE DATA — RELATIONSHIPS
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/relationships/{relId}', () => {
+  it('workspace owner can create relationship', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel1'), {
+      relationshipId: 'rel1', workspaceId: 'ws-p', relationshipType: 'PART_OF',
+      source: { objectType: 'ENTITY', objectId: 'ent1' },
+      target: { objectType: 'ENTITY', objectId: 'ent2' },
+      status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('cross-workspace relationship creation denied', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user2');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel1'), {
+      relationshipId: 'rel1', workspaceId: 'ws-p', relationshipType: 'PART_OF',
+      source: { objectType: 'ENTITY', objectId: 'ent1' },
+      target: { objectType: 'ENTITY', objectId: 'ent2' },
+      status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user2' },
+    }));
+  });
+
+  it('relationship workspaceId immutable', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel1'), {
+        relationshipId: 'rel1', workspaceId: 'ws-p', relationshipType: 'PART_OF',
+        source: { objectType: 'ENTITY', objectId: 'ent1' },
+        target: { objectType: 'ENTITY', objectId: 'ent2' },
+        status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'relationships', 'rel1'), {
+      workspaceId: 'other-ws',
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 14. WORKSPACE DATA — FILES
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/files/{fileId}', () => {
+  it('workspace owner can create file metadata', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+      fileId: 'file1', workspaceId: 'ws-p', name: 'photo.jpg',
+      mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
+      uploadedBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('cross-workspace file access denied', async () => {
+    await setupWorkspace('ws-p1', { type: 'PERSONAL', ownerUserId: 'user1', name: 'WS1' });
+    await setupWorkspace('ws-p2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'WS2' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p2', 'files', 'file1'), {
+        fileId: 'file1', workspaceId: 'ws-p2', name: 'secret.pdf',
+        mimeType: 'application/pdf', size: 2048, storagePath: '/files/secret.pdf',
+        uploadedBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-p2', 'files', 'file1')));
+  });
+
+  it('file metadata cannot be updated', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+        fileId: 'file1', workspaceId: 'ws-p', name: 'photo.jpg',
+        mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
+        uploadedBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+      name: 'renamed.jpg',
+    }));
+  });
+
+  it('file metadata cannot be deleted', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+        fileId: 'file1', workspaceId: 'ws-p', name: 'photo.jpg',
+        mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
+        uploadedBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 15. CROSS-WORKSPACE DATA ISOLATION
+// ═══════════════════════════════════════════════════════
+
+describe('cross-workspace data isolation', () => {
+  it('user1 cannot read user2 entities via personal workspace', async () => {
+    await setupWorkspace('ws-u1', { type: 'PERSONAL', ownerUserId: 'user1', name: 'U1' });
+    await setupWorkspace('ws-u2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'U2' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-u2', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-u2', entityTypeId: 'core:vehicle',
+        displayName: 'Secret Car', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-u2', 'entities', 'ent1')));
+  });
+
+  it('user1 cannot write to user2 workspace entities', async () => {
+    await setupWorkspace('ws-u2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'U2' });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-u2', 'entities', 'ent-hack'), {
+      entityId: 'ent-hack', workspaceId: 'ws-u2', entityTypeId: 'core:vehicle',
+      displayName: 'Hacked', status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('org1 member cannot read org2 workspace entities', async () => {
+    await setupOrg('org1', {}, [{ userId: 'user1', roles: ['OWNER'] }]);
+    await setupOrg('org2', {}, [{ userId: 'user2', roles: ['OWNER'] }]);
+    await setupWorkspace('ws-org2', { type: 'ORGANIZATION', organizationId: 'org2', name: 'Org2 WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org2', 'entities', 'ent1'), {
+        entityId: 'ent1', workspaceId: 'ws-org2', entityTypeId: 'core:vehicle',
+        displayName: 'Org2 Car', status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-org2', 'entities', 'ent1')));
+  });
+
+  it('org1 member cannot read org2 workspace records', async () => {
+    await setupOrg('org1', {}, [{ userId: 'user1', roles: ['OWNER'] }]);
+    await setupOrg('org2', {}, [{ userId: 'user2', roles: ['OWNER'] }]);
+    await setupWorkspace('ws-org2', { type: 'ORGANIZATION', organizationId: 'org2', name: 'Org2 WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-org2', 'records', 'rec1'), {
+        recordId: 'rec1', workspaceId: 'ws-org2', recordType: 'TEST',
+        status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(getDoc(doc(db, 'workspaces', 'ws-org2', 'records', 'rec1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 16. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

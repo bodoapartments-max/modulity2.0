@@ -59,10 +59,34 @@ All notable changes to Modulity 2.0 will be documented in this file.
   - Updated `docs/WORKSPACE_MODEL.md` with new data architecture.
   - Added `npm run test:rules` command for emulator-based Security Rules testing.
 
+- Step 3: Universal Data Core.
+  - Core domain models: ActorRef, EntityType, Entity, Relationship, Record, FileMeta.
+  - Entity Type Registry with CORE and DOMAIN categories.
+  - 8 Core Entity Types seeded idempotently: PERSON, EMPLOYEE, CUSTOMER, SUPPLIER, VEHICLE, EQUIPMENT, LOCATION, DOCUMENT.
+  - Schema contract for Entity Type field definitions (text, number, date, boolean, select, entity-reference, file-reference).
+  - Entity Reference contract for typed, workspace-scoped cross-object links.
+  - Reference Resolver with workspace isolation enforcement.
+  - Relationship model supporting typed, workspace-scoped links between objects.
+  - Record foundation with multi-actor model (createdBy, submittedBy), lifecycle (DRAFT through ARCHIVED), and entity reference validation.
+  - File/Attachment metadata model with provider-independent storage contract.
+  - Repository contracts: EntityTypeRepository, EntityRepository, RelationshipRepository, RecordRepository, FileRepository.
+  - Firestore adapters for all 5 new collections under `workspaces/{workspaceId}/`.
+  - Application services: EntityTypeService, EntityService, RelationshipService, RecordService, FileService (all React-independent).
+  - Firestore Security Rules for entityTypes, entities, relationships, records, files — workspace ownership, immutable fields, CORE type protection, deny-by-default.
+  - 35 new Firebase Emulator security tests (99 total) covering positive, negative, cross-workspace, immutable field, and deny-by-default scenarios.
+  - 83 new unit tests (190 total) for all domain models, validation, schema contract, and core entity types.
+  - Minimal Entity browser/detail UI: EntityTypesPage, EntitiesPage, EntityDetailPage.
+  - Entity Type management UI with Domain type creation including field definitions.
+  - Entity detail shows type, status, data, relationships, and related record count.
+  - Platform events emitted for entity_type, entity, relationship, record, and file operations.
+  - `docs/UNIVERSAL_DATA_CORE.md` documenting full architecture, query strategy, security rules, multi-industry proof.
+  - Updated `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`.
+
 ### Notes
 
 - No Modulity V1 code imported.
-- Module Engine, Records, Entities, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 2.
-- Invitation domain contract is defined; server-side acceptance requires Cloud Functions (documented, not implemented).
-- Connection system boundary is reserved but not implemented.
-- Ownership transfer, invitation acceptance, and OWNER role escalation require trusted server operations (Cloud Functions) — documented and deferred to Step 3.
+- Module Engine, Form Renderer, full Record UI, ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 3.
+- Invitation acceptance, ownership transfer, OWNER role escalation still require Cloud Functions.
+- File upload binary handling is deferred — only metadata model and storage contract established.
+- Schema migration framework is documented conceptually but not implemented.
+- Cross-workspace sharing is denied by default; future sharing system deferred.

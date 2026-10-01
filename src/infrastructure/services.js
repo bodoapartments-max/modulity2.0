@@ -12,6 +12,11 @@ import { createOrganizationService } from '../core/workspace/organizationService
 import { createMembershipService } from '../core/workspace/membershipService.js';
 import { createGroupService } from '../core/workspace/groupService.js';
 import { createOrganizationAtomic } from './firebase/firestoreOrganizationBootstrap.js';
+import { createEntityTypeService } from '../core/data/entityTypeService.js';
+import { createEntityService } from '../core/data/entityService.js';
+import { createRelationshipService } from '../core/data/relationshipService.js';
+import { createRecordService } from '../core/data/recordService.js';
+import { createFileService } from '../core/data/fileService.js';
 
 function createServices() {
   if (!repositories) {
@@ -38,6 +43,24 @@ function createServices() {
     }),
     group: createGroupService({
       groupRepo: repositories.groups,
+    }),
+    entityType: createEntityTypeService({
+      entityTypeRepo: repositories.entityTypes,
+    }),
+    entity: createEntityService({
+      entityRepo: repositories.entities,
+      entityTypeRepo: repositories.entityTypes,
+    }),
+    relationship: createRelationshipService({
+      relationshipRepo: repositories.relationships,
+      entityRepo: repositories.entities,
+    }),
+    record: createRecordService({
+      recordRepo: repositories.records,
+      entityRepo: repositories.entities,
+    }),
+    file: createFileService({
+      fileRepo: repositories.files,
     }),
   };
 }

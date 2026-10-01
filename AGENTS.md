@@ -51,6 +51,38 @@ npm run test:e2e     # Playwright (when tests exist)
 - Update `docs/` and `CHANGELOG.md` when structure or contracts change.
 - Do not import code from Modulity V1 unless explicitly approved.
 
+## Step 3 — Universal Data Core
+
+Step 3 added the universal data layer under `src/core/data/`:
+
+| File | Purpose |
+|------|---------|
+| `actorRef.js` | Typed actor identity (USER, INTERNAL_AGENT, EXTERNAL_INTEGRATION) |
+| `entityType.js` | Entity Type model with schema/field definitions |
+| `coreEntityTypes.js` | 8 platform Core Entity Types |
+| `entity.js` | Entity instance model |
+| `relationship.js` | Workspace-scoped relationship model |
+| `record.js` | Canonical Record foundation |
+| `file.js` | File/attachment metadata |
+| `entityService.js` | Entity CRUD, validation, reference resolution |
+| `entityTypeService.js` | Entity Type registry, seeding, management |
+| `relationshipService.js` | Relationship creation with integrity |
+| `recordService.js` | Record lifecycle, entity reference validation |
+| `fileService.js` | File metadata registration |
+| `fileStorageContract.js` | Provider-independent file storage interface |
+
+Key concepts:
+- **Entity != Record != Module**. Entities are persistent identities; Records are business events.
+- **Entity Types** have two categories: CORE (platform) and DOMAIN (organization).
+- **Core Entity Types** are seeded idempotently per workspace and protected from modification.
+- **Domain Entity Types** are user-extensible with typed field schemas.
+- **Relationships** are workspace-scoped, validated (no dangling references, no cross-workspace).
+- **Records** support distinct actor roles (createdBy, submittedBy, future: assignedTo, etc.).
+- **Files** store metadata in Firestore; binary data goes to Firebase Storage.
+- **Reference Resolver** enforces workspace isolation — cross-workspace references denied.
+- All data is under `workspaces/{workspaceId}/` subcollections with explicit Firestore Security Rules.
+- See `docs/UNIVERSAL_DATA_CORE.md` for full architecture.
+
 ## Step 2 Architecture Notes
 
 - **Workspace** is the central operating context. All future modules/records operate within a workspace.
@@ -70,14 +102,14 @@ npm run test:e2e     # Playwright (when tests exist)
 - **Security Rules** enforce organization isolation, role-based access, field immutability, and deny-by-default independently of app code.
 - **Security Rules tests** are in `tests/rules/` and run against the Firebase Emulator Suite.
 
-### Adding New Organization-Scoped Collections
+### Adding New Workspace-Scoped Collections
 
 **NO NEW WORKSPACE-SCOPED FIRESTORE COLLECTION MAY BE ADDED WITHOUT EXPLICIT SECURITY RULES AND CROSS-WORKSPACE NEGATIVE TESTS.**
 
-1. Place as subcollection under `organizations/{orgId}/`
-2. Add `isActiveMember(organizationId)` read rule
-3. Add appropriate write rules (e.g. `isAdminOrOwner`)
-4. Add cross-org negative tests in `tests/rules/`
+1. Place as subcollection under `workspaces/{workspaceId}/` or `organizations/{orgId}/`
+2. Add read rules requiring workspace ownership or `isActiveMember(orgId)`
+3. Add appropriate write rules with immutable field protection
+4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
 ## Migration Note
