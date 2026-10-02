@@ -9,6 +9,7 @@ import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { userActor } from '../../../core/data/actorRef.js';
 import { FormRenderer } from '../../../modules/forms/FormRenderer.jsx';
 import services from '../../../infrastructure/services.js';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 export default function ModuleFormPage() {
   const { moduleId } = useParams();
@@ -21,7 +22,7 @@ export default function ModuleFormPage() {
   const [success, setSuccess] = useState(null);
 
   const workspaceId = currentWorkspace?.workspaceId;
-  const actor = user ? userActor(user.uid) : null;
+  const actor = user ? userActor(user.userId || user.uid) : null;
 
   useEffect(() => {
     if (!workspaceId || !moduleId) return;
@@ -44,6 +45,8 @@ export default function ModuleFormPage() {
         actor,
         values,
       });
+      workspaceQueryCache.invalidate(`${workspaceId}:records:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
       setSuccess(record);
     } catch (err) {
       setError(err.cause || err.message || 'Submission failed');
@@ -62,6 +65,8 @@ export default function ModuleFormPage() {
         actor,
         values,
       });
+      workspaceQueryCache.invalidate(`${workspaceId}:records:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
       setSuccess(record);
     } catch (err) {
       setError(err.cause || err.message || 'Failed to save draft');

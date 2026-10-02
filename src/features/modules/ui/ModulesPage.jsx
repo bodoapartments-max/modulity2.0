@@ -1,10 +1,12 @@
 /**
  * My Modules — list all Modules in current workspace.
  */
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import services from '../../../infrastructure/services.js';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 
 const STATUS_COLORS = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
@@ -14,29 +16,18 @@ const STATUS_COLORS = {
 };
 
 export default function ModulesPage() {
-  const { currentWorkspace } = useWorkspace();
-  const [modules, setModules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
+  const workspaceId = currentWorkspace?.workspaceId;
+  const loader = useCallback(() => services.module.listModules(workspaceId), [workspaceId]);
+  const { data: modules = [], error, initialLoading: loading, refreshing } = useWorkspaceQuery({
+    workspaceId, resource: 'modules', loader, enabled: Boolean(workspaceId),
+  });
 
-  useEffect(() => {
-    if (!currentWorkspace?.workspaceId) {
-      setModules([]);
-      setLoading(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setModules([]);
-    setError(null);
-    setLoading(true);
-    services?.module?.listModules(currentWorkspace.workspaceId)
-      .then((list) => { if (!cancelled) setModules(list || []); })
-      .catch((err) => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [currentWorkspace?.workspaceId]);
+  if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
+    return <ErrorState title="Workspace unavailable" message="Select an available workspace before managing Modules." />;
+  }
 
-  if (loading) {
+  if (workspaceLoading || loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
@@ -64,11 +55,8 @@ export default function ModulesPage() {
         </Link>
       </div>
 
-      {error && (
-        <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {refreshing && <p className="mb-3 text-xs text-neutral-400">Refreshing…</p>}
+      {error && <ErrorState message="Modules could not be refreshed." />}
 
       {modules.length === 0 ? (
         <div className="text-center py-16 bg-neutral-50 rounded-xl border border-neutral-200">

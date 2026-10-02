@@ -10,6 +10,7 @@ import Button from '../../../design-system/components/Button/Button.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 export default function CreateWorksetPage() {
   const { currentWorkspace } = useWorkspace();
@@ -29,7 +30,7 @@ export default function CreateWorksetPage() {
   }, [currentWorkspace?.workspaceId]);
   async function submit(event) {
     event.preventDefault();
-    try { setSaving(true); setError(null); const workset = await services.workset.create({ workspaceId: currentWorkspace.workspaceId, name, description, moduleIds, createdBy: { actorType: 'USER', actorId: user.userId } }); navigate(`/app/worksets/${workset.worksetId}`); }
+    try { setSaving(true); setError(null); const workset = await services.workset.create({ workspaceId: currentWorkspace.workspaceId, name, description, moduleIds, createdBy: { actorType: 'USER', actorId: user.userId } }); workspaceQueryCache.invalidate(`${currentWorkspace.workspaceId}:worksets:`); navigate(`/app/worksets/${workset.worksetId}`); }
     catch { setError('The Workset could not be created.'); }
     finally { setSaving(false); }
   }

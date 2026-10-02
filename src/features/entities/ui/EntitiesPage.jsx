@@ -18,46 +18,29 @@ import Badge from '../../../design-system/components/Badge/Badge.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 
 function EntitiesPage() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [entities, setEntities] = useState([]);
-  const [entityTypes, setEntityTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [fieldValues, setFieldValues] = useState({});
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const workspaceId = currentWorkspace?.workspaceId;
-
-  const loadData = useCallback(async () => {
-    if (!workspaceId) {
-      setEntities([]);
-      setEntityTypes([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      setError(null);
-      const [ents, types] = await Promise.all([
-        services.entity.listEntities(workspaceId),
-        services.entityType.listEntityTypes(workspaceId),
-      ]);
-      setEntities(ents);
-      setEntityTypes(types);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+  const entityLoader = useCallback(() => services.entity.listEntities(workspaceId), [workspaceId]);
+  const typeLoader = useCallback(() => services.entityType.listEntityTypes(workspaceId), [workspaceId]);
+  const entityQuery = useWorkspaceQuery({ workspaceId, resource: 'entities', params: { limit: 100 }, loader: entityLoader, enabled: Boolean(workspaceId), ttlMs: 15000 });
+  const typeQuery = useWorkspaceQuery({ workspaceId, resource: 'entityTypes', loader: typeLoader, enabled: Boolean(workspaceId) });
+  const entities = entityQuery.data || [];
+  const entityTypes = typeQuery.data || [];
+  const loading = entityQuery.initialLoading || typeQuery.initialLoading;
+  const error = entityQuery.error || typeQuery.error || actionError;
+  const loadData = useCallback(() => Promise.all([entityQuery.refresh(), typeQuery.refresh()]), [entityQuery, typeQuery]);
 
   const selectedType = entityTypes.find((t) => t.typeId === selectedTypeId);
 
@@ -67,7 +50,7 @@ function EntitiesPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setActionError(null);
     try {
       await services.entity.createEntity({
         workspaceId,
@@ -82,7 +65,7 @@ function EntitiesPage() {
       setFieldValues({});
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     }
   };
 
@@ -95,11 +78,15 @@ function EntitiesPage() {
       );
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     }
   };
 
-  if (loading) {
+  if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
+    return <PageContainer><ErrorState title="Workspace unavailable" message="Select an available workspace before managing Entities." /></PageContainer>;
+  }
+
+  if (workspaceLoading || loading) {
     return (
       <PageContainer>
         <div className="flex justify-center py-12"><Spinner /></div>
@@ -124,7 +111,7 @@ function EntitiesPage() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{actionError || 'Entity data could not be refreshed.'}</div>
       )}
 
       {showForm && (

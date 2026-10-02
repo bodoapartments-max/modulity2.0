@@ -2,6 +2,33 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 7.1 — Workspace Runtime Bootstrap Hardening
+
+### Fixed
+- Enabled and initialized the missing `(default)` Firestore database for `modulity-2-dev`; the absent backend caused 23–35 second SDK offline fallbacks
+- Deterministic Personal Workspace IDs (`personal_{userId}`) make first-user bootstrap idempotent under concurrency
+- Workspace startup now renders a valid Personal Workspace before optional Organization/workspace-experience discovery completes
+- Optional Workset/preference errors no longer poison the core Workspace availability state
+- Stale/inaccessible local Workspace selections are removed and replaced with the Personal Workspace
+- Auth observer errors now settle AuthProvider instead of leaving authentication loading indefinitely
+- Ledger and all workspace pages now settle missing workspace, empty query, and query failure states explicitly
+- Dashboard Modules, Records, and Widgets load independently instead of a blocking `Promise.all` waterfall
+- Missing user Workspace Preference documents can be read safely before first creation
+
+### Performance
+- Added a lightweight workspace-keyed stale-while-revalidate query cache without third-party state dependencies
+- Cached Modules, Worksets, Widgets, Entity Types, bounded Entities, Ledger Books, Dashboard projections, and filtered Records first pages
+- Added low-priority idle prefetch for bounded Modules and user Worksets/Widgets
+- Distinguished initial loading from background refreshing so cached content remains visible
+- Added mutation invalidation for Modules, Records, Worksets, Widgets, Entities, Entity Types, and Ledger Books
+- Bounded Entity list reads to 100 pending full cursor pagination
+
+### Validation
+- Empty Personal Workspace emulator integration covers concurrent bootstrap and settled empty queries for Modules, Records, Entities, Entity Types, Worksets, Widgets, Notifications, Preferences, and Ledger
+- Development startup operations have a diagnostic failure boundary; no Workspace bootstrap await can remain pending indefinitely
+- Cache tests cover workspace isolation, deterministic keys, concurrent request deduplication, stale refresh, and targeted invalidation
+- Real browser verification: ~2s steady-state reload; first uncached routes briefly load; repeat Modules/Ledger navigation renders immediately
+
 ## Step 7 — Workspace Experience
 
 ### Added

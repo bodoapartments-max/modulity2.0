@@ -73,10 +73,12 @@ export function createFirebaseIdentityAdapter(auth) {
     return toUserIdentity(auth.currentUser);
   }
 
-  function subscribeToAuthState(callback) {
-    return onAuthStateChanged(auth, (firebaseUser) => {
-      callback(toUserIdentity(firebaseUser));
-    });
+  function subscribeToAuthState(callback, errorCallback) {
+    return onAuthStateChanged(
+      auth,
+      (firebaseUser) => callback(toUserIdentity(firebaseUser)),
+      (error) => errorCallback?.(fromFirebaseAuthError(error)),
+    );
   }
 
   return {

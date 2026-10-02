@@ -32,10 +32,17 @@ export function AuthProvider({ children, provider = identityProvider }) {
     let unsubscribe;
 
     try {
-      unsubscribe = provider.subscribeToAuthState((nextUser) => {
-        setUser(nextUser);
-        setLoading(false);
-      });
+      unsubscribe = provider.subscribeToAuthState(
+        (nextUser) => {
+          setUser(nextUser);
+          setError(null);
+          setLoading(false);
+        },
+        (err) => {
+          setError(err instanceof AuthError ? err : new AuthError('auth_init_failed', 'Failed to initialize authentication.', err));
+          setLoading(false);
+        },
+      );
     } catch (err) {
       setError(
         err instanceof AuthError

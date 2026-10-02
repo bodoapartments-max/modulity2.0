@@ -1,103 +1,30 @@
-/**
- * Ledger List — displays all Ledger Books in the current workspace.
- */
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import services from '../../../infrastructure/services.js';
+import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
+import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
+import EmptyState from '../../../design-system/components/EmptyState/EmptyState.jsx';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
+import Button from '../../../design-system/components/Button/Button.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 
-const STATUS_COLORS = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  CLOSED: 'bg-neutral-200 text-neutral-600',
-  ARCHIVED: 'bg-neutral-100 text-neutral-500',
-};
+const STATUS_COLORS = { ACTIVE: 'bg-green-100 text-green-800', CLOSED: 'bg-neutral-200 text-neutral-600', ARCHIVED: 'bg-neutral-100 text-neutral-500' };
 
 export default function LedgerListPage() {
-  const { currentWorkspace } = useWorkspace();
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const workspaceId = currentWorkspace?.workspaceId;
+  const loader = useCallback(() => services.ledger.listBooks(workspaceId), [workspaceId]);
+  const { data: books = [], error, initialLoading: loading, refresh } = useWorkspaceQuery({
+    workspaceId, resource: 'ledgerBooks', loader, enabled: Boolean(workspaceId), ttlMs: 30000,
+  });
 
-  useEffect(() => {
-    if (!workspaceId) return;
-    let cancelled = false;
-    setLoading(true);
-    services?.ledger?.listBooks(workspaceId)
-      .then((result) => { if (!cancelled) setBooks(result || []); })
-      .catch((err) => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [workspaceId]);
+  if (workspaceLoading || loading) return <PageContainer><LoadingState message="Loading Ledger..." /></PageContainer>;
+  if (workspaceError || !currentWorkspace) return <PageContainer><ErrorState title="Workspace unavailable" message="Select an available workspace before opening Ledger." /></PageContainer>;
+  if (error && books.length === 0) return <PageContainer><PageHeader title="Ledger" /><ErrorState message="Ledger books could not be loaded." retry={refresh} /></PageContainer>;
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-neutral-200 rounded" />
-          <div className="h-32 bg-neutral-100 rounded" />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Ledger</h1>
-          <p className="text-sm text-neutral-500 mt-1">Numbered registers for traceable business records</p>
-        </div>
-        <Link
-          to="/app/ledger/new"
-          className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
-        >
-          New Ledger Book
-        </Link>
-      </div>
-
-      {error && (
-        <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-      )}
-
-      {books.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-neutral-200 rounded-xl">
-          <p className="text-neutral-500">No ledger books yet.</p>
-          <Link to="/app/ledger/new" className="text-primary-600 hover:underline text-sm mt-2 inline-block">
-            Create your first ledger book
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {books.map((book) => (
-            <Link
-              key={book.ledgerBookId}
-              to={`/app/ledger/${book.ledgerBookId}`}
-              className="block bg-white border border-neutral-200 rounded-xl p-4 hover:border-primary-300 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold text-neutral-900">{book.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[book.status] || ''}`}>
-                      {book.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-neutral-400 font-mono mt-0.5">{book.ledgerCode}</p>
-                  {book.description && (
-                    <p className="text-sm text-neutral-500 mt-1">{book.description}</p>
-                  )}
-                </div>
-                <div className="text-right text-sm text-neutral-500">
-                  <p>Block size: {book.blockSize}</p>
-                  {book.moduleId && <p className="text-xs text-neutral-400">Module-scoped</p>}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <PageContainer><PageHeader title="Ledger" description="Numbered registers for traceable business records" action={<Link to="/app/ledger/new"><Button>New Ledger Book</Button></Link>} />
+    {books.length === 0 ? <EmptyState title="No ledger books yet" description="Create a Ledger Book when this workspace needs numbered registration."><Link to="/app/ledger/new"><Button>Create Ledger Book</Button></Link></EmptyState> : <div className="space-y-3">{books.map((book) => <Link key={book.ledgerBookId} to={`/app/ledger/${book.ledgerBookId}`} className="block rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-primary-300"><div className="flex items-center justify-between"><div><div className="flex items-center gap-2"><h3 className="text-base font-semibold text-neutral-900">{book.name}</h3><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[book.status] || ''}`}>{book.status}</span></div><p className="mt-0.5 font-mono text-xs text-neutral-400">{book.ledgerCode}</p>{book.description && <p className="mt-1 text-sm text-neutral-500">{book.description}</p>}</div><div className="text-right text-sm text-neutral-500"><p>Block size: {book.blockSize}</p>{book.moduleId && <p className="text-xs text-neutral-400">Module-scoped</p>}</div></div></Link>)}</div>}
+  </PageContainer>;
 }

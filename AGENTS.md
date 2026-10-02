@@ -295,6 +295,21 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 7.1 — Runtime Bootstrap Rules
+
+- Core readiness depends only on Auth and a valid Personal Workspace.
+- Never make Workspace availability depend on Worksets, preferences, Widgets, Notifications, Dashboard projections, or Ledger.
+- Personal Workspace ID is deterministic: `personal_{userId}`.
+- A missing deterministic Workspace/preference document must be readable as missing under Firestore Rules so bootstrap can create it.
+- Stale `modulity_lastWorkspaceId` must fall back to Personal Workspace.
+- Every workspace-scoped loader must settle early-return, success, empty, and error branches.
+- Security tests use a one-shot emulator; do not point a long-running dev app at an emulator that the test command will stop.
+- Workspace query cache keys must include workspaceId, resource, and normalized query/page parameters.
+- Cached data is presentation optimization only; Firestore remains canonical.
+- Preserve cached content during `REFRESHING`; use full loading UI only for `INITIAL_LOADING`.
+- Small bounded metadata may be idle-prefetched. Never prefetch full Records, Entities, Ledger Entries, Notifications, or Audit collections.
+- Mutations must invalidate or update the matching workspace/resource cache prefix.
+
 ## Step 7 — Workspace Experience
 
 - **Workset is context, not authorization.** It references canonical `moduleIds`; Module access remains governed by workspace membership and permissions.

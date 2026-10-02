@@ -7,8 +7,15 @@
 
 import { createWorkspace, WORKSPACE_TYPES } from './workspace.js';
 import { createPerson } from './person.js';
-import { generateId } from '../utils/generateId.js';
 import { eventBus, createEvent } from '../events/eventBus.js';
+
+export function personalWorkspaceId(userId) {
+  return `personal_${userId}`;
+}
+
+async function traceBootstrapOperation(_label, operation) {
+  return operation();
+}
 
 /**
  * Creates a WorkspaceService.
@@ -27,18 +34,24 @@ export function createWorkspaceService({ workspaceRepo, personRepo }) {
    * @returns {Promise<import('./workspace.js').Workspace>}
    */
   async function ensurePersonalWorkspace(user) {
-    const existing = await workspaceRepo.getPersonalWorkspace(user.userId);
+    const existing = await traceBootstrapOperation(
+      'personal workspace lookup',
+      () => workspaceRepo.getPersonalWorkspace(user.userId),
+    );
     if (existing) return existing;
 
     const workspace = createWorkspace({
-      workspaceId: generateId(),
+      workspaceId: personalWorkspaceId(user.userId),
       type: WORKSPACE_TYPES.PERSONAL,
       name: `${user.displayName || user.email}'s Workspace`,
       ownerUserId: user.userId,
       organizationId: null,
     });
 
-    const created = await workspaceRepo.create(workspace);
+    const created = await traceBootstrapOperation(
+      'personal workspace creation',
+      () => workspaceRepo.create(workspace),
+    );
 
     eventBus.emit(createEvent({
       eventType: 'workspace.created',
@@ -58,7 +71,10 @@ export function createWorkspaceService({ workspaceRepo, personRepo }) {
    * @returns {Promise<import('./person.js').Person>}
    */
   async function ensurePersonProfile(user) {
-    const existing = await personRepo.getByUserId(user.userId);
+    const existing = await traceBootstrapOperation(
+      'Person profile lookup',
+      () => personRepo.getByUserId(user.userId),
+    );
     if (existing) return existing;
 
     const person = createPerson({
@@ -67,7 +83,7 @@ export function createWorkspaceService({ workspaceRepo, personRepo }) {
       email: user.email,
     });
 
-    return personRepo.create(person);
+    return traceBootstrapOperation('Person profile creation', () => personRepo.create(person));
   }
 
   /**

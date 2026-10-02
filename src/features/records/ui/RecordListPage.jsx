@@ -4,13 +4,15 @@
  * Uses RecordQueryService for paginated, bucket-aware queries.
  * This is a projection of canonical Records, NOT a separate collection.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import services from '../../../infrastructure/services.js';
 import RecordListToolbar from './RecordListToolbar.jsx';
 import RecordTable from './RecordTable.jsx';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { workspaceQueryCache, workspaceQueryKey } from '../../../core/cache/workspaceQueryCache.js';
 
 const BUCKETS = [
   { key: 'ALL', label: 'All' },
@@ -22,7 +24,7 @@ const BUCKETS = [
 ];
 
 export default function RecordListPage() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -32,6 +34,7 @@ export default function RecordListPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -43,8 +46,11 @@ export default function RecordListPage() {
   const moduleFilter = searchParams.get('module') || '';
   const sortField = searchParams.get('sort') || 'createdAt';
   const sortDir = searchParams.get('dir') || 'desc';
+  const cacheKey = useMemo(() => workspaceId ? workspaceQueryKey(workspaceId, 'records', {
+    userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir, page: 'first', limit: 25,
+  }) : null, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir]);
 
-  const loadRecords = useCallback(async (cursor = null) => {
+  const loadRecords = useCallback(async (cursor = null, background = false) => {
     if (!workspaceId) {
       setRecords([]);
       setHasMore(false);
@@ -52,7 +58,8 @@ export default function RecordListPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (background) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const result = await services?.recordQuery?.queryRecords({
@@ -71,19 +78,30 @@ export default function RecordListPage() {
         setRecords(cursor ? (prev) => [...prev, ...result.items] : result.items);
         setHasMore(result.hasMore);
         setNextCursor(result.nextCursor);
+        if (!cursor && cacheKey) workspaceQueryCache.set(cacheKey, result);
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir]);
+  }, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir, cacheKey]);
 
   useEffect(() => {
-    setRecords([]);
-    setNextCursor(null);
-    loadRecords(null);
-  }, [loadRecords]);
+    const cached = cacheKey ? workspaceQueryCache.get(cacheKey).data : null;
+    if (cached) {
+      setRecords(cached.items || []);
+      setHasMore(cached.hasMore);
+      setNextCursor(cached.nextCursor);
+      setLoading(false);
+      loadRecords(null, true);
+    } else {
+      setRecords([]);
+      setNextCursor(null);
+      loadRecords(null);
+    }
+  }, [loadRecords, cacheKey]);
 
   const handleBucketChange = (newBucket) => {
     const params = new URLSearchParams(searchParams);
@@ -154,6 +172,10 @@ export default function RecordListPage() {
     }
   };
 
+  if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
+    return <ErrorState title="Workspace unavailable" message="Select an available workspace before viewing Records." />;
+  }
+
   return (
     <div className="p-6 max-w-7xl">
       <div className="flex items-center justify-between mb-6">
@@ -191,6 +213,7 @@ export default function RecordListPage() {
         onBulkArchive={handleBulkArchive}
       />
 
+      {refreshing && <p className="mb-2 text-xs text-neutral-400">Refreshing…</p>}
       {error && (
         <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {error}

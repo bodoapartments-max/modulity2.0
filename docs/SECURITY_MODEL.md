@@ -432,6 +432,13 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 7.1 — Bootstrap Security
+
+- Authenticated users may `get` only their deterministic `workspaces/personal_{uid}` path before it exists; creation still requires `type: PERSONAL` and `ownerUserId == auth.uid`.
+- Workspace list queries remain owner/member constrained.
+- Deterministic `userWorkspacePreferences/{uid}` permits owner `get` before document creation and denies collection listing.
+- These missing-document read rules are required for idempotent browser bootstrap and do not grant access to another user's Workspace or preferences.
+
 ## Step 7 — Workspace Experience Security
 
 - Worksets require active workspace access, valid USER/self creator provenance, immutable identity/workspace/creator fields, and deny deletion.

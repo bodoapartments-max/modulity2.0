@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { createWorkspace, WORKSPACE_TYPES } from '../../core/workspace/workspace.js';
+import { personalWorkspaceId } from '../../core/workspace/workspaceService.js';
 
 const COLLECTION = 'workspaces';
 
@@ -66,6 +67,9 @@ export function createFirestoreWorkspaceRepository(db) {
   }
 
   async function getPersonalWorkspace(userId) {
+    const deterministicSnap = await getDoc(doc(db, COLLECTION, personalWorkspaceId(userId)));
+    if (deterministicSnap.exists()) return fromFirestore(deterministicSnap.data());
+
     const q = query(
       collection(db, COLLECTION),
       where('ownerUserId', '==', userId),

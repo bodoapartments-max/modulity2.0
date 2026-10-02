@@ -29,7 +29,8 @@ function createFirebaseApp() {
 
   const firestoreEmulatorHost = import.meta.env?.VITE_FIRESTORE_EMULATOR_HOST;
   if (firestoreEmulatorHost && config.app.env === 'development') {
-    const [host, port] = firestoreEmulatorHost.split(':');
+    const [configuredHost, port] = firestoreEmulatorHost.split(':');
+    const host = configuredHost === 'localhost' ? '127.0.0.1' : configuredHost;
     connectFirestoreEmulator(db, host, Number(port));
   }
 

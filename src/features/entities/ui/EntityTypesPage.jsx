@@ -5,7 +5,7 @@
  * Create Domain Entity Types with field definitions.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import services from '../../../infrastructure/services.js';
@@ -17,39 +17,25 @@ import Badge from '../../../design-system/components/Badge/Badge.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import { FIELD_TYPES } from '../../../core/data/entityType.js';
 
 function EntityTypesPage() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const { user } = useAuth();
-  const [types, setTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ code: '', name: '', description: '', fields: [] });
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const workspaceId = currentWorkspace?.workspaceId;
-
-  const loadTypes = useCallback(async () => {
-    if (!workspaceId) {
-      setTypes([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      setError(null);
-      await services.entityType.seedCoreTypes(workspaceId);
-      const list = await services.entityType.listEntityTypes(workspaceId);
-      setTypes(list);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const loader = useCallback(async () => {
+    await services.entityType.seedCoreTypes(workspaceId);
+    return services.entityType.listEntityTypes(workspaceId);
   }, [workspaceId]);
-
-  useEffect(() => { loadTypes(); }, [loadTypes]);
+  const { data: types = [], error, initialLoading: loading, refresh: loadTypes } = useWorkspaceQuery({
+    workspaceId, resource: 'entityTypes', loader, enabled: Boolean(workspaceId),
+  });
 
   const handleAddField = () => {
     setFormData((prev) => ({
@@ -75,7 +61,7 @@ function EntityTypesPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setActionError(null);
     try {
       await services.entityType.createDomainEntityType({
         workspaceId,
@@ -89,11 +75,15 @@ function EntityTypesPage() {
       setFormData({ code: '', name: '', description: '', fields: [] });
       await loadTypes();
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     }
   };
 
-  if (loading) {
+  if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
+    return <PageContainer><ErrorState title="Workspace unavailable" message="Select an available workspace before managing Entity Types." /></PageContainer>;
+  }
+
+  if (workspaceLoading || loading) {
     return (
       <PageContainer>
         <div className="flex justify-center py-12"><Spinner /></div>
@@ -118,8 +108,8 @@ function EntityTypesPage() {
         }
       />
 
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      {(error || actionError) && (
+        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{actionError || 'Entity Types could not be refreshed.'}</div>
       )}
 
       {showForm && (

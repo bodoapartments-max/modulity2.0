@@ -9,6 +9,7 @@ import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { FIELD_TYPES } from '../../../core/data/entityType.js';
 import { userActor } from '../../../core/data/actorRef.js';
 import services from '../../../infrastructure/services.js';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 const FIELD_TYPE_OPTIONS = [
   { value: FIELD_TYPES.TEXT, label: 'Text' },
@@ -93,8 +94,9 @@ export default function CreateModulePage() {
             return field;
           }),
         },
-        createdBy: userActor(user.uid),
+        createdBy: userActor(user.userId || user.uid),
       });
+      workspaceQueryCache.invalidate(`${currentWorkspace.workspaceId}:modules:`);
       navigate(`/app/modules/${created.moduleId}`);
     } catch (err) {
       setError(err.message || 'Failed to create module');

@@ -6,6 +6,7 @@ import { WorkspaceContext } from '../../../app/providers/WorkspaceProvider.jsx';
 import WorksetsPage from '../../worksets/ui/WorksetsPage.jsx';
 import WidgetsPage from '../../widgets/ui/WidgetsPage.jsx';
 import NotificationsPage from '../../notifications/ui/NotificationsPage.jsx';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 const mocks = vi.hoisted(() => ({
   listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(),
@@ -32,9 +33,10 @@ function renderPage(page) {
 
 describe('Workspace Experience empty states', () => {
   beforeEach(() => {
-    mocks.listWorksets.mockResolvedValue([]);
-    mocks.listWidgets.mockResolvedValue([]);
-    mocks.listNotifications.mockResolvedValue([]);
+    workspaceQueryCache.clear();
+    mocks.listWorksets.mockReset().mockResolvedValue([]);
+    mocks.listWidgets.mockReset().mockResolvedValue([]);
+    mocks.listNotifications.mockReset().mockResolvedValue([]);
   });
 
   it('settles Worksets loading into empty', async () => {

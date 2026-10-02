@@ -17,10 +17,32 @@ import services from '../../infrastructure/services.js';
 import { repositories } from '../../infrastructure/repositories.js';
 import { WORKSPACE_TYPES } from '../../core/workspace/workspace.js';
 import { eventBus, createEvent } from '../../core/events/eventBus.js';
+import { workspaceQueryCache, workspaceQueryKey } from '../../core/cache/workspaceQueryCache.js';
 
 export const WorkspaceContext = createContext(null);
 
 const STORAGE_KEY = 'modulity_lastWorkspaceId';
+
+const STARTUP_DIAGNOSTIC_TIMEOUT_MS = 10000;
+
+async function traceWorkspaceOperation(label, operation) {
+  const startedAt = performance.now();
+  let timeoutId;
+  try {
+    const result = await Promise.race([
+      operation(),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} did not settle within ${STARTUP_DIAGNOSTIC_TIMEOUT_MS}ms`)), STARTUP_DIAGNOSTIC_TIMEOUT_MS);
+      }),
+    ]);
+    return result;
+  } catch (error) {
+    if (import.meta.env.DEV) console.error(`[WorkspaceProvider] ${label} ERROR (${Math.round(performance.now() - startedAt)}ms)`, error);
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function safeGetStoredWorkspaceId() {
   try {
@@ -33,6 +55,14 @@ function safeGetStoredWorkspaceId() {
 function safeSetStoredWorkspaceId(workspaceId) {
   try {
     localStorage.setItem(STORAGE_KEY, workspaceId);
+  } catch {
+    /* localStorage unavailable */
+  }
+}
+
+function safeRemoveStoredWorkspaceId() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* localStorage unavailable */
   }
@@ -56,6 +86,7 @@ export function WorkspaceProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState(null);
+  const [experienceError, setExperienceError] = useState(null);
 
   const loadWorkspaces = useCallback(async () => {
     if (!user || !services) {
@@ -67,51 +98,81 @@ export function WorkspaceProvider({ children }) {
       return;
     }
 
+    setLoading(true);
+    setError(null);
+    setExperienceError(null);
+    const storedId = safeGetStoredWorkspaceId();
+
+    let personalWorkspace;
     try {
-      setLoading(true);
-      setError(null);
-
-      await services.workspace.initializeUserWorkspace(user);
-
-      const workspaces = await services.workspace.getAccessibleWorkspaces(
-        user.userId,
-        repositories.memberships,
-      );
-
-      setAvailableWorkspaces(workspaces);
-
-      const storedId = safeGetStoredWorkspaceId();
-      const restoredWorkspace = storedId
-        ? workspaces.find((w) => w.workspaceId === storedId)
-        : null;
-
-      const personalWorkspace = workspaces.find(
-        (w) => w.type === WORKSPACE_TYPES.PERSONAL,
-      );
-
-      const targetWorkspace = restoredWorkspace || personalWorkspace || workspaces[0] || null;
-
-      setCurrentWorkspace(targetWorkspace);
-      if (targetWorkspace) {
-        safeSetStoredWorkspaceId(targetWorkspace.workspaceId);
-
-        if (targetWorkspace.type === WORKSPACE_TYPES.ORGANIZATION && targetWorkspace.organizationId) {
-          const membership = await repositories.memberships.getByOrgAndUser(
-            targetWorkspace.organizationId,
-            user.userId,
+      if (storedId) {
+        try {
+          const storedWorkspace = await traceWorkspaceOperation(
+            'restored workspace validation',
+            () => repositories.workspaces.getById(storedId),
           );
-          setCurrentMembership(membership);
-        } else {
-          setCurrentMembership(null);
+          if (storedWorkspace?.type === WORKSPACE_TYPES.PERSONAL && storedWorkspace.ownerUserId === user.userId) {
+            personalWorkspace = storedWorkspace;
+          } else if (!storedWorkspace) {
+            safeRemoveStoredWorkspaceId();
+          }
+        } catch {
+          safeRemoveStoredWorkspaceId();
         }
       }
+      if (!personalWorkspace) {
+        personalWorkspace = await traceWorkspaceOperation(
+          'ensurePersonalWorkspace',
+          () => services.workspace.ensurePersonalWorkspace(user),
+        );
+      }
+      setAvailableWorkspaces([personalWorkspace]);
+      setCurrentWorkspace(personalWorkspace);
+      setCurrentMembership(null);
+      safeSetStoredWorkspaceId(personalWorkspace.workspaceId);
+      setLoading(false);
     } catch (err) {
       setCurrentWorkspace(null);
       setAvailableWorkspaces([]);
       setCurrentMembership(null);
       setError(err);
-    } finally {
       setLoading(false);
+      return;
+    }
+
+    try {
+      const [, workspaces] = await Promise.all([
+        traceWorkspaceOperation('ensurePersonProfile', () => services.workspace.ensurePersonProfile(user)),
+        traceWorkspaceOperation(
+          'getAccessibleWorkspaces',
+          () => services.workspace.getAccessibleWorkspaces(user.userId, repositories.memberships),
+        ),
+      ]);
+      const allWorkspaces = workspaces.some((item) => item.workspaceId === personalWorkspace.workspaceId)
+        ? workspaces
+        : [personalWorkspace, ...workspaces];
+      setAvailableWorkspaces(allWorkspaces);
+
+      const restoredWorkspace = storedId && storedId !== personalWorkspace.workspaceId
+        ? allWorkspaces.find((item) => item.workspaceId === storedId)
+        : null;
+      if (!restoredWorkspace && storedId && storedId !== personalWorkspace.workspaceId) {
+        safeRemoveStoredWorkspaceId();
+        safeSetStoredWorkspaceId(personalWorkspace.workspaceId);
+      }
+      if (restoredWorkspace?.type === WORKSPACE_TYPES.ORGANIZATION && restoredWorkspace.organizationId) {
+        const membership = await traceWorkspaceOperation(
+          'restored workspace membership lookup',
+          () => repositories.memberships.getByOrgAndUser(restoredWorkspace.organizationId, user.userId),
+        );
+        if (membership) {
+          setCurrentWorkspace(restoredWorkspace);
+          setCurrentMembership(membership);
+          safeSetStoredWorkspaceId(restoredWorkspace.workspaceId);
+        }
+      }
+    } catch (err) {
+      setExperienceError(err);
     }
   }, [user]);
 
@@ -137,30 +198,58 @@ export function WorkspaceProvider({ children }) {
         return;
       }
       try {
+        setExperienceError(null);
+        const worksetKey = workspaceQueryKey(currentWorkspace.workspaceId, 'worksets');
         const [nextWorksets, preference] = await Promise.all([
-          services.workset.list(currentWorkspace.workspaceId),
+          workspaceQueryCache.fetch(worksetKey, () => services.workset.list(currentWorkspace.workspaceId)),
           services.workspacePreference.get(currentWorkspace.workspaceId, user.userId),
         ]);
         if (cancelled) return;
         setWorksets(nextWorksets);
         setActiveWorkset(nextWorksets.find((item) => item.worksetId === preference?.activeWorksetId) || null);
       } catch (err) {
-        if (!cancelled) setError(err);
+        if (!cancelled) {
+          setWorksets([]);
+          setActiveWorkset(null);
+          setExperienceError(err);
+        }
       }
     };
     loadWorkspaceExperience();
     return () => { cancelled = true; };
   }, [currentWorkspace?.workspaceId, user]);
 
+  useEffect(() => {
+    if (!currentWorkspace?.workspaceId || !user) return undefined;
+    const workspaceId = currentWorkspace.workspaceId;
+    const prefetch = () => {
+      workspaceQueryCache.fetch(
+        workspaceQueryKey(workspaceId, 'modules'),
+        () => services.module.listModules(workspaceId),
+      ).catch(() => {});
+      workspaceQueryCache.fetch(
+        workspaceQueryKey(workspaceId, 'widgets', { userId: user.userId }),
+        () => services.widget.listForUser(workspaceId, user.userId),
+      ).catch(() => {});
+    };
+    const idleId = window.requestIdleCallback
+      ? window.requestIdleCallback(prefetch, { timeout: 1500 })
+      : window.setTimeout(prefetch, 0);
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+      else window.clearTimeout(idleId);
+    };
+  }, [currentWorkspace?.workspaceId, user]);
+
   const activateWorkset = useCallback(async (worksetId) => {
     if (!currentWorkspace || !user) return false;
     try {
-      setError(null);
+      setExperienceError(null);
       await services.workspacePreference.setActiveWorkset(currentWorkspace.workspaceId, user.userId, worksetId);
       setActiveWorkset(worksets.find((item) => item.worksetId === worksetId) || null);
       return true;
     } catch (err) {
-      setError(err);
+      setExperienceError(err);
       return false;
     }
   }, [currentWorkspace, user, worksets]);
@@ -216,9 +305,10 @@ export function WorkspaceProvider({ children }) {
     loading,
     switching,
     error,
+    experienceError,
     isPersonalWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.PERSONAL,
     isOrganizationWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.ORGANIZATION,
-  }), [currentWorkspace, availableWorkspaces, currentMembership, worksets, activeWorkset, activateWorkset, switchWorkspace, loadWorkspaces, loading, switching, error]);
+  }), [currentWorkspace, availableWorkspaces, currentMembership, worksets, activeWorkset, activateWorkset, switchWorkspace, loadWorkspaces, loading, switching, error, experienceError]);
 
   return (
     <WorkspaceContext.Provider value={value}>

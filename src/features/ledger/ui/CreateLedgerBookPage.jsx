@@ -7,6 +7,7 @@ import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { userActor } from '../../../core/data/actorRef.js';
 import services from '../../../infrastructure/services.js';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 export default function CreateLedgerBookPage() {
   const navigate = useNavigate();
@@ -36,9 +37,10 @@ export default function CreateLedgerBookPage() {
         description,
         blockSize: parseInt(blockSize, 10) || 100,
         referencePrefix: referencePrefix.toUpperCase() || ledgerCode.toUpperCase(),
-        actor: userActor(user.uid),
+        actor: userActor(user.userId || user.uid),
       });
       if (book) {
+        workspaceQueryCache.invalidate(`${workspaceId}:ledgerBooks:`);
         navigate(`/app/ledger/${book.ledgerBookId}`);
       }
     } catch (err) {

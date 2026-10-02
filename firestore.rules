@@ -76,15 +76,19 @@ service cloud.firestore {
     // Path: workspaces/{workspaceId}
 
     match /workspaces/{workspaceId} {
-      // Personal workspace: only the owner can read
-      // Organization workspace: only active members can read
-      allow read: if isAuthenticated()
+      // Deterministic Personal Workspace path must be readable before creation.
+      // Existing Personal/Organization workspaces remain owner/member scoped.
+      allow get: if isAuthenticated()
         && (
-          // Personal workspace — owner only
+          workspaceId == 'personal_' + request.auth.uid
+          || (resource.data.type == 'PERSONAL' && resource.data.ownerUserId == request.auth.uid)
+          || (resource.data.type == 'ORGANIZATION' && isActiveMember(resource.data.organizationId))
+        );
+
+      allow list: if isAuthenticated()
+        && (
           (resource.data.type == 'PERSONAL' && resource.data.ownerUserId == request.auth.uid)
-          ||
-          // Organization workspace — active members only
-          (resource.data.type == 'ORGANIZATION' && isActiveMember(resource.data.organizationId))
+          || (resource.data.type == 'ORGANIZATION' && isActiveMember(resource.data.organizationId))
         );
 
       // Create personal workspace: only for yourself
@@ -735,7 +739,7 @@ service cloud.firestore {
 
       // ─── Widget Definitions ────────────────────────────────
       match /widgetDefinitions/{widgetId} {
-        allow read: if isAuthenticated() && resource.data.workspaceId == workspaceId
+        allow read: if canAccessWorkspace()
           && resource.data.ownerUserId == request.auth.uid;
         allow create: if canAccessWorkspace()
           && request.resource.data.workspaceId == workspaceId
@@ -750,7 +754,7 @@ service cloud.firestore {
 
       // ─── Notifications ─────────────────────────────────────
       match /notifications/{notificationId} {
-        allow read: if isAuthenticated() && resource.data.workspaceId == workspaceId
+        allow read: if canAccessWorkspace()
           && resource.data.recipientUserId == request.auth.uid;
         allow create: if canAccessWorkspace()
           && request.resource.data.workspaceId == workspaceId
@@ -764,8 +768,11 @@ service cloud.firestore {
 
       // ─── User Workspace Preferences ────────────────────────
       match /userWorkspacePreferences/{userId} {
-        allow read: if isUser(userId) && resource.data.workspaceId == workspaceId;
-        allow create: if isUser(userId) && request.resource.data.workspaceId == workspaceId
+        // Deterministic owner path: allow get even before the preference document exists.
+        allow get: if isUser(userId) && canAccessWorkspace();
+        allow list: if false;
+        allow create: if isUser(userId) && canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
           && request.resource.data.userId == userId;
         allow update: if isUser(userId) && resource.data.workspaceId == workspaceId
           && request.resource.data.workspaceId == workspaceId

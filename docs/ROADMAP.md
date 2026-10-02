@@ -113,6 +113,18 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ---
 
+## Step 7.1 — Workspace Runtime Hardening
+
+**Status:** Complete
+
+- Firestore development backend/API initialized and rules released
+- Deterministic, concurrent-safe Personal Workspace bootstrap
+- Core Workspace readiness separated from optional feature discovery
+- Stale local Workspace fallback
+- Independent Dashboard section loading
+- Ledger loading/empty/error settlement
+- Empty Personal Workspace emulator integration coverage
+
 ## Step 7 — Workspace Experience
 
 **Status:** Complete

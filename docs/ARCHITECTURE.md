@@ -342,6 +342,54 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 7.1 — Workspace Query Cache
+
+V1 performance review found that fast navigation came from a persistent shell, in-memory provider state, static Module registries, localStorage business-data duplication, and page-specific Firestore listeners. V2 retains the persistent-shell/render-from-memory behavior but rejects duplicated local business data and overlapping listeners.
+
+V2 uses an in-memory, workspace-scoped stale-while-revalidate cache:
+
+```text
+workspaceId : resource : normalized query/filter/page
+```
+
+Cache states are `IDLE`, `INITIAL_LOADING`, `READY`, `REFRESHING`, and `ERROR`. Cached content remains visible during refresh. Entries have bounded freshness windows and are never persisted as a second business-data source of truth.
+
+Small resources (`modules`, `worksets`, user Widgets) are prefetched after Workspace readiness during browser idle time. Entity Types are fetched/seeded on first use. Large resources remain bounded: Records cache a filtered first page (25), Entities are capped at 100 pending cursor pagination, Dashboard Records are capped at 5, and Ledger caches only Ledger Books—not Ledger Entries. Notifications and Audit remain bounded query-driven views.
+
+Mutations invalidate resource prefixes for the active workspace. Workspace IDs are part of every key, so switching A→B cannot render A data as B. Prior B cache may be reused when switching back if still fresh.
+
+Observed development behavior after Firestore initialization:
+- First Personal Workspace creation: ~2.8s (one-time read + create)
+- Steady-state cold reload: ~2s
+- First uncached route: brief network flash, typically ~1–2s
+- Cached repeat Modules/Ledger navigation: perceived immediate, no full skeleton
+- Empty Ledger first visit: ~1–2s; repeat visit immediate
+
+## Step 7.1 — Runtime Startup Dependency Graph
+
+Required startup path:
+
+```text
+AuthProvider → authenticated User → deterministic Personal Workspace get/create → currentWorkspace READY
+```
+
+Optional paths begin only after the Personal Workspace is usable:
+
+```text
+Person profile
+Organization membership/workspace discovery
+Worksets + active Workset preference
+Dashboard Module/Record/Widget projections
+Notifications
+Ledger
+```
+
+Optional failures use feature/experience error state and never clear a valid `currentWorkspace`. Dashboard projections load independently; no optional section blocks the Workspace shell. The last Workspace ID is validated by direct lookup, removed if stale/inaccessible, and replaced with the Personal Workspace.
+
+Personal Workspace identity is deterministic (`personal_{userId}`), making concurrent first-login bootstrap converge on one document. A diagnostic rejection boundary identifies backend operations that fail to settle; it is failure handling, not normal startup control flow.
+
+The October 2026 runtime incident was caused by the `modulity-2-dev` project having no enabled Firestore API/default database. Firestore SDK operations retried for 23–35 seconds and surfaced an offline error. The default database was created and rules deployed; steady-state Workspace startup then settled in approximately two seconds, with Dashboard sections completing independently.
+
 ## Step 7 — Workspace Experience
 
 ### Workspace Orchestration
