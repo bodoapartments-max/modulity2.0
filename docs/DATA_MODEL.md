@@ -499,6 +499,24 @@ Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the tok
 
 ---
 
+## Chat Data Model (Step 7.2)
+
+### Conversation
+- Path: `workspaces/{workspaceId}/conversations/{conversationId}`
+- Types: DIRECT, GROUP
+- Stores immutable `memberIds` for bounded owner/member queries, title/status, creator provenance, and server timestamps
+
+### ConversationMember
+- Path: `workspaces/{workspaceId}/conversations/{conversationId}/members/{userId}`
+- Canonical Chat access record with workspace/conversation/user identity, role, and server-authoritative join time
+- Immutable after creation in Step 7.2
+
+### Message
+- Path: `workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId}`
+- Stores senderUserId, bounded text content (1–4000), immutable conversation/workspace identity, and server-authoritative creation time
+- Append-only; update/delete denied
+- Queries are bounded to at most 50
+
 ## Workspace Experience Data Model (Step 7)
 
 ### Workset

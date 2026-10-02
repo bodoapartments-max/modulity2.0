@@ -38,6 +38,7 @@ import {
   createWorkspacePreferenceService,
 } from '../core/workspace/workspaceExperienceServices.js';
 import { startNotificationBridge } from '../core/workspace/notificationBridge.js';
+import { createConversationService } from '../core/workspace/conversationService.js';
 
 function createServices() {
   if (!repositories) {
@@ -162,6 +163,7 @@ function createServices() {
     widget: createWidgetService({ widgetRepo: repositories.widgets }),
     widgetQuery: createWidgetQueryService({ recordQueryService: recordQuerySvc, relationshipRepo: repositories.relationships }),
     notification: notificationSvc,
+    conversation: createConversationService({ conversationRepo: repositories.conversations }),
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,
       worksetRepo: repositories.worksets,

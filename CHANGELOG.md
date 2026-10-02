@@ -2,6 +2,25 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 7.2 — Workspace Experience Closure & Integration Audit
+
+### Added
+- Membership-protected Chat foundation: Conversation, ConversationMember, Message, bounded queries, server timestamps, service/repository, `/app/chat`, and responsive header control
+- Workset edit flow for name, description, Module membership, zero-module state, archived/unavailable Module handling, and active Workset filtering on My Modules
+- Real emulator journey connecting canonical Module → Workset → preference → Entity → Record → Widget → Notification → Conversation/Message
+- Negative Chat security tests for non-members, sender spoofing, cross-workspace provenance, and immutable Messages
+
+### Hardened
+- Notification creation now requires attributable USER/self `createdBy`; provenance is immutable
+- Notification Center uses workspace cache and updates the header unread count after mark-read
+- Conversation metadata query uses immutable `memberIds`; Message access requires canonical ConversationMember documents
+- Mobile header keeps Workspace, Notifications, Chat, and account actions reachable; Records tabs use controlled horizontal scrolling
+
+### Actual deferred scope
+- Widget metric/aggregation rendering remains Step 8; Step 7 stores and displays deterministic definitions only
+- Chat conversation/member creation UI, typing, attachments, read receipts, and realtime delivery remain a later collaboration milestone
+- Full cursor pagination for Entities remains follow-up; current read is bounded to 100
+
 ## Step 7.1 — Workspace Runtime Bootstrap Hardening
 
 ### Fixed

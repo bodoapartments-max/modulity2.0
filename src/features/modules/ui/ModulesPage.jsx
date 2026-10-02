@@ -16,12 +16,15 @@ const STATUS_COLORS = {
 };
 
 export default function ModulesPage() {
-  const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
+  const { currentWorkspace, activeWorkset, activateWorkset, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const workspaceId = currentWorkspace?.workspaceId;
   const loader = useCallback(() => services.module.listModules(workspaceId), [workspaceId]);
-  const { data: modules = [], error, initialLoading: loading, refreshing } = useWorkspaceQuery({
+  const { data: cachedModules = [], error, initialLoading: loading, refreshing } = useWorkspaceQuery({
     workspaceId, resource: 'modules', loader, enabled: Boolean(workspaceId),
   });
+  const modules = activeWorkset
+    ? cachedModules.filter((module) => activeWorkset.moduleIds.includes(module.moduleId))
+    : cachedModules;
 
   if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
     return <ErrorState title="Workspace unavailable" message="Select an available workspace before managing Modules." />;
@@ -44,15 +47,15 @@ export default function ModulesPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">My Modules</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            Create and manage modules for your workspace
+            {activeWorkset ? `Modules in ${activeWorkset.name}` : 'Create and manage modules for your workspace'}
           </p>
         </div>
-        <Link
+        <div className="flex gap-2">{activeWorkset && <button type="button" onClick={() => activateWorkset(null)} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">All Modules</button>}<Link
           to="/app/modules/new"
           className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         >
           Create Module
-        </Link>
+        </Link></div>
       </div>
 
       {refreshing && <p className="mb-3 text-xs text-neutral-400">Refreshing…</p>}
@@ -61,9 +64,9 @@ export default function ModulesPage() {
       {modules.length === 0 ? (
         <div className="text-center py-16 bg-neutral-50 rounded-xl border border-neutral-200">
           <div className="text-4xl mb-3">&#128221;</div>
-          <h2 className="text-lg font-semibold text-neutral-700 mb-2">No modules yet</h2>
+          <h2 className="text-lg font-semibold text-neutral-700 mb-2">{activeWorkset ? 'No Modules in this Workset' : 'No modules yet'}</h2>
           <p className="text-sm text-neutral-500 mb-4">
-            Modules define forms that create Records. Get started by creating your first module.
+            {activeWorkset ? 'Edit the Workset to add Modules, or return to All Modules.' : 'Modules define forms that create Records. Get started by creating your first module.'}
           </p>
           <Link
             to="/app/modules/new"

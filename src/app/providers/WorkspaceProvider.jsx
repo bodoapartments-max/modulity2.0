@@ -219,6 +219,21 @@ export function WorkspaceProvider({ children }) {
     return () => { cancelled = true; };
   }, [currentWorkspace?.workspaceId, user]);
 
+  const refreshWorksets = useCallback(async () => {
+    if (!currentWorkspace?.workspaceId) return [];
+    const key = workspaceQueryKey(currentWorkspace.workspaceId, 'worksets');
+    const next = await workspaceQueryCache.fetch(
+      key,
+      () => services.workset.list(currentWorkspace.workspaceId),
+      { force: true },
+    );
+    setWorksets(next);
+    setActiveWorkset((current) => current
+      ? next.find((item) => item.worksetId === current.worksetId) || null
+      : null);
+    return next;
+  }, [currentWorkspace?.workspaceId]);
+
   useEffect(() => {
     if (!currentWorkspace?.workspaceId || !user) return undefined;
     const workspaceId = currentWorkspace.workspaceId;
@@ -300,6 +315,7 @@ export function WorkspaceProvider({ children }) {
     worksets,
     activeWorkset,
     activateWorkset,
+    refreshWorksets,
     switchWorkspace,
     refreshWorkspaces: loadWorkspaces,
     loading,
@@ -308,7 +324,7 @@ export function WorkspaceProvider({ children }) {
     experienceError,
     isPersonalWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.PERSONAL,
     isOrganizationWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.ORGANIZATION,
-  }), [currentWorkspace, availableWorkspaces, currentMembership, worksets, activeWorkset, activateWorkset, switchWorkspace, loadWorkspaces, loading, switching, error, experienceError]);
+  }), [currentWorkspace, availableWorkspaces, currentMembership, worksets, activeWorkset, activateWorkset, refreshWorksets, switchWorkspace, loadWorkspaces, loading, switching, error, experienceError]);
 
   return (
     <WorkspaceContext.Provider value={value}>

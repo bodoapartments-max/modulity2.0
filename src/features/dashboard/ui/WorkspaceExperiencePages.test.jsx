@@ -6,10 +6,11 @@ import { WorkspaceContext } from '../../../app/providers/WorkspaceProvider.jsx';
 import WorksetsPage from '../../worksets/ui/WorksetsPage.jsx';
 import WidgetsPage from '../../widgets/ui/WidgetsPage.jsx';
 import NotificationsPage from '../../notifications/ui/NotificationsPage.jsx';
+import ChatPage from '../../chat/ui/ChatPage.jsx';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 const mocks = vi.hoisted(() => ({
-  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(),
+  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(), listConversations: vi.fn(),
 }));
 
 vi.mock('../../../infrastructure/services.js', () => ({
@@ -17,6 +18,7 @@ vi.mock('../../../infrastructure/services.js', () => ({
     workset: { list: mocks.listWorksets },
     widget: { listForUser: mocks.listWidgets },
     notification: { listForUser: mocks.listNotifications },
+    conversation: { listForUser: mocks.listConversations, listMessages: vi.fn() },
   },
 }));
 
@@ -37,6 +39,7 @@ describe('Workspace Experience empty states', () => {
     mocks.listWorksets.mockReset().mockResolvedValue([]);
     mocks.listWidgets.mockReset().mockResolvedValue([]);
     mocks.listNotifications.mockReset().mockResolvedValue([]);
+    mocks.listConversations.mockReset().mockResolvedValue([]);
   });
 
   it('settles Worksets loading into empty', async () => {
@@ -52,6 +55,11 @@ describe('Workspace Experience empty states', () => {
   it('settles Notifications loading into empty', async () => {
     renderPage(<NotificationsPage />);
     expect(await screen.findByText('No notifications')).toBeInTheDocument();
+  });
+
+  it('accurately presents the empty Chat foundation', async () => {
+    renderPage(<ChatPage />);
+    expect(await screen.findByText('No conversations')).toBeInTheDocument();
   });
 
   it('settles a query failure into ErrorState', async () => {

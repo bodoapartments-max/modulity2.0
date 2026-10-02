@@ -39,6 +39,7 @@ const CreateWorksetPage = lazy(() => import('../../features/worksets/ui/CreateWo
 const WorksetDetailPage = lazy(() => import('../../features/worksets/ui/WorksetDetailPage.jsx'));
 const WidgetsPage = lazy(() => import('../../features/widgets/ui/WidgetsPage.jsx'));
 const NotificationsPage = lazy(() => import('../../features/notifications/ui/NotificationsPage.jsx'));
+const ChatPage = lazy(() => import('../../features/chat/ui/ChatPage.jsx'));
 
 function PageLoader() {
   return (
@@ -60,7 +61,7 @@ function AppShell() {
           <Sidebar />
         </aside>
 
-        <main className="flex-1 lg:pl-64">
+        <main className="min-w-0 flex-1 lg:pl-64">
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route index element={<DashboardPage />} />
@@ -84,6 +85,7 @@ function AppShell() {
               <Route path="worksets/:worksetId" element={<WorksetDetailPage />} />
               <Route path="widgets" element={<WidgetsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="chat" element={<ChatPage />} />
               <Route path="ledger" element={<LedgerListPage />} />
               <Route path="ledger/new" element={<CreateLedgerBookPage />} />
               <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />

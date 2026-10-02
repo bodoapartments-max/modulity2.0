@@ -19,7 +19,11 @@ export function startNotificationBridge(eventBus, notificationService) {
     const notification = map(event);
     if (!notification.recipientUserId) return;
     try {
-      await notificationService.create({ workspaceId: event.workspaceId, ...notification });
+      await notificationService.create({
+        workspaceId: event.workspaceId,
+        ...notification,
+        createdBy: { actorType: 'USER', actorId: event.actor?.id },
+      });
     } catch {
       // Notification delivery is best-effort until a durable backend dispatcher exists.
     }

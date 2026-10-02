@@ -113,6 +113,18 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ---
 
+## Step 7.2 — Workspace Experience Closure
+
+**Status:** Complete with explicit deferrals
+
+- Workset edit/module/context flow closed
+- Dashboard/Module/Record/Entity/Ledger integration audited
+- Notification provenance and recipient behavior hardened
+- Membership-protected Chat foundation and honest empty UI added
+- Responsive header and Records navigation hardened
+- Canonical cross-feature emulator journey added
+- Deferred: Widget aggregation (Step 8), Chat creation/realtime collaboration extras, Entity cursor UI
+
 ## Step 7.1 — Workspace Runtime Hardening
 
 **Status:** Complete

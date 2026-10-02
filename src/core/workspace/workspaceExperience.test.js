@@ -29,7 +29,7 @@ describe('Workspace Experience models', () => {
   });
 
   it('creates a canonical-resource Notification reference', () => {
-    const notification = createNotification({ notificationId: 'n1', workspaceId: 'ws1', recipientUserId: 'user-1', type: 'RECORD_SENT', title: 'Record received', resourceType: 'RECORD', resourceId: 'r1' });
+    const notification = createNotification({ notificationId: 'n1', workspaceId: 'ws1', recipientUserId: 'user-1', type: 'RECORD_SENT', title: 'Record received', resourceType: 'RECORD', resourceId: 'r1', createdBy: actor });
     expect(notification.resourceId).toBe('r1');
     expect(notification.status).toBe('UNREAD');
   });

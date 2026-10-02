@@ -124,6 +124,19 @@ service cloud.firestore {
         );
       }
 
+      function userCanAccessWorkspace(userId) {
+        return (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+            && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == userId)
+          || (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+            && exists(/databases/$(database)/documents/organizations/$(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId)/members/$(userId))
+            && get(/databases/$(database)/documents/organizations/$(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId)/members/$(userId)).data.status == 'ACTIVE');
+      }
+
+      function isConversationMember(conversationId) {
+        return isAuthenticated()
+          && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)/members/$(request.auth.uid));
+      }
+
       // ─── Workspace Data Subcollections ───────────────────
       // Universal Data Core: entityTypes, entities, relationships, records, files
       // Access requires workspace ownership (personal) or active org membership (org).
@@ -758,11 +771,13 @@ service cloud.firestore {
           && resource.data.recipientUserId == request.auth.uid;
         allow create: if canAccessWorkspace()
           && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.notificationId == notificationId;
+          && request.resource.data.notificationId == notificationId
+          && isValidClientActor(request.resource.data.createdBy);
         allow update: if resource.data.recipientUserId == request.auth.uid
           && fieldUnchanged('workspaceId') && fieldUnchanged('notificationId')
           && fieldUnchanged('recipientUserId') && fieldUnchanged('type')
-          && fieldUnchanged('resourceType') && fieldUnchanged('resourceId');
+          && fieldUnchanged('resourceType') && fieldUnchanged('resourceId')
+          && fieldUnchanged('createdBy') && fieldUnchanged('_createdAt');
         allow delete: if false;
       }
 
@@ -778,6 +793,51 @@ service cloud.firestore {
           && request.resource.data.workspaceId == workspaceId
           && fieldUnchanged('userId');
         allow delete: if false;
+      }
+
+      // ─── Conversations / Chat ──────────────────────────────
+      match /conversations/{conversationId} {
+        allow read: if canAccessWorkspace()
+          && resource.data.memberIds.hasAny([request.auth.uid]);
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.conversationId == conversationId
+          && isValidClientActor(request.resource.data.createdBy)
+          && request.resource.data.memberIds is list
+          && request.resource.data.memberIds.size() >= 1
+          && request.resource.data.memberIds.size() <= 50
+          && request.resource.data.memberIds.hasAny([request.auth.uid]);
+        allow update: if canAccessWorkspace() && isConversationMember(conversationId)
+          && fieldUnchanged('workspaceId') && fieldUnchanged('conversationId')
+          && fieldUnchanged('type') && fieldUnchanged('memberIds')
+          && fieldUnchanged('createdBy') && fieldUnchanged('_createdAt');
+        allow delete: if false;
+
+        match /members/{userId} {
+          allow read: if canAccessWorkspace() && isConversationMember(conversationId);
+          allow create: if canAccessWorkspace()
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.conversationId == conversationId
+            && request.resource.data.userId == userId
+            && userCanAccessWorkspace(userId)
+            && (
+              isConversationMember(conversationId)
+              || getAfter(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.createdBy.actorId == request.auth.uid
+            );
+          allow update, delete: if false;
+        }
+
+        match /messages/{messageId} {
+          allow get: if canAccessWorkspace() && isConversationMember(conversationId);
+          allow list: if canAccessWorkspace() && isConversationMember(conversationId)
+            && request.query.limit <= 50;
+          allow create: if canAccessWorkspace() && isConversationMember(conversationId)
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.conversationId == conversationId
+            && request.resource.data.messageId == messageId
+            && request.resource.data.senderUserId == request.auth.uid;
+          allow update, delete: if false;
+        }
       }
 
       // ─── Ledger Books ─────────────────────────────────────

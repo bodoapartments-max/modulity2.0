@@ -211,6 +211,10 @@ In early implementations the event bus may be synchronous within the same proces
 - Events: record.created, record.updated, record.submitted, record.cancelled, record.archived, etc.
 - NOT the durable audit history
 
+## Chat Events (Step 7.2)
+
+Chat persistence does not reuse the runtime Event Bus as storage. Conversation and Message documents are canonical. Step 7.2 does not emit notification-per-message or typing/read-receipt events; those remain deferred until a trusted collaboration dispatcher exists.
+
 ## Notification Layer (Step 7)
 
 Notifications are selective, recipient-scoped, actionable UI messages. They are not a complete event stream and not an accountability log.

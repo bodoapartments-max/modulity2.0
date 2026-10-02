@@ -295,6 +295,16 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 7.2 — Closure Invariants
+
+- Worksets reference canonical Module IDs and affect presentation only.
+- WidgetDefinitions remain configuration; aggregation/visualization belongs to Step 8.
+- Notifications reference canonical resources and require attributable creator provenance.
+- Conversation `memberIds` supports list queries; ConversationMember documents authorize Message access.
+- Messages are append-only, server-timestamped, and queried in bounded pages.
+- Do not describe Chat conversation creation, realtime listeners, attachments, read receipts, or Widget analytics as complete.
+- Responsive header controls must remain reachable at 375px; wide Record tabs/tables use controlled horizontal scrolling.
+
 ## Step 7.1 — Runtime Bootstrap Rules
 
 - Core readiness depends only on Auth and a valid Personal Workspace.

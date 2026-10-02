@@ -5,6 +5,7 @@
  * placeholder areas for notifications/chat, and user menu.
  */
 
+import { Link } from 'react-router-dom';
 import { useAuth } from '../providers/AuthProvider.jsx';
 import { useWorkspace } from '../providers/WorkspaceProvider.jsx';
 import IconButton from '../../design-system/components/IconButton/IconButton.jsx';
@@ -41,7 +42,7 @@ function Header({ onOpenMobileMenu }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="h-6 w-6 rounded bg-primary-600" aria-hidden="true" />
-          <span className="text-lg font-semibold text-neutral-900">Modulity</span>
+          <span className="hidden text-lg font-semibold text-neutral-900 sm:inline">Modulity</span>
         </div>
       </div>
 
@@ -49,11 +50,9 @@ function Header({ onOpenMobileMenu }) {
         <WorkspaceSwitcher />
         <select id="active-workset" name="activeWorksetId" className="hidden max-w-36 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-700 md:block" aria-label="Active Workset" value={activeWorkset?.worksetId || ''} onChange={(event) => activateWorkset(event.target.value || null)}><option value="">All Modules</option>{worksets.map((workset) => <option key={workset.worksetId} value={workset.worksetId}>{workset.name}</option>)}</select>
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
-        <div className="hidden sm:block"><NotificationButton /></div>
+        <NotificationButton />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
-        <div className="hidden text-sm text-neutral-500 lg:block" aria-label="Chat (coming soon)">
-          Chat
-        </div>
+        <Link to="/app/chat" className="flex items-center gap-1 rounded-md p-2 text-sm text-neutral-600 hover:bg-neutral-100" aria-label="Open Chat"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm3.75 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm3.75 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM21 12c0 4.142-4.03 7.5-9 7.5a10.65 10.65 0 0 1-4.25-.87L3 19.5l1.13-3.39A6.7 6.7 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z" /></svg><span className="hidden xl:inline">Chat</span></Link>
 
         <Dropdown
           align="right"
@@ -62,7 +61,7 @@ function Header({ onOpenMobileMenu }) {
               type="button"
               className="ml-2 flex max-w-[10rem] items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
             >
-              <span className="truncate">{displayName}</span>
+              <span className="hidden truncate lg:inline">{displayName}</span>
               <span className="h-6 w-6 rounded-full bg-primary-100 text-xs font-semibold leading-6 text-primary-700" aria-hidden="true">
                 {displayName.charAt(0).toUpperCase()}
               </span>

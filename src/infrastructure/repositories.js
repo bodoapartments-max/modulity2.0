@@ -27,6 +27,7 @@ import { createFirestoreLedgerBookRepository } from './firebase/firestoreLedgerB
 import { createFirestoreLedgerEntryRepository } from './firebase/firestoreLedgerEntryRepository.js';
 import { createFirestoreAuditEntryRepository } from './firebase/firestoreAuditEntryRepository.js';
 import { createFirestoreLedgerCodeRepository } from './firebase/firestoreLedgerCodeRepository.js';
+import { createFirestoreConversationRepository } from './firebase/firestoreConversationRepository.js';
 import {
   createFirestoreWorksetRepository,
   createFirestoreWidgetRepository,
@@ -66,6 +67,7 @@ function createRepositories() {
     widgets: createFirestoreWidgetRepository(firebaseDb),
     notifications: createFirestoreNotificationRepository(firebaseDb),
     workspacePreferences: createFirestoreWorkspacePreferenceRepository(firebaseDb),
+    conversations: createFirestoreConversationRepository(firebaseDb),
   };
 }
 

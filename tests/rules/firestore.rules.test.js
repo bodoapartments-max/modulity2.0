@@ -30,6 +30,7 @@ import {
   updateDoc,
   deleteDoc,
   setLogLevel,
+  writeBatch,
 } from 'firebase/firestore';
 
 setLogLevel('error');
@@ -3477,15 +3478,78 @@ describe('Step 7 workspace experience rules', () => {
   });
 
   it('isolates Notifications to the recipient', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n1'), { notificationId: 'n1', workspaceId: 'ws-step7', recipientUserId: 'user1', type: 'RECORD_SENT', title: 'Sent', status: 'UNREAD' }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n1'), { notificationId: 'n1', workspaceId: 'ws-step7', recipientUserId: 'user1', type: 'RECORD_SENT', title: 'Sent', status: 'UNREAD', createdBy: { actorType: 'USER', actorId: 'user2' } }));
     await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-step7', 'notifications', 'n1')));
     await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'notifications', 'n1')));
+  });
+
+  it('denies Notification actor spoofing', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'spoof'), {
+      notificationId: 'spoof', workspaceId: 'ws-step7', recipientUserId: 'user1',
+      type: 'TEST', title: 'Spoof', status: 'UNREAD',
+      createdBy: { actorType: 'USER', actorId: 'user2' },
+    }));
   });
 
   it('allows only preference owner access', async () => {
     const db = authedDb('user1');
     await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1'), { workspaceId: 'ws-step7', userId: 'user1', activeWorksetId: null }));
     await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1')));
+  });
+});
+
+describe('Step 7.2 Chat security rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('chat-ws', { type: 'ORGANIZATION', organizationId: 'chat-org' });
+    await setupOrg('chat-org', { createdByUserId: 'user1' }, [
+      { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
+      { userId: 'user2', roles: ['MEMBER'], status: 'ACTIVE' },
+      { userId: 'user3', roles: ['MEMBER'], status: 'ACTIVE' },
+    ]);
+  });
+
+  async function createConversationFixture() {
+    const db = authedDb('user1');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'workspaces', 'chat-ws', 'conversations', 'c1'), {
+      conversationId: 'c1', workspaceId: 'chat-ws', type: 'DIRECT', title: '',
+      memberIds: ['user1', 'user2'], status: 'ACTIVE',
+      createdBy: { actorType: 'USER', actorId: 'user1' }, _createdAt: new Date(), _updatedAt: new Date(),
+    });
+    for (const userId of ['user1', 'user2']) {
+      batch.set(doc(db, 'workspaces', 'chat-ws', 'conversations', 'c1', 'members', userId), {
+        conversationId: 'c1', workspaceId: 'chat-ws', userId, role: userId === 'user1' ? 'OWNER' : 'MEMBER',
+      });
+    }
+    await assertSucceeds(batch.commit());
+  }
+
+  it('allows members to read/send and denies non-members', async () => {
+    await createConversationFixture();
+    await assertSucceeds(getDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1')));
+    await assertFails(getDoc(doc(authedDb('user3'), 'workspaces', 'chat-ws', 'conversations', 'c1')));
+    await assertSucceeds(setDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm1'), {
+      messageId: 'm1', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user2', content: 'Hello', _createdAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(authedDb('user3'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm2'), {
+      messageId: 'm2', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user3', content: 'Blocked', _createdAt: new Date(),
+    }));
+  });
+
+  it('denies sender identity spoofing and message mutation', async () => {
+    await createConversationFixture();
+    const ref = doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm1');
+    await assertFails(setDoc(ref, { messageId: 'm1', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user1', content: 'Spoof' }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'locked'), { messageId: 'locked', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user1', content: 'Original' }));
+    await assertFails(updateDoc(doc(authedDb('user1'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'locked'), { content: 'Changed' }));
+  });
+
+  it('denies cross-workspace conversation provenance', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'chat-ws', 'conversations', 'bad'), {
+      conversationId: 'bad', workspaceId: 'other-ws', type: 'GROUP', memberIds: ['user1'], status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
   });
 });
 

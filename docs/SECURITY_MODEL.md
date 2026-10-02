@@ -432,6 +432,15 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 7.2 — Workspace Experience Closure Security
+
+- Notification create requires `createdBy.actorType == USER` and `createdBy.actorId == auth.uid`; recipient/resource/creator provenance is immutable. Browser creators remain attributable but are not a fully trusted notification dispatcher.
+- Conversation create requires workspace access, USER/self creator, bounded memberIds, and creator membership.
+- Conversation metadata read requires workspace access and authenticated UID in immutable memberIds.
+- ConversationMember creation requires the target user to have Workspace access and the requester to be an existing member or the creating owner in the same atomic batch.
+- Message get/list/create requires a canonical ConversationMember document. List limit is at most 50. senderUserId must equal auth.uid. Update/delete denied.
+- Cross-workspace Conversation/Member/Message provenance is denied.
+
 ## Step 7.1 — Bootstrap Security
 
 - Authenticated users may `get` only their deterministic `workspaces/personal_{uid}` path before it exists; creation still requires `type: PERSONAL` and `ownerUserId == auth.uid`.

@@ -13,7 +13,7 @@ import ErrorState from '../../../design-system/components/ErrorState/ErrorState.
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 export default function CreateWorksetPage() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, refreshWorksets } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
@@ -30,7 +30,7 @@ export default function CreateWorksetPage() {
   }, [currentWorkspace?.workspaceId]);
   async function submit(event) {
     event.preventDefault();
-    try { setSaving(true); setError(null); const workset = await services.workset.create({ workspaceId: currentWorkspace.workspaceId, name, description, moduleIds, createdBy: { actorType: 'USER', actorId: user.userId } }); workspaceQueryCache.invalidate(`${currentWorkspace.workspaceId}:worksets:`); navigate(`/app/worksets/${workset.worksetId}`); }
+    try { setSaving(true); setError(null); const workset = await services.workset.create({ workspaceId: currentWorkspace.workspaceId, name, description, moduleIds, createdBy: { actorType: 'USER', actorId: user.userId } }); workspaceQueryCache.invalidate(`${currentWorkspace.workspaceId}:worksets:`); await refreshWorksets(); navigate(`/app/worksets/${workset.worksetId}`); }
     catch { setError('The Workset could not be created.'); }
     finally { setSaving(false); }
   }

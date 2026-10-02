@@ -342,6 +342,29 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 7.2 — Workspace Experience Closure
+
+### Feature status
+- Dashboard: integrated with canonical Workspace, Modules, Records, Worksets, and WidgetDefinitions; advanced Widget metrics deferred to Step 8.
+- Worksets: create/edit/archive/activate, canonical Module references, active-context filtering, and All Modules escape. Worksets never authorize access.
+- Widgets: real owner-scoped definition persistence and Dashboard presence; aggregation/visualization engine deferred.
+- Notifications: real recipient-scoped persistence, read state, action links, bounded query, attributable browser creator, and selective Event mapping.
+- Chat: safe deterministic foundation for DIRECT/GROUP Conversations, immutable Members, append-only Messages, bounded history, and existing-conversation UI. Conversation/member creation UI and collaboration extras are deferred.
+- Records, Entities, and Ledger remain canonical engines consumed by the Workspace Experience.
+
+### Chat boundary
+
+```text
+Conversation (workspace, immutable memberIds)
+  └─ ConversationMember/{userId} (access authority)
+      └─ Message (append-only, sender provenance, server timestamp)
+```
+
+Conversation list queries use immutable `memberIds` for query authorization. Reading/sending Messages additionally requires the authenticated user's ConversationMember document. History is descending and limited to 50 per request (30 in UI).
+
+### Integration journey
+The emulator journey verifies one workspace can reference a canonical Module from a Workset and WidgetDefinition, create a canonical Entity and Module-driven Record, deliver a resource-referencing Notification, persist active Workset preference, and exchange a bounded Chat Message without duplicating business data.
+
 ## Step 7.1 — Workspace Query Cache
 
 V1 performance review found that fast navigation came from a persistent shell, in-memory provider state, static Module registries, localStorage business-data duplication, and page-specific Firestore listeners. V2 retains the persistent-shell/render-from-memory behavior but rejects duplicated local business data and overlapping listeners.
