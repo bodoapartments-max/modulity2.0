@@ -71,15 +71,8 @@ function Header({ onOpenMobileMenu }) {
           <DropdownItem onClick={() => window.location.hash = '#profile'} disabled>
             Profile (coming soon)
           </DropdownItem>
-          <DropdownItem
-            onClick={() => {
-              if (currentWorkspace?.organizationId) {
-                window.location.href = '/app/settings';
-              }
-            }}
-            disabled={!currentWorkspace?.organizationId}
-          >
-            {currentWorkspace?.organizationId ? 'Organization Settings' : 'Settings'}
+          <DropdownItem onClick={() => { window.location.href = '/app/settings'; }}>
+            {currentWorkspace?.organizationId ? 'Organization Settings' : 'Workspace Settings'}
           </DropdownItem>
           <DropdownItem onClick={() => signOut()}>Sign out</DropdownItem>
         </Dropdown>

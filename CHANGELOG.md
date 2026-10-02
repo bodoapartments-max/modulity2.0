@@ -2,6 +2,26 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 8.1 — Safe Workspace Reset
+
+### Added
+- Minimal trusted Firebase callable/Admin SDK boundary for WORKSPACE_DATA_RESET
+- Deterministic allowlisted ResetPlan with estimated counts and preserved-resource contract
+- Personal owner and Organization OWNER authorization
+- Admin-only per-Workspace operation lock, idempotent request IDs, minimal surviving reset audit, and reset generation metadata
+- Typed Workspace-name confirmation Danger Zone for Personal and Organization Settings
+- Workspace-scoped cache invalidation and clean app reload after success
+- Emulator integration for Personal/Organization reset, member denial, multi-Workspace isolation, idempotency, concurrency, empty reset, analytics/Chat/Ledger nested cleanup, and post-reset reuse
+
+### Deployment status
+- Implementation and Emulator validation complete
+- `modulity-2-dev` callable deployment and authenticated browser destructive smoke are PENDING Firebase Blaze-plan upgrade; no client fallback exists
+
+### Limitations
+- File metadata is deleted; binary storage cleanup adapter is not yet implemented
+- Reset lock prevents concurrent resets but normal writes do not yet enforce dataGeneration/write epoch
+- Firebase Functions dependency tree has a transitive moderate uuid advisory without a currently compatible non-breaking remediation
+
 ## Step 8 — Reports & Intelligence Engine
 
 ### Added

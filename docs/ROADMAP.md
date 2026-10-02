@@ -153,6 +153,16 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ---
 
+## Step 8.1 — Safe Workspace Reset
+
+**Status:** Implementation complete; deployment/browser closure pending Firebase Blaze upgrade
+
+- Trusted callable/Admin SDK boundary and OWNER authorization
+- Allowlisted current-Workspace data reset; User/Workspace/Organization/Memberships preserved
+- Typed confirmation, plan/count preview, lock/idempotency, surviving metadata audit
+- Emulator destructive/isolation/concurrency integration coverage
+- Deferred: binary Storage cleanup adapter, write-epoch enforcement, realtime session invalidation, MODULE_DATA_RESET/FULL_WORKSPACE_DELETE
+
 ## Step 8 — Reports & Intelligence
 
 **Status:** Complete — deterministic scope

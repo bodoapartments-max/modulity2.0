@@ -301,6 +301,14 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 8.1 — Workspace Reset
+
+- Workspace Reset is implemented only through the trusted Firebase callable/Admin SDK boundary.
+- Never add browser delete loops or client delete permissions for immutable Workspace resources.
+- Reset allowlist: `functions/src/workspaceResetContract.js`.
+- Semantics and limitations: `docs/WORKSPACE_RESET.md`.
+- Reset integration tests require the Firestore Emulator and functions dependencies.
+
 ## Step 8 — Reports & Intelligence
 
 - Shared analytics primitives: `src/core/analytics/`.

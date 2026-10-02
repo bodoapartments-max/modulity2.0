@@ -432,6 +432,17 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 8.1 — Workspace Reset Security
+
+- Workspace Reset is unavailable through Firestore client writes and ordinary repositories.
+- Callable verifies Firebase Auth and authorizes Personal owner or active Organization OWNER.
+- Admin-only reset locks/audits remain denied by catch-all client Rules.
+- Normal Record/Ledger/Audit/Message delete prohibitions remain unchanged.
+- Client Workspace updates cannot mutate dataGeneration/lastResetAt/lastResetBy.
+- Typed confirmation is accident prevention, not authorization.
+- Per-Workspace lock prevents concurrent reset execution; idempotent request IDs make successful retries safe.
+- Other Workspaces are never traversed or deleted.
+
 ## Step 8 — Reports & Intelligence Security
 
 - ReportDefinition read requires Workspace access; create requires USER/self creator, path identity, ACTIVE v1, bounded arrays, allowlisted source types, no arbitrary collectionPath, and existing same-Workspace source Modules.

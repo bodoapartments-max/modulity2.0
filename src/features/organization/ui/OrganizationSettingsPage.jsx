@@ -16,9 +16,9 @@ import Button from '../../../design-system/components/Button/Button.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import Alert from '../../../design-system/components/Alert/Alert.jsx';
-import EmptyState from '../../../design-system/components/EmptyState/EmptyState.jsx';
 import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import { hasCapability } from '../../../core/workspace/role.js';
+import WorkspaceResetPanel from '../../workspace-reset/ui/WorkspaceResetPanel.jsx';
 
 function OrganizationSettingsPage() {
   const { user } = useAuth();
@@ -53,10 +53,8 @@ function OrganizationSettingsPage() {
   if (!isOrganizationWorkspace) {
     return (
       <PageContainer>
-        <EmptyState
-          title="No Organization Selected"
-          description="Switch to an organization workspace to view its settings."
-        />
+        <PageHeader title="Workspace Settings" description="Manage the current Personal Workspace." />
+        <WorkspaceResetPanel />
       </PageContainer>
     );
   }
@@ -171,6 +169,7 @@ function OrganizationSettingsPage() {
           </div>
         )}
       </Card>
+      <WorkspaceResetPanel />
     </PageContainer>
   );
 }

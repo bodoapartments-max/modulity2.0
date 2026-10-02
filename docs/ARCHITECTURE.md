@@ -342,6 +342,21 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 8.1 — Trusted Workspace Reset
+
+```text
+Client Settings / typed confirmation
+→ Firebase callable workspaceReset
+→ verified Auth UID
+→ Personal owner / Organization OWNER authorization
+→ allowlisted ResetPlan
+→ Admin SDK recursive deletion + operation lock
+→ surviving metadata-only reset audit
+→ Workspace-scoped cache invalidation/reload
+```
+
+The callable is deliberately narrow and implements only WORKSPACE_DATA_RESET. It preserves User, Workspace, Organization, Memberships/owner access, and CORE Entity Types. Normal browser Rules remain immutable/no-delete. See `docs/WORKSPACE_RESET.md` and ADR-0001.
+
 ## Step 8 — Reports & Intelligence Engine
 
 ```text

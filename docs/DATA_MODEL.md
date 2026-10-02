@@ -499,6 +499,21 @@ Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the tok
 
 ---
 
+## Workspace Reset Metadata (Step 8.1)
+
+### WorkspaceResetOperation
+- Path: `workspaceResetOperations/{workspaceId}` (Admin-only)
+- Per-Workspace lock/idempotency state: requestId, auditId, requester, mode, status, current resource, timestamps, result counts
+
+### WorkspaceResetAudit
+- Path: `workspaceResetAudits/{auditId}` (Admin-only, outside reset dataset)
+- Stores Workspace identity/type, requester, mode, execution time, result/error code, and top-level deleted counts only
+- Never stores deleted business payloads
+
+### Workspace reset metadata
+- Admin-only Workspace fields: `dataGeneration`, `lastResetAt`, `lastResetBy`
+- Identity/ownership fields remain unchanged
+
 ## Reports & Intelligence Data Model (Step 8)
 
 ### ReportDefinition

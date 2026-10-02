@@ -3586,6 +3586,16 @@ describe('Step 7.2 Chat security rules', () => {
   });
 });
 
+describe('Workspace reset trusted boundary rules', () => {
+  it('denies browser access to reset locks and surviving reset audits', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaceResetOperations', 'ws1'), { status: 'RUNNING', requestedBy: 'user1' }));
+    await assertFails(getDoc(doc(db, 'workspaceResetOperations', 'ws1')));
+    await assertFails(setDoc(doc(db, 'workspaceResetAudits', 'audit1'), { workspaceId: 'ws1', result: 'SUCCESS' }));
+    await assertFails(getDoc(doc(db, 'workspaceResetAudits', 'audit1')));
+  });
+});
+
 // ═══════════════════════════════════════════════════════
 // 30. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════

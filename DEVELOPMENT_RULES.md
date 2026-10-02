@@ -399,7 +399,13 @@ Stay within the requested milestone. Do not start the next roadmap Step because 
 
 Completion reports describe actual implementation. Never say “implemented” for planned, placeholder, mocked, or partially wired behavior.
 
-## 32. Mandatory completion checklist
+## 32. Destructive Workspace operations
+
+Workspace/account/module reset and deletion are distinct operations. Destructive Workspace operations require a trusted backend/Admin boundary, verified authorization, an explicit allowlisted resource contract, two-stage confirmation, idempotency, concurrency protection, surviving metadata-only audit evidence, and Workspace-scoped cache invalidation.
+
+Never weaken ordinary immutable-resource Rules or implement React/browser collection-deletion loops for reset convenience. New collections do not automatically join a reset contract. Binary storage cleanup must be handled separately from Firestore metadata.
+
+## 33. Mandatory completion checklist
 
 Before completing any task, verify:
 
