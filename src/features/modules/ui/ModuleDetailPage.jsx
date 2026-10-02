@@ -27,7 +27,7 @@ export default function ModuleDetailPage() {
   const [showPreview, setShowPreview] = useState(false);
 
   const workspaceId = currentWorkspace?.workspaceId;
-  const actor = user ? userActor(user.uid) : null;
+  const actor = user ? userActor(user.userId || user.uid) : null;
 
   const loadModule = useCallback(async () => {
     if (!workspaceId || !moduleId) return;

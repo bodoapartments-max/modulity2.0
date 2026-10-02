@@ -98,17 +98,20 @@ Current V2 implements Firestore file metadata but no production binary deletion 
 
 ## Deployment status
 
-Implementation and Emulator validation are complete. Deployment of the `workspaceReset` callable to `modulity-2-dev` is pending because the Firebase project is not on the Blaze plan and cannot enable Cloud Build. Firestore Rules deployed successfully.
+**CLOSED — DEPLOYMENT VERIFIED**
 
-Until the project is upgraded and the callable is deployed, the Danger Zone UI will return a backend-unavailable/not-found error and must not be described as deployment-verified. No client-side fallback exists.
+Verified deployment:
 
-Remaining closure procedure after Blaze upgrade:
+- Project: `modulity-2-dev`
+- Function: `workspaceReset`
+- Generation: v2 callable
+- Region: `europe-west1`
+- Runtime: Node.js 22
+- Memory: 512 MiB
 
-1. Deploy `functions:workspaceReset` and required Rules.
-2. Use a dedicated disposable authenticated development Workspace.
-3. Verify plan, wrong confirmation rejection, successful reset, clean page states, preserved login/Workspace, and immediate Module/Record creation.
-4. Verify responsive confirmation UI.
-5. Formally close Step 8.1.
+A disposable Organization Workspace (`Reset Test Hotel`) completed the authenticated destructive browser journey twice. The User, Organization, Workspace, Membership, OWNER access, and Personal Workspace survived. Canonical Workspace data and stale cache projections were removed. A new Module and canonical Record were created successfully between resets. Reset operation/audit documents settled to SUCCESS without business payload copies. Confirmation was usable at 375px and 768px.
+
+Artifact Registry cleanup retains function images for 30 days. No client-side deletion fallback exists.
 
 ## Testing safety
 

@@ -44,6 +44,12 @@ async function traceWorkspaceOperation(label, operation) {
   }
 }
 
+export function resolveWorkspaceTarget(workspaceId, availableWorkspaces, targetOverride = null) {
+  return targetOverride?.workspaceId === workspaceId
+    ? targetOverride
+    : availableWorkspaces.find((workspace) => workspace.workspaceId === workspaceId) || null;
+}
+
 function safeGetStoredWorkspaceId() {
   try {
     return localStorage.getItem(STORAGE_KEY);
@@ -269,8 +275,8 @@ export function WorkspaceProvider({ children }) {
     }
   }, [currentWorkspace, user, worksets]);
 
-  const switchWorkspace = useCallback(async (workspaceId) => {
-    const target = availableWorkspaces.find((w) => w.workspaceId === workspaceId);
+  const switchWorkspace = useCallback(async (workspaceId, targetOverride = null) => {
+    const target = resolveWorkspaceTarget(workspaceId, availableWorkspaces, targetOverride);
     if (!target) {
       setError(new Error('This workspace is no longer available.'));
       return false;
@@ -285,6 +291,10 @@ export function WorkspaceProvider({ children }) {
           target.organizationId,
           user.userId,
         );
+        if (!membership || membership.status !== 'ACTIVE') {
+          setError(new Error('This organization membership is not active.'));
+          return false;
+        }
       }
 
       setCurrentWorkspace(target);

@@ -63,7 +63,7 @@ function CreateOrganizationPage() {
       });
 
       await refreshWorkspaces();
-      await switchWorkspace(result.workspace.workspaceId);
+      await switchWorkspace(result.workspace.workspaceId, result.workspace);
       navigate('/app');
     } catch (error) {
       setSubmitError(error.message || 'Failed to create organization. Please try again.');

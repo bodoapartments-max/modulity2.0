@@ -22,7 +22,7 @@ The callable implements only `WORKSPACE_DATA_RESET`. It is not a general-purpose
 
 ## Deployment status
 
-Accepted and implemented in-repository. Emulator tests pass. Deployment/browser verification on `modulity-2-dev` is pending a Firebase Blaze-plan upgrade required for Cloud Build/Functions deployment.
+Closed and deployment-verified on `modulity-2-dev`. The `workspaceReset` v2 callable runs in `europe-west1` on Node.js 22. Emulator validation and the authenticated disposable-Organization reset/reuse/browser journey passed.
 
 ## Consequences
 

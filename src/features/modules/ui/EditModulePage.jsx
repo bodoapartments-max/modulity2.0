@@ -102,7 +102,7 @@ export default function EditModulePage() {
             return field;
           }),
         },
-      }, userActor(user.uid));
+      }, userActor(user.userId || user.uid));
       navigate(`/app/modules/${moduleId}`);
     } catch (err) {
       setError(err.message || 'Failed to save');

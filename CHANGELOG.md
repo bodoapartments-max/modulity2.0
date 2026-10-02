@@ -14,8 +14,10 @@ All notable changes to Modulity 2.0 will be documented in this file.
 - Emulator integration for Personal/Organization reset, member denial, multi-Workspace isolation, idempotency, concurrency, empty reset, analytics/Chat/Ledger nested cleanup, and post-reset reuse
 
 ### Deployment status
-- Implementation and Emulator validation complete
-- `modulity-2-dev` callable deployment and authenticated browser destructive smoke are PENDING Firebase Blaze-plan upgrade; no client fallback exists
+- CLOSED — DEPLOYMENT VERIFIED on `modulity-2-dev`
+- `workspaceReset` v2 callable deployed to `europe-west1` on Node.js 22; Artifact Registry cleanup set to 30 days
+- Authenticated disposable Organization reset, immediate Module/Record reuse, second reset, Personal Workspace isolation, audit/lock settlement, and 375px/768px confirmation smoke passed
+- Browser verification found and fixed the new-Organization stale switch race and normalized `userId` Module detail/edit mismatch
 
 ### Limitations
 - File metadata is deleted; binary storage cleanup adapter is not yet implemented
