@@ -25,7 +25,7 @@ describe('Workspace Experience models', () => {
 
   it('rejects unsafe Widget fields and unbounded limits', () => {
     expect(() => validateWidgetQuery({ source: 'RECORDS', filters: [{ field: 'data.secret', operator: '==', value: true }] })).toThrow('Unsupported Record');
-    expect(() => validateWidgetQuery({ source: 'RECORDS', limit: 500 })).toThrow('between 1 and 50');
+    expect(() => validateWidgetQuery({ source: 'RECORDS', limit: 500 })).toThrow('between 1 and 100');
   });
 
   it('creates a canonical-resource Notification reference', () => {

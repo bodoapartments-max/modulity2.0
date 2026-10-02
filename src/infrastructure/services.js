@@ -39,6 +39,9 @@ import {
 } from '../core/workspace/workspaceExperienceServices.js';
 import { startNotificationBridge } from '../core/workspace/notificationBridge.js';
 import { createConversationService } from '../core/workspace/conversationService.js';
+import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
+import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';
+import { createReportService } from '../core/analytics/reportService.js';
 
 function createServices() {
   if (!repositories) {
@@ -105,6 +108,18 @@ function createServices() {
     ledgerEntryRepo: repositories.ledgerEntries,
   });
   const notificationSvc = createNotificationService({ notificationRepo: repositories.notifications });
+  const analyticsExecutionSvc = createAnalyticsExecutionService({
+    recordRepo: repositories.records,
+    moduleRepo: repositories.modules,
+    entityRepo: repositories.entities,
+    relationshipRepo: repositories.relationships,
+  });
+  const widgetExecutionSvc = createWidgetExecutionService({ analyticsExecutionService: analyticsExecutionSvc });
+  const reportSvc = createReportService({
+    reportRepo: repositories.reports,
+    analyticsExecutionService: analyticsExecutionSvc,
+    moduleRepo: repositories.modules,
+  });
 
   // Start selective persistence bridges. Event, Audit, and Notification remain distinct.
   startAuditBridge(eventBus, auditSvc);
@@ -162,6 +177,9 @@ function createServices() {
     workset: createWorksetService({ worksetRepo: repositories.worksets, moduleRepo: repositories.modules }),
     widget: createWidgetService({ widgetRepo: repositories.widgets }),
     widgetQuery: createWidgetQueryService({ recordQueryService: recordQuerySvc, relationshipRepo: repositories.relationships }),
+    widgetExecution: widgetExecutionSvc,
+    report: reportSvc,
+    analyticsExecution: analyticsExecutionSvc,
     notification: notificationSvc,
     conversation: createConversationService({ conversationRepo: repositories.conversations }),
     workspacePreference: createWorkspacePreferenceService({

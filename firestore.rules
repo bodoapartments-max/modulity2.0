@@ -61,6 +61,38 @@ service cloud.firestore {
         && actorField.actorId == request.auth.uid;
     }
 
+    function isValidAnalyticsSourceAt(sources, index, workspaceId) {
+      return sources.size() <= index
+        || (sources[index].sourceType in ['RECORDS', 'ENTITIES', 'RELATIONSHIPS']
+          && !('collectionPath' in sources[index])
+          && (sources[index].sourceType != 'RECORDS'
+            || (sources[index].moduleId is string
+              && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/modules/$(sources[index].moduleId)))));
+    }
+
+    function isBoundedAnalyticsDefinition(data, workspaceId) {
+      return data.dataSources is list && data.dataSources.size() >= 1 && data.dataSources.size() <= 5
+        && isValidAnalyticsSourceAt(data.dataSources, 0, workspaceId)
+        && isValidAnalyticsSourceAt(data.dataSources, 1, workspaceId)
+        && isValidAnalyticsSourceAt(data.dataSources, 2, workspaceId)
+        && isValidAnalyticsSourceAt(data.dataSources, 3, workspaceId)
+        && isValidAnalyticsSourceAt(data.dataSources, 4, workspaceId)
+        && data.filters is list && data.filters.size() <= 10
+        && data.metrics is list && data.metrics.size() <= 8
+        && data.columns is list && data.columns.size() <= 12
+        && data.groupBy is list && data.groupBy.size() <= 2
+        && data.sort is list && data.sort.size() <= 3;
+    }
+
+    function isBoundedWidgetDefinition(data) {
+      return data.source in ['RECORDS', 'ENTITIES', 'RELATIONSHIPS']
+        && data.type in ['KPI', 'STATUS_SUMMARY', 'RECENT_RECORDS', 'ASSIGNMENT', 'TABLE']
+        && data.filters is list && data.filters.size() <= 10
+        && data.columns is list && data.columns.size() <= 12
+        && data.display.limit is int && data.display.limit >= 1 && data.display.limit <= 100
+        && !('collectionPath' in data);
+    }
+
     // ─── Users (Person/Profile) ─────────────────────────────
     // Path: users/{userId}
     // Only the owner can read/write their profile.
@@ -758,10 +790,32 @@ service cloud.firestore {
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.widgetId == widgetId
           && request.resource.data.ownerUserId == request.auth.uid
-          && isValidClientActor(request.resource.data.createdBy);
+          && isValidClientActor(request.resource.data.createdBy)
+          && isBoundedWidgetDefinition(request.resource.data);
         allow update: if resource.data.ownerUserId == request.auth.uid
           && fieldUnchanged('workspaceId') && fieldUnchanged('widgetId')
-          && fieldUnchanged('ownerUserId') && fieldUnchanged('createdBy');
+          && fieldUnchanged('ownerUserId') && fieldUnchanged('createdBy')
+          && isBoundedWidgetDefinition(request.resource.data);
+        allow delete: if false;
+      }
+
+      // ─── Report Definitions ────────────────────────────────
+      match /reportDefinitions/{reportId} {
+        allow read: if canAccessWorkspace();
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.reportId == reportId
+          && request.resource.data.status == 'ACTIVE'
+          && request.resource.data.version == 1
+          && isValidClientActor(request.resource.data.createdBy)
+          && isBoundedAnalyticsDefinition(request.resource.data, workspaceId);
+        allow update: if canAccessWorkspace()
+          && resource.data.createdBy.actorId == request.auth.uid
+          && fieldUnchanged('workspaceId') && fieldUnchanged('reportId')
+          && fieldUnchanged('createdBy') && fieldUnchanged('_createdAt')
+          && request.resource.data.version == resource.data.version + 1
+          && request.resource.data.status in ['ACTIVE', 'ARCHIVED']
+          && isBoundedAnalyticsDefinition(request.resource.data, workspaceId);
         allow delete: if false;
       }
 

@@ -47,6 +47,7 @@ export default function ModuleFormPage() {
       });
       workspaceQueryCache.invalidate(`${workspaceId}:records:`);
       workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:widgetResult:`);
       setSuccess(record);
     } catch (err) {
       setError(err.cause || err.message || 'Submission failed');
@@ -67,6 +68,7 @@ export default function ModuleFormPage() {
       });
       workspaceQueryCache.invalidate(`${workspaceId}:records:`);
       workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:widgetResult:`);
       setSuccess(record);
     } catch (err) {
       setError(err.cause || err.message || 'Failed to save draft');

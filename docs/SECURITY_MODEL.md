@@ -432,6 +432,15 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 8 — Reports & Intelligence Security
+
+- ReportDefinition read requires Workspace access; create requires USER/self creator, path identity, ACTIVE v1, bounded arrays, allowlisted source types, no arbitrary collectionPath, and existing same-Workspace source Modules.
+- Only the creator may update/archive a ReportDefinition; workspace/report/creator/_createdAt are immutable and version must increment exactly once. Delete denied.
+- WidgetDefinition create/update now enforces allowlisted source/type, maximum 10 filters, 12 columns, and result limit 1–100. Owner/workspace/creator identity remains immutable.
+- Definitions never grant source-data access. Execution uses existing canonical Record/Entity/Relationship Rules under the authenticated client boundary.
+- Browser execution remains an honest-client limitation: Rules constrain persisted definitions, but full trusted analytics and stronger field-level authorization require a future backend/API boundary.
+- Cross-Workspace reads/writes, creator spoofing, unsafe sources, arbitrary paths, missing source Modules, and unbounded configurations have negative Emulator coverage.
+
 ## Step 7.2 — Workspace Experience Closure Security
 
 - Notification create requires `createdBy.actorType == USER` and `createdBy.actorId == auth.uid`; recipient/resource/creator provenance is immutable. Browser creators remain attributable but are not a fully trusted notification dispatcher.

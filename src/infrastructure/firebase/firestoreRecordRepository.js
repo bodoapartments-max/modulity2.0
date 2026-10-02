@@ -155,6 +155,8 @@ export function createFirestoreRecordRepository(db) {
     // Module scope filter
     if (queryParams.moduleId) {
       constraints.push(where('moduleId', '==', queryParams.moduleId));
+    } else if (queryParams.moduleIds?.length) {
+      constraints.push(where('moduleId', 'in', queryParams.moduleIds.slice(0, 5)));
     }
 
     // Record type filter

@@ -10,13 +10,14 @@ import ChatPage from '../../chat/ui/ChatPage.jsx';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 const mocks = vi.hoisted(() => ({
-  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(), listConversations: vi.fn(),
+  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(), listConversations: vi.fn(), listModules: vi.fn(),
 }));
 
 vi.mock('../../../infrastructure/services.js', () => ({
   default: {
     workset: { list: mocks.listWorksets },
     widget: { listForUser: mocks.listWidgets },
+    module: { listModules: mocks.listModules },
     notification: { listForUser: mocks.listNotifications },
     conversation: { listForUser: mocks.listConversations, listMessages: vi.fn() },
   },
@@ -40,6 +41,7 @@ describe('Workspace Experience empty states', () => {
     mocks.listWidgets.mockReset().mockResolvedValue([]);
     mocks.listNotifications.mockReset().mockResolvedValue([]);
     mocks.listConversations.mockReset().mockResolvedValue([]);
+    mocks.listModules.mockReset().mockResolvedValue([]);
   });
 
   it('settles Worksets loading into empty', async () => {
@@ -49,7 +51,7 @@ describe('Workspace Experience empty states', () => {
 
   it('settles Widgets loading into empty', async () => {
     renderPage(<WidgetsPage />);
-    expect(await screen.findByText('No widgets yet')).toBeInTheDocument();
+    expect(await screen.findByText('No Widgets yet')).toBeInTheDocument();
   });
 
   it('settles Notifications loading into empty', async () => {

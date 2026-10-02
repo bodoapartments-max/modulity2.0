@@ -384,3 +384,13 @@ ledgerConfig: {
 ### Compatibility
 - Existing modules are unaffected (null/undefined ledgerConfig)
 - Future entitlement integration: `canUse("ledger")` may gate access
+
+---
+
+## Module Analytics Participation (Step 8)
+
+Report and Widget definitions reference canonical Module IDs and controlled Form Schema fields. A definition may combine at most five Modules. Execution preserves every Record's immutable `moduleId` and `moduleVersion`; it never rewrites or merges source Records.
+
+Field references are validated against selected current Module schemas when saving/running. Historical Records created under versions where a selected field did not exist resolve that field to null. Numeric aggregation ignores missing/null values but preserves zero. Missing definitions fail explicitly rather than being silently reinterpreted.
+
+Modules do not own Report or Widget results. They only provide schemas/capabilities for the shared deterministic analytics engine.

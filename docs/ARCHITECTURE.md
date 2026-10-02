@@ -342,6 +342,30 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 8 — Reports & Intelligence Engine
+
+```text
+Canonical Records / Entities / Relationships
+→ validated Definition
+→ bounded QueryPlan
+→ deterministic filter/sort/projection
+→ shared aggregation/grouping
+→ ReportResult / WidgetResult
+→ presentation renderer
+```
+
+ReportDefinition and WidgetDefinition persist configuration only. Runtime results are regenerated from canonical data and are not canonical snapshots.
+
+Shared primitives live outside React and enforce: allowlisted sources/fields/operators/metrics/visualizations; typed comparisons; UTC relative periods; maximum 5 source Modules, 500 source Records, 100 rendered rows, 100 groups, 10 filters, 8 metrics, and 12 columns. Source-bound overflow throws `LIMIT_EXCEEDED`; row truncation is explicit in output/UI.
+
+Multi-Module Reports use a bounded Firestore `moduleId in [...]` plan, preserving each Record's `moduleId` and `moduleVersion`. Fields absent in historical versions resolve to null and are excluded from numeric aggregation. EntityReference labels use batched Entity lookups rather than per-row requests.
+
+The existing WidgetDefinition is extended and executed through the same analytics service. Each Dashboard Widget has an independent SWR cache/loading/error boundary. ASSIGNMENT uses canonical Relationships; no parallel assignment store exists.
+
+Report routes are lazy-loaded. Basic BAR/LINE/DONUT presentation uses deterministic lightweight rendering without executable/custom chart code or a new chart dependency.
+
+Step 8 deliberately excludes AI generation, arbitrary query paths, executable formulas, exports, scheduling, durable result snapshots, and Step 9 Automat. Agent registry/orchestrator items formerly listed in Step 8 ROADMAP were explicitly deferred by architecture decision for this milestone.
+
 ## Step 7.2 — Workspace Experience Closure
 
 ### Feature status

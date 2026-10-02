@@ -2,6 +2,22 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 8 — Reports & Intelligence Engine
+
+### Added
+- Canonical workspace-scoped ReportDefinition persistence, lifecycle/versioning, builder, preview, run, edit, archive, table/summary/basic chart rendering
+- Shared deterministic analytics primitives for typed field references, filters, UTC periods, sorting, grouping, COUNT/COUNT_DISTINCT/SUM/AVERAGE/MIN/MAX
+- Controlled query planner with allowlisted RECORDS/ENTITIES/RELATIONSHIPS sources, maximum 5 source Modules, 500 source Records, 100 rows/groups, and explicit LIMIT_EXCEEDED behavior
+- Multi-Module Report execution preserving Record Module/version provenance and missing historical fields as null
+- Existing WidgetDefinition extended—not replaced—with executable KPI, STATUS_SUMMARY, RECENT_RECORDS, TABLE, and canonical Relationship ASSIGNMENT Widgets
+- Independent Dashboard Widget execution/error/loading/cache boundaries
+- Batched EntityReference display resolution and bounded Relationship reads
+- ReportDefinition/Widget Rules hardening, indexes, negative security tests, unit/UI tests, and real Emulator analytics journey
+
+### Scope decision
+- Per explicit Step 8 approval, ROADMAP agent registry/orchestrator items are deferred; Step 8 remains deterministic and fully operational without AI
+- AI Report/Widget generation, scheduling, exports, trusted server analytics, and Step 9 Automat are not implemented
+
 ## Step 7.2 — Workspace Experience Closure & Integration Audit
 
 ### Added

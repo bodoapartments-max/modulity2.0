@@ -211,6 +211,10 @@ In early implementations the event bus may be synchronous within the same proces
 - Events: record.created, record.updated, record.submitted, record.cancelled, record.archived, etc.
 - NOT the durable audit history
 
+## Report/Widget Execution Events (Step 8)
+
+Interactive Report and Dashboard Widget refreshes do not emit durable AuditEntries or Notifications by default, avoiding audit/event spam. ReportDefinition/WidgetDefinition persistence retains creator and server timestamp provenance. Future scheduled Reports/alerts may emit explicit domain Events and selective Notifications through a trusted dispatcher; scheduling is deferred.
+
 ## Chat Events (Step 7.2)
 
 Chat persistence does not reuse the runtime Event Bus as storage. Conversation and Message documents are canonical. Step 7.2 does not emit notification-per-message or typing/read-receipt events; those remain deferred until a trusted collaboration dispatcher exists.

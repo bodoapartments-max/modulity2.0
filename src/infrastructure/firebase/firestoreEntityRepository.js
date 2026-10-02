@@ -16,6 +16,7 @@ import {
   query,
   where,
   limit,
+  documentId,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -76,6 +77,17 @@ export function createFirestoreEntityRepository(db) {
     return snap.docs.map(mapFromFirestore);
   }
 
+  async function getManyByIds(workspaceId, entityIds) {
+    const uniqueIds = [...new Set(entityIds)].slice(0, 100);
+    const results = [];
+    for (let index = 0; index < uniqueIds.length; index += 30) {
+      const chunk = uniqueIds.slice(index, index + 30);
+      const snap = await getDocs(query(entitiesCol(workspaceId), where(documentId(), 'in', chunk)));
+      results.push(...snap.docs.map(mapFromFirestore));
+    }
+    return results;
+  }
+
   async function create(entity) {
     const ref = entityDoc(entity.workspaceId, entity.entityId);
     await setDoc(ref, mapToFirestore(entity));
@@ -89,5 +101,5 @@ export function createFirestoreEntityRepository(db) {
     return mapFromFirestore(snap);
   }
 
-  return { getById, listByWorkspace, listByType, query: queryEntities, create, update };
+  return { getById, getManyByIds, listByWorkspace, listByType, query: queryEntities, create, update };
 }

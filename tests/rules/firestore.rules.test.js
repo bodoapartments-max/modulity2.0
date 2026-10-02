@@ -3457,6 +3457,9 @@ describe('Step 7 workspace experience rules', () => {
     await setupWorkspace('ws-other', { type: 'PERSONAL', ownerUserId: 'user2' });
     await setupUser('user1');
     await setupUser('user2');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'modules', 'mod-report'), {
+      moduleId: 'mod-report', workspaceId: 'ws-step7', moduleCode: 'REPORT', name: 'Report Source', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
   });
 
   it('allows owner Workset writes and denies cross-workspace writes', async () => {
@@ -3473,8 +3476,15 @@ describe('Step 7 workspace experience rules', () => {
 
   it('isolates Widgets by owner and workspace', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1'), { widgetId: 'wi1', workspaceId: 'ws-step7', ownerUserId: 'user1', name: 'KPI', type: 'KPI', source: 'RECORDS', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' } }));
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1'), { widgetId: 'wi1', workspaceId: 'ws-step7', ownerUserId: 'user1', name: 'KPI', type: 'KPI', source: 'RECORDS', status: 'ACTIVE', filters: [], columns: [], display: { limit: 10 }, createdBy: { actorType: 'USER', actorId: 'user1' } }));
     await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1')));
+  });
+
+  it('denies unsafe or unbounded Widget configuration', async () => {
+    const db = authedDb('user1');
+    const base = { widgetId: 'unsafe-widget', workspaceId: 'ws-step7', ownerUserId: 'user1', name: 'Unsafe', type: 'KPI', source: 'SECRET', status: 'ACTIVE', filters: [], columns: [], display: { limit: 10 }, createdBy: { actorType: 'USER', actorId: 'user1' } };
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'unsafe-widget'), base));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'unbounded-widget'), { ...base, widgetId: 'unbounded-widget', source: 'RECORDS', display: { limit: 1000 } }));
   });
 
   it('isolates Notifications to the recipient', async () => {
@@ -3490,6 +3500,29 @@ describe('Step 7 workspace experience rules', () => {
       type: 'TEST', title: 'Spoof', status: 'UNREAD',
       createdBy: { actorType: 'USER', actorId: 'user2' },
     }));
+  });
+
+  function reportDefinitionData(overrides = {}) {
+    return {
+      reportId: 'rep-1', workspaceId: 'ws-step7', name: 'Summary', description: '', status: 'ACTIVE', version: 1,
+      dataSources: [{ sourceType: 'RECORDS', moduleId: 'mod-report' }], filters: [], groupBy: [],
+      metrics: [{ type: 'COUNT', fieldRef: null, key: 'count' }], columns: [], sort: [], visualization: { type: 'TABLE' },
+      createdBy: { actorType: 'USER', actorId: 'user1' }, ...overrides,
+    };
+  }
+
+  it('allows bounded ReportDefinition and denies cross-workspace/spoofed writes', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'reportDefinitions', 'rep-1'), reportDefinitionData()));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-other', 'reportDefinitions', 'rep-1'), reportDefinitionData({ workspaceId: 'ws-other' })));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'reportDefinitions', 'spoof'), reportDefinitionData({ reportId: 'spoof', createdBy: { actorType: 'USER', actorId: 'user2' } })));
+  });
+
+  it('denies unsafe Report sources and unbounded configuration', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'reportDefinitions', 'unsafe'), reportDefinitionData({ reportId: 'unsafe', dataSources: [{ sourceType: 'RECORDS', moduleId: 'mod-report', collectionPath: 'secret' }] })));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'reportDefinitions', 'too-many'), reportDefinitionData({ reportId: 'too-many', filters: Array.from({ length: 11 }, () => ({ operator: 'EQUALS' })) })));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'reportDefinitions', 'missing-module'), reportDefinitionData({ reportId: 'missing-module', dataSources: [{ sourceType: 'RECORDS', moduleId: 'missing' }] })));
   });
 
   it('allows only preference owner access', async () => {

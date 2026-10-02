@@ -158,6 +158,7 @@ export default function RecordListPage() {
         workspaceId, [...selectedIds], 'archive', {}, actor,
       );
       setSelectedIds(new Set());
+      workspaceQueryCache.invalidate(`${workspaceId}:widgetResult:`);
       loadRecords(null);
     } catch (err) {
       setError(err.message);

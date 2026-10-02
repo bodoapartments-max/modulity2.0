@@ -5,7 +5,7 @@ const sections = [
   { label: 'Workspace', links: [{ label: 'Dashboard', to: '/app', exact: true }] },
   { label: 'Work', links: [{ label: 'My Modules', to: '/app/modules' }, { label: 'Records', to: '/app/records' }, { label: 'Worksets', to: '/app/worksets' }] },
   { label: 'Data', links: [{ label: 'Entities', to: '/app/entities' }, { label: 'Entity Types', to: '/app/entity-types' }] },
-  { label: 'Insights', links: [{ label: 'Widgets', to: '/app/widgets' }, { label: 'Reports', to: '/app/reports', disabled: true }] },
+  { label: 'Insights', links: [{ label: 'Widgets', to: '/app/widgets' }, { label: 'Reports', to: '/app/reports' }] },
   { label: 'Governance', links: [{ label: 'Ledger', to: '/app/ledger' }] },
 ];
 

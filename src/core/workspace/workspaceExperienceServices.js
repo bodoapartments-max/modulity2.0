@@ -10,12 +10,9 @@ export function createWidgetService({ widgetRepo }) {
     async update(workspaceId, widgetId, changes, userId) {
       const existing = await widgetRepo.getById(workspaceId, widgetId);
       if (!existing || existing.ownerUserId !== userId) throw new Error('Widget not found');
-      if (changes.filters || changes.source || changes.display) validateWidgetQuery({
-        source: changes.source || existing.source,
-        filters: changes.filters || existing.filters,
-        limit: changes.display?.limit || existing.display?.limit || 10,
-      });
-      return widgetRepo.update(workspaceId, widgetId, changes);
+      const candidate = createWidgetDefinition({ ...existing, ...changes, widgetId, workspaceId, ownerUserId: existing.ownerUserId, createdBy: existing.createdBy });
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...safeChanges } = candidate;
+      return widgetRepo.update(workspaceId, widgetId, safeChanges);
     },
     archive(workspaceId, widgetId, userId) { return this.update(workspaceId, widgetId, { status: WIDGET_STATUSES.ARCHIVED }, userId); },
     listForUser: widgetRepo.listForUser,

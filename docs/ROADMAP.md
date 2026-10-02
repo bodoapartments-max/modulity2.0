@@ -155,12 +155,17 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ## Step 8 — Reports & Intelligence
 
-- Widget engine
-- Report definition model
-- Cross-module reports
-- Basic dashboard
-- Agent registry and first specialist agents
-- Agent orchestrator (optional recommendations only)
+**Status:** Complete — deterministic scope
+
+- Canonical ReportDefinition and lifecycle
+- Shared controlled query/filter/aggregation/grouping primitives
+- Bounded module-aware and multi-Module Report execution
+- Table, summary, and basic deterministic charts
+- Existing WidgetDefinition execution: KPI, STATUS_SUMMARY, RECENT_RECORDS, TABLE, ASSIGNMENT
+- Independent Dashboard Widget rendering/cache/error boundaries
+- Rules/indexes, negative security tests, and canonical Emulator journeys
+- Explicit limits and LIMIT_EXCEEDED behavior
+- Agent Registry, specialist agents, and orchestrator deferred by explicit Step 8 scope decision; no AI execution is part of Step 8
 
 ---
 

@@ -499,6 +499,28 @@ Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the tok
 
 ---
 
+## Reports & Intelligence Data Model (Step 8)
+
+### ReportDefinition
+- Path: `workspaces/{workspaceId}/reportDefinitions/{reportId}`
+- Persists name/description/status/version, allowlisted dataSources, typed filters, UTC date period, groupBy, metrics, columns, sort, visualization, creator provenance, and server timestamps
+- Contains no Record/Entity/Relationship result copies
+- Status: ACTIVE or ARCHIVED; update increments version; physical delete denied
+
+### FieldReference
+- `{ scope: SYSTEM|DATA|ENTITY, field, type, label, moduleId? }`
+- SYSTEM fields are allowlisted; DATA fields are validated against source Module schemas; ENTITY fields are controlled by source type
+- Historical missing values resolve to null; definitions fail safely when no selected source Module contains a referenced field
+
+### Runtime ReportResult
+- Non-persisted `{ definition, executedAt, filters, summary, groups, rows, totalMatched, truncated, bounds }`
+- Source overflow returns LIMIT_EXCEEDED; row truncation is explicit
+
+### WidgetDefinition extension
+- Existing path remains `workspaces/{workspaceId}/widgetDefinitions/{widgetId}`
+- Adds typed metricField, groupBy, columns, sort, and optional bounded multi-Module IDs
+- Runtime WidgetResult is non-persisted and uses the shared analytics engine
+
 ## Chat Data Model (Step 7.2)
 
 ### Conversation

@@ -301,6 +301,16 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 8 — Reports & Intelligence
+
+- Shared analytics primitives: `src/core/analytics/`.
+- Persist ReportDefinition/WidgetDefinition only; ReportResult/WidgetResult are runtime projections.
+- Maximums: 5 source Modules, 500 source Records, 100 rows/groups, 10 filters, 8 metrics, 12 columns, 100 Widget records.
+- Unsafe paths/operators/metrics are rejected at model/service and Rules boundaries.
+- Multi-Module plans use bounded `moduleId in [...]` queries; never scan an entire Workspace.
+- Dashboard Widgets execute independently and must not fail the Dashboard.
+- AI/agents and Step 9 Automat are explicitly deferred.
+
 ## Step 7.2 — Closure Invariants
 
 - Worksets reference canonical Module IDs and affect presentation only.
