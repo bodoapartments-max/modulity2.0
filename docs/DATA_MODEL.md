@@ -101,6 +101,10 @@ Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, 
 
 An Entity exists once. Modules reference it. Example: Room 214 is referenced by Reservation, Housekeeping, Maintenance and Damage Report modules.
 
+### Generic Entity Management (Step 10.0)
+
+The Entity Type registry is administrative schema metadata. The operational flow is `Entities → Entity Type → bounded Entity List → Entity Detail/Create/Edit`. Lists are scoped to one explicit `entityTypeId`, ordered by `displayName` plus document ID, paginated in pages of at most 100, and optionally prefix-search/status-filtered. Columns derive from the first four schema fields with lifecycle status; EntityReference values resolve to display names without changing canonical storage. Core definitions are read-only contracts, while Core and Domain Entity instances share the same lifecycle-safe CRUD service.
+
 ### Canonical EntityReference (Step 3, hardened Step 3.1)
 
 ```js

@@ -301,6 +301,17 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 10.0 — Generic Entity Management
+
+- Entity Type is a schema/registry definition; Entity is one persistent object; Module is a process; Record is canonical activity. Never collapse them.
+- Core Entity Type definitions remain protected. Core and Domain Entity instances use the same generic list/create/edit/detail runtime.
+- Operational route: `/app/entities` → Entity Type list → bounded Entity list → Entity detail. Entity Type registry remains at `/app/entity-types`.
+- Lists require explicit Workspace + entityTypeId, `displayName`/document-ID stable pagination, max 100, configured indexes, and no whole-Workspace filtering.
+- Generic columns derive from schema; EntityReference labels use batched canonical Entity reads.
+- Entity create/edit uses FormRenderer and EntityService; no Employee/Room-specific components or artificial CRUD Modules.
+- Physical Entity delete remains forbidden; use ACTIVE/INACTIVE/ARCHIVED.
+- Automat-created Domain Entity Types must work immediately without frontend changes.
+
 ## Step 9.2 — Trusted Automat Apply
 
 - Browser/Agents never apply canonical configuration; only `automatPlan` and `automatApplyPlan` trusted callables may persist/approve/apply.

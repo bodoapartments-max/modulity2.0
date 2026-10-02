@@ -363,6 +363,21 @@ Step 9.2 persists/revalidates the reviewed plan through `automatPlan`, binds exp
 
 Automat-created Modules enter the same generic runtime as manual Modules: Module card → schema-driven paginated Record List → canonical Record Detail. Record queries normalize Firestore directions to lowercase, use deterministic document-ID tie-breaking and deployed composite indexes, and never download the Workspace for filtering. See `docs/AUTOMAT_ARCHITECTURE.md` and ADR-0002.
 
+## Step 10.0 — Generic Entity Management
+
+```text
+Entity Type registry/definition
+→ bounded Entity Type list
+→ schema-driven Entity create/edit
+→ canonical Entity Detail
+→ Module Form EntityReference
+→ canonical Record
+```
+
+Entity Types remain definitions; Entities remain persistent business objects; Modules remain process definitions; Records remain canonical activity. Core and Domain Entity Types use the same generic operational UI. Lists query one explicit Entity Type with stable `displayName + documentId` pagination, bounded prefix search, optional lifecycle status, schema-derived columns, and batched EntityReference labels. Core definitions remain client-protected while their Entity instances are operationally manageable. Entity Type cards and Detail fields use deterministic schema/category ordering rather than Firestore map/query order.
+
+Authenticated verification in `Reset Test Hotel` passed for Employee create/edit, Room 101 and Room 102 coexistence, Reservation Record→Room 102 canonical reference, generic Equipment creation/detail, and desktop/768px/375px layouts.
+
 ## Step 8.1 — Trusted Workspace Reset
 
 ```text

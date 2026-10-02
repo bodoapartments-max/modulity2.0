@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import services from '../../../infrastructure/services.js';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
@@ -15,15 +15,19 @@ import Badge from '../../../design-system/components/Badge/Badge.jsx';
 import Button from '../../../design-system/components/Button/Button.jsx';
 import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
 import { RELATIONSHIP_OBJECT_TYPES } from '../../../core/data/relationship.js';
+import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
+import { orderedEntityDataFields } from '../../../core/data/entityPresentation.js';
 
 function EntityDetailPage() {
   const { entityId } = useParams();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [entity, setEntity] = useState(null);
   const [entityType, setEntityType] = useState(null);
   const [relationships, setRelationships] = useState([]);
   const [relatedRecordCount, setRelatedRecordCount] = useState(0);
+  const [entityNames, setEntityNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -53,6 +57,9 @@ function EntityDetailPage() {
       setEntityType(type);
       setRelationships(rels);
       setRelatedRecordCount(records.length);
+      const referenceIds = Object.values(ent.data || {}).filter((value) => value && typeof value === 'object' && value.entityId).map((value) => value.entityId);
+      const referenced = referenceIds.length ? await services.entity.getEntitiesByIds(workspaceId, referenceIds) : [];
+      setEntityNames(Object.fromEntries(referenced.map((item) => [item.entityId, item.displayName])));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,14 +88,15 @@ function EntityDetailPage() {
     );
   }
 
+  const fromTypeId = searchParams.get('fromType') === entity.entityTypeId ? entity.entityTypeId : null;
+  const backPath = fromTypeId ? `/app/entity-types/${encodeURIComponent(fromTypeId)}/entities` : '/app/entities';
+
   return (
     <PageContainer>
       <PageHeader
         title={entity.displayName}
         description={entityType ? `${entityType.name} (${entityType.code})` : entity.entityTypeId}
-        action={
-          <Button variant="ghost" onClick={() => navigate('/app/entities')}>Back</Button>
-        }
+        action={<div className="flex flex-wrap gap-2"><Link to={`/app/entities/${entity.entityId}/edit`} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white">Edit</Link><Button variant="ghost" onClick={() => navigate(backPath)}>Back</Button></div>}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -118,15 +126,7 @@ function EntityDetailPage() {
           <h3 className="mb-3 text-sm font-medium text-neutral-600">Data</h3>
           {entity.data && Object.keys(entity.data).length > 0 ? (
             <dl className="space-y-2 text-sm">
-              {Object.entries(entity.data).map(([key, value]) => {
-                const fieldDef = entityType?.fields?.find((f) => f.key === key);
-                return (
-                  <div key={key} className="flex justify-between">
-                    <dt className="text-neutral-500">{fieldDef?.label || key}</dt>
-                    <dd className="text-neutral-900">{String(value)}</dd>
-                  </div>
-                );
-              })}
+              {orderedEntityDataFields(entityType, entity.data).map((field) => <div key={field.key} className="flex justify-between gap-4"><dt className="text-neutral-500">{field.label}</dt><dd className="text-right text-neutral-900">{formatDisplayValue(entity.data[field.key], field, { entityNames })}</dd></div>)}
             </dl>
           ) : (
             <p className="text-sm text-neutral-500">No data fields.</p>

@@ -242,6 +242,7 @@ service cloud.firestore {
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.createdBy != null
           && isValidClientActor(request.resource.data.createdBy)
+          && request.resource.data.status in ['ACTIVE', 'INACTIVE', 'ARCHIVED']
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -251,6 +252,7 @@ service cloud.firestore {
           );
 
         allow update: if isAuthenticated()
+          && request.resource.data.status in ['ACTIVE', 'INACTIVE', 'ARCHIVED']
           && fieldUnchanged('workspaceId')
           && fieldUnchanged('entityId')
           && fieldUnchanged('createdBy')

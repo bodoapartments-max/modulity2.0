@@ -89,6 +89,23 @@
       ]
     },
     {
+      "collectionGroup": "entities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entityTypeId", "order": "ASCENDING" },
+        { "fieldPath": "displayName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entityTypeId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "displayName", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "deliveries",
       "queryScope": "COLLECTION",
       "fields": [

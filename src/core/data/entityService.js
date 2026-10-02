@@ -83,6 +83,8 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
 
+    if (safeChanges.status !== undefined && !ENTITY_STATUSES[safeChanges.status]) throw new AppError('validation_error', 'Invalid Entity status');
+
     // Re-validate data against Entity Type schema when data changes
     if (safeChanges.data !== undefined) {
       const entityType = await entityTypeRepo.getById(workspaceId, existing.entityTypeId);
@@ -161,5 +163,7 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     resolveEntityReference,
     resolveEntityReferences,
     getEntitiesByIds: entityRepo.getManyByIds,
+    listEntitiesPage: entityRepo.paginatedByType,
+    countEntitiesByType: entityRepo.countByType,
   };
 }

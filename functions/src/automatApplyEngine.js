@@ -121,7 +121,7 @@ export async function applyAutomatPlan(db, { workspaceId, userId, planId, operat
   if (existingOperation.exists && existingOperation.data().status === 'APPLIED') return serializeOperation(operationId, existingOperation.data(), true);
   const expiredApply = existingOperation.exists && existingOperation.data().status === 'APPLYING' && existingOperation.data().leaseExpiresAt?.toMillis?.() <= Date.now();
   const resume = existingOperation.exists && (['FAILED', 'PARTIAL_FAILED'].includes(existingOperation.data().status) || expiredApply);
-  if (existingOperation.exists && existingOperation.data().status === 'APPLYING' && !expiredApply) fail('APPLY_IN_PROGRESS', 'This apply operation is already running.');
+  if (existingOperation.exists && existingOperation.data().status === 'APPLYING' && !expiredApply) return serializeOperation(operationId, existingOperation.data(), true);
   const currentFingerprint = await configurationFingerprint(db, workspaceId);
   const expectedFingerprint = resume ? existingOperation.data().lastKnownFingerprint : planData.configurationFingerprint;
   if (currentFingerprint !== expectedFingerprint) fail('STALE_PLAN', 'Workspace configuration changed after plan approval.');
@@ -130,15 +130,18 @@ export async function applyAutomatPlan(db, { workspaceId, userId, planId, operat
   if (validation.status === 'INVALID' || validation.classifications.some((item) => item.operation === 'CONFLICT' || item.operation === 'SAFE_UPDATE')) fail('CONFLICT', 'Current Workspace conflicts with the approved plan.', { issues: validation.issues });
   const resetOperation = await db.doc(`workspaceResetOperations/${workspaceId}`).get();
   if (resetOperation.exists && resetOperation.data().status === 'RUNNING') fail('APPLY_IN_PROGRESS', 'Workspace reset is currently running.');
-  await db.runTransaction(async (transaction) => {
+  const acquisition = await db.runTransaction(async (transaction) => {
     const [lock, operation] = await Promise.all([transaction.get(lockRef(db, workspaceId)), transaction.get(oRef)]);
     if (lock.exists && lock.data().status === 'APPLYING' && lock.data().operationId !== operationId && lock.data().leaseExpiresAt?.toMillis?.() > Date.now()) fail('APPLY_IN_PROGRESS', 'Another Automat plan is applying to this Workspace.');
     if (operation.exists && operation.data().planId !== planId) fail('PLAN_CHANGED', 'operationId belongs to another plan.');
+    if (operation.exists && operation.data().status === 'APPLYING' && operation.data().leaseExpiresAt?.toMillis?.() > Date.now()) return { acquired: false, operation: operation.data() };
     const leaseExpiresAt = leaseExpiration();
     transaction.set(lockRef(db, workspaceId), { workspaceId, operationId, planId, status: 'APPLYING', requestedBy: userId, leaseExpiresAt, updatedAt: FieldValue.serverTimestamp() });
     transaction.set(oRef, { operationId, workspaceId, planId, planVersion: planData.planVersion, requestedBy: userId, approvedBy: planData.approvedBy, authority, entitlement, status: 'APPLYING', phase: 'PREPARING', inputFingerprint: planData.planFingerprint, currentFingerprint, lastKnownFingerprint: currentFingerprint, resourceResults: operation.exists ? operation.data().resourceResults || [] : [], referenceMap: operation.exists ? operation.data().referenceMap || {} : {}, warnings: planData.plan.warnings || [], errors: [], provenance: planData.plan.provenance, leaseExpiresAt, startedAt: operation.exists ? operation.data().startedAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     transaction.update(pRef, { status: 'APPLYING', operationId, updatedAt: FieldValue.serverTimestamp() });
+    return { acquired: true };
   });
+  if (!acquisition.acquired) return serializeOperation(operationId, acquisition.operation, true);
   const operationData = (await oRef.get()).data();
   const results = new Map((operationData.resourceResults || []).map((item) => [item.planRef, item]));
   const references = { ...(operationData.referenceMap || {}) };

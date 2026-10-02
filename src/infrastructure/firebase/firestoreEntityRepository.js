@@ -16,7 +16,12 @@ import {
   query,
   where,
   limit,
+  orderBy,
+  startAfter,
+  startAt,
+  endAt,
   documentId,
+  getCountFromServer,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -60,9 +65,28 @@ export function createFirestoreEntityRepository(db) {
   }
 
   async function listByType(workspaceId, entityTypeId) {
-    const q = query(entitiesCol(workspaceId), where('entityTypeId', '==', entityTypeId));
+    const q = query(entitiesCol(workspaceId), where('entityTypeId', '==', entityTypeId), limit(100));
     const snap = await getDocs(q);
     return snap.docs.map(mapFromFirestore);
+  }
+
+  async function paginatedByType(workspaceId, entityTypeId, params = {}) {
+    const pageSize = Math.max(1, Math.min(100, params.limit || 25));
+    const constraints = [where('entityTypeId', '==', entityTypeId)];
+    if (params.status) constraints.push(where('status', '==', params.status));
+    constraints.push(orderBy('displayName', 'asc'), orderBy(documentId(), 'asc'));
+    if (params.search && !params.startAfter) constraints.push(startAt(params.search), endAt(`${params.search}\uf8ff`));
+    if (params.startAfter) constraints.push(startAfter(params.startAfter));
+    constraints.push(limit(pageSize + 1));
+    const snap = await getDocs(query(entitiesCol(workspaceId), ...constraints));
+    const hasMore = snap.docs.length > pageSize;
+    const docs = hasMore ? snap.docs.slice(0, pageSize) : snap.docs;
+    return { items: docs.map(mapFromFirestore), nextCursor: hasMore ? docs[docs.length - 1] : null, hasMore };
+  }
+
+  async function countByType(workspaceId, entityTypeId) {
+    const snapshot = await getCountFromServer(query(entitiesCol(workspaceId), where('entityTypeId', '==', entityTypeId)));
+    return snapshot.data().count;
   }
 
   async function queryEntities(workspaceId, filters = {}) {
@@ -101,5 +125,5 @@ export function createFirestoreEntityRepository(db) {
     return mapFromFirestore(snap);
   }
 
-  return { getById, getManyByIds, listByWorkspace, listByType, query: queryEntities, create, update };
+  return { getById, getManyByIds, listByWorkspace, listByType, paginatedByType, countByType, query: queryEntities, create, update };
 }

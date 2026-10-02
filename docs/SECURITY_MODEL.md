@@ -432,6 +432,14 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 10.0 — Generic Entity Management Security
+
+- Entity list/detail/create/update use existing Workspace-scoped Entity Rules; Personal owner and active Organization members are authorized, outsiders/cross-Workspace users are denied.
+- Client actors remain USER/self only. Entity identity, Workspace, Entity Type, creator, and creation timestamps remain immutable.
+- Entity lifecycle is restricted to ACTIVE, INACTIVE, or ARCHIVED. Physical delete remains denied because historical Records may reference Entities.
+- Core Entity Type definitions remain structurally protected; this does not prevent authorized creation/editing of Core Entity instances.
+- Queries require explicit Workspace and Entity Type scope, stable pagination, bounded limits, and configured indexes. UI cannot supply arbitrary collection paths or ordering fields.
+
 ## Step 9.0 — Agent/Automat Planning Security
 
 - Provider output is untrusted structured input until deterministic validation succeeds.

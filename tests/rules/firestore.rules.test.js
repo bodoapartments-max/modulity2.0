@@ -1151,6 +1151,11 @@ describe('workspaces/{wsId}/entities/{entityId}', () => {
     }));
   });
 
+  it('denies invalid Entity lifecycle status', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await assertFails(setDoc(doc(authedDb('user1'), 'workspaces', 'ws-p', 'entities', 'invalid-status'), { entityId: 'invalid-status', workspaceId: 'ws-p', entityTypeId: 'core:vehicle', displayName: 'Invalid', status: 'DELETED', data: {}, createdBy: { actorType: 'USER', actorId: 'user1' } }));
+  });
+
   it('non-member cannot create entity in org workspace', async () => {
     await setupOrg('org1', {}, [
       { userId: 'owner1', roles: ['OWNER'] },

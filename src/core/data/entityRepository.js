@@ -12,6 +12,8 @@
  * @property {function(string): Promise<Entity[]>} listByWorkspace
  * @property {function(string, string): Promise<Entity[]>} listByType — (workspaceId, entityTypeId)
  * @property {function(string, Object): Promise<Entity[]>} query — (workspaceId, filters)
+ * @property {function(string, string, Object): Promise<Object>} paginatedByType — bounded stable Entity Type list
+ * @property {function(string, string): Promise<number>} countByType — aggregation count
  * @property {function(Entity): Promise<Entity>} create
  * @property {function(string, string, Object): Promise<Entity>} update — (workspaceId, entityId, changes)
  */

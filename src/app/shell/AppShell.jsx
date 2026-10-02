@@ -20,6 +20,9 @@ const OrganizationSettingsPage = lazy(() => import('../../features/organization/
 const PeoplePage = lazy(() => import('../../features/people/ui/PeoplePage.jsx'));
 const GroupsPage = lazy(() => import('../../features/groups/ui/GroupsPage.jsx'));
 const EntityTypesPage = lazy(() => import('../../features/entities/ui/EntityTypesPage.jsx'));
+const EntityTypeDetailPage = lazy(() => import('../../features/entities/ui/EntityTypeDetailPage.jsx'));
+const EntityListPage = lazy(() => import('../../features/entities/ui/EntityListPage.jsx'));
+const EntityFormPage = lazy(() => import('../../features/entities/ui/EntityFormPage.jsx'));
 const EntitiesPage = lazy(() => import('../../features/entities/ui/EntitiesPage.jsx'));
 const EntityDetailPage = lazy(() => import('../../features/entities/ui/EntityDetailPage.jsx'));
 const ModulesPage = lazy(() => import('../../features/modules/ui/ModulesPage.jsx'));
@@ -74,8 +77,12 @@ function AppShell() {
               <Route path="people" element={<PeoplePage />} />
               <Route path="groups" element={<GroupsPage />} />
               <Route path="entity-types" element={<EntityTypesPage />} />
+              <Route path="entity-types/:entityTypeId" element={<EntityTypeDetailPage />} />
+              <Route path="entity-types/:entityTypeId/entities" element={<EntityListPage />} />
+              <Route path="entity-types/:entityTypeId/entities/new" element={<EntityFormPage />} />
               <Route path="entities" element={<EntitiesPage />} />
               <Route path="entities/:entityId" element={<EntityDetailPage />} />
+              <Route path="entities/:entityId/edit" element={<EntityFormPage />} />
               <Route path="modules" element={<ModulesPage />} />
               <Route path="modules/new" element={<CreateModulePage />} />
               <Route path="modules/:moduleId" element={<ModuleDetailPage />} />

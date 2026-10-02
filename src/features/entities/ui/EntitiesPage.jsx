@@ -1,224 +1,33 @@
-/**
- * Entities Browser Page
- *
- * View, create, and archive Entities.
- * Minimal development UI for validation.
- */
-
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
-import { useAuth } from '../../../app/providers/AuthProvider.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import services from '../../../infrastructure/services.js';
+import Badge from '../../../design-system/components/Badge/Badge.jsx';
+import Card from '../../../design-system/components/Card/Card.jsx';
+import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
-import Button from '../../../design-system/components/Button/Button.jsx';
-import Card from '../../../design-system/components/Card/Card.jsx';
-import Badge from '../../../design-system/components/Badge/Badge.jsx';
-import Input from '../../../design-system/components/Input/Input.jsx';
-import Label from '../../../design-system/components/Label/Label.jsx';
-import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
-import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
-import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
+import { pluralizeEntityType, sortEntityTypes } from '../../../core/data/entityPresentation.js';
 
-function EntitiesPage() {
+export default function EntitiesPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [showForm, setShowForm] = useState(false);
-  const [selectedTypeId, setSelectedTypeId] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [fieldValues, setFieldValues] = useState({});
-  const [actionError, setActionError] = useState(null);
-
   const workspaceId = currentWorkspace?.workspaceId;
-  const entityLoader = useCallback(() => services.entity.listEntities(workspaceId), [workspaceId]);
-  const typeLoader = useCallback(() => services.entityType.listEntityTypes(workspaceId), [workspaceId]);
-  const entityQuery = useWorkspaceQuery({ workspaceId, resource: 'entities', params: { limit: 100 }, loader: entityLoader, enabled: Boolean(workspaceId), ttlMs: 15000 });
-  const typeQuery = useWorkspaceQuery({ workspaceId, resource: 'entityTypes', loader: typeLoader, enabled: Boolean(workspaceId) });
-  const entities = entityQuery.data || [];
-  const entityTypes = typeQuery.data || [];
-  const loading = entityQuery.initialLoading || typeQuery.initialLoading;
-  const error = entityQuery.error || typeQuery.error || actionError;
-  const loadData = useCallback(() => Promise.all([entityQuery.refresh(), typeQuery.refresh()]), [entityQuery, typeQuery]);
-
-  const selectedType = entityTypes.find((t) => t.typeId === selectedTypeId);
-
-  useEffect(() => {
-    setFieldValues({});
-  }, [selectedTypeId]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setActionError(null);
-    try {
-      await services.entity.createEntity({
-        workspaceId,
-        entityTypeId: selectedTypeId,
-        displayName,
-        data: fieldValues,
-        createdBy: { actorType: 'USER', actorId: user.userId },
-      });
-      setShowForm(false);
-      setDisplayName('');
-      setSelectedTypeId('');
-      setFieldValues({});
-      await loadData();
-    } catch (err) {
-      setActionError(err.message);
-    }
-  };
-
-  const handleArchive = async (entityId) => {
-    try {
-      await services.entity.archiveEntity(
-        workspaceId,
-        entityId,
-        { actorType: 'USER', actorId: user.userId },
-      );
-      await loadData();
-    } catch (err) {
-      setActionError(err.message);
-    }
-  };
-
-  if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
-    return <PageContainer><ErrorState title="Workspace unavailable" message="Select an available workspace before managing Entities." /></PageContainer>;
-  }
-
-  if (workspaceLoading || loading) {
-    return (
-      <PageContainer>
-        <div className="flex justify-center py-12"><Spinner /></div>
-      </PageContainer>
-    );
-  }
-
-  const typeMap = Object.fromEntries(entityTypes.map((t) => [t.typeId, t]));
-
-  return (
-    <PageContainer>
-      <PageHeader
-        title="Entities"
-        description="Business entities in this workspace"
-        action={
-          !showForm && (
-            <Button onClick={() => setShowForm(true)}>
-              Create Entity
-            </Button>
-          )
-        }
-      />
-
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{actionError || 'Entity data could not be refreshed.'}</div>
-      )}
-
-      {showForm && (
-        <Card className="mb-6">
-          <form onSubmit={handleSubmit} className="space-y-4 p-4">
-            <h3 className="text-lg font-medium text-neutral-900">New Entity</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="entity-type">Entity Type</Label>
-                <select
-                  id="entity-type"
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                  value={selectedTypeId}
-                  onChange={(e) => setSelectedTypeId(e.target.value)}
-                  required
-                >
-                  <option value="">Select type...</option>
-                  {entityTypes.map((t) => (
-                    <option key={t.typeId} value={t.typeId}>{t.name} ({t.code})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="entity-name">Display Name</Label>
-                <Input id="entity-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Room 214" required />
-              </div>
-            </div>
-
-            {selectedType?.fields?.length > 0 && (
-              <div className="space-y-3">
-                <Label>Type-specific Fields</Label>
-                {selectedType.fields.map((field) => (
-                  <div key={field.key}>
-                    <Label htmlFor={`field-${field.key}`}>
-                      {field.label}
-                      {field.required && <span className="ml-1 text-red-500">*</span>}
-                    </Label>
-                    <Input
-                      id={`field-${field.key}`}
-                      type={field.type === 'number' ? 'number' : 'text'}
-                      value={fieldValues[field.key] || ''}
-                      onChange={(e) => setFieldValues((prev) => ({
-                        ...prev,
-                        [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value,
-                      }))}
-                      required={field.required}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button type="submit">Create</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
-      {entities.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-neutral-200 text-neutral-600">
-              <tr>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Created</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {entities.map((ent) => (
-                <tr key={ent.entityId} className="border-b border-neutral-100 hover:bg-neutral-50">
-                  <td className="px-3 py-2">
-                    <button
-                      className="font-medium text-primary-600 hover:underline"
-                      onClick={() => navigate(`/app/entities/${ent.entityId}`)}
-                    >
-                      {ent.displayName}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant="neutral">{typeMap[ent.entityTypeId]?.code || ent.entityTypeId}</Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={ent.status === 'ACTIVE' ? 'success' : 'neutral'}>{ent.status}</Badge>
-                  </td>
-                  <td className="px-3 py-2 text-neutral-500">
-                    {ent.createdAt ? new Date(ent.createdAt).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="px-3 py-2">
-                    {ent.status === 'ACTIVE' && (
-                      <Button variant="ghost" size="sm" onClick={() => handleArchive(ent.entityId)}>Archive</Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-sm text-neutral-500">No entities yet. Create one to get started.</p>
-      )}
-    </PageContainer>
-  );
+  const loader = useCallback(async () => {
+    await services.entityType.seedCoreTypes(workspaceId);
+    const types = await services.entityType.listEntityTypes(workspaceId);
+    const orderedTypes = sortEntityTypes(types);
+    const counts = await Promise.all(orderedTypes.map((type) => services.entity.countEntitiesByType(workspaceId, type.typeId)));
+    return orderedTypes.map((type, index) => ({ type, count: counts[index] }));
+  }, [workspaceId]);
+  const query = useWorkspaceQuery({ workspaceId, resource: 'entityDirectory', loader, enabled: Boolean(workspaceId), ttlMs: 15000 });
+  if (!workspaceLoading && (workspaceError || !currentWorkspace)) return <PageContainer><ErrorState title="Workspace unavailable" message="Select an available Workspace before managing Entities." /></PageContainer>;
+  if (workspaceLoading || query.initialLoading) return <PageContainer><LoadingState message="Loading Entity directory…" /></PageContainer>;
+  return <PageContainer>
+    <PageHeader title="Entities" description="Actual persistent business objects in this Workspace" action={<Link to="/app/entity-types" className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700">Manage Entity Types</Link>} />
+    {query.error && <ErrorState message="Entity directory could not be refreshed." />}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{(query.data || []).map(({ type, count }) => <Link key={type.typeId} to={`/app/entity-types/${encodeURIComponent(type.typeId)}/entities`} className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"><Card className="h-full p-4 transition-colors hover:border-primary-300"><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold text-neutral-900">{pluralizeEntityType(type.name)}</h2><p className="mt-1 text-sm text-neutral-600">{type.description}</p></div><span className="text-2xl font-semibold text-neutral-900">{count}</span></div><div className="mt-3"><Badge variant={type.category === 'CORE' ? 'neutral' : 'warning'}>{type.code}</Badge></div></Card></Link>)}</div>
+    {!query.error && (query.data || []).length === 0 && <p className="text-sm text-neutral-500">No Entity Types are available.</p>}
+  </PageContainer>;
 }
-
-export default EntitiesPage;

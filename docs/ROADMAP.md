@@ -221,6 +221,19 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Type-level Relationship recommendations remain optional UNSUPPORTED planning output
 - Workspace Reset compatibility for plans, generated configuration, and lock state
 
+## Step 10.0 — Generic Entity Management Experience
+
+**Status:** CLOSED — DEPLOYMENT VERIFIED
+
+- Navigable Core/Domain Entity Type registry and generic Entity Type Detail
+- Operational Entity directory grouped by Entity Type
+- Bounded paginated/searchable schema-driven Entity lists
+- Generic schema-rendered Entity create/edit and lifecycle management
+- Existing canonical Entity Detail with bounded relationships/Record activity
+- Batched human-readable EntityReference labels
+- Automat-created Entity Types work without frontend specialization
+- Core definitions remain structurally protected; Entity instances remain manageable
+
 ### Later automation/integration milestones
 
 Deferred from the older Step 9 roadmap definition:

@@ -2,6 +2,19 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 10.0 — Generic Entity Management Experience
+
+### Added
+- Navigable Core/Domain Entity Type cards and generic Entity Type Detail with fields, Entity counts, Module usage, and operational actions
+- Entity directory grouped by Entity Type with bounded aggregation counts
+- Generic Entity Type-scoped list/table with stable pagination, bounded prefix search, lifecycle filters, schema-derived columns, and batched EntityReference labels
+- Schema-rendered generic Entity create/edit flows through the canonical EntityService and shared Form Renderer
+- Extended canonical Entity Detail with schema formatting, EntityReference labels, edit action, and context-aware return navigation
+- Entity lifecycle validation in Core and Rules; physical delete remains denied and Core definitions remain protected
+- Automat-created Domain Entity Types receive the same UI without business-specific components
+- Required Entity indexes and cross-Workspace/Personal/authorized-member integration coverage
+- Authenticated `Reset Test Hotel` verification: Employee create/edit, Room 101/102 coexistence, Reservation→Room 102 EntityReference, generic Equipment flow, stable field/card ordering, and desktop/768px/375px pass
+
 ## Step 9.2 — Trusted Automat BuildPlan Application
 
 ### Added

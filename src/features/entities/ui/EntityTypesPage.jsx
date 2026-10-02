@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import services from '../../../infrastructure/services.js';
@@ -19,7 +20,9 @@ import Label from '../../../design-system/components/Label/Label.jsx';
 import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
 import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
 import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
-import { FIELD_TYPES } from '../../../core/data/entityType.js';
+import { ENTITY_FIELD_TYPES, FIELD_TYPES } from '../../../core/data/entityType.js';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
+import { sortEntityTypes } from '../../../core/data/entityPresentation.js';
 
 function EntityTypesPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
@@ -40,7 +43,7 @@ function EntityTypesPage() {
   const handleAddField = () => {
     setFormData((prev) => ({
       ...prev,
-      fields: [...prev.fields, { key: '', label: '', type: 'text', required: false }],
+      fields: [...prev.fields, { key: '', label: '', type: 'text', required: false, optionsText: '', entityTypeId: '' }],
     }));
   };
 
@@ -68,11 +71,12 @@ function EntityTypesPage() {
         code: formData.code.toUpperCase().replace(/\s+/g, '_'),
         name: formData.name,
         description: formData.description,
-        fields: formData.fields.filter((f) => f.key && f.label),
+        fields: formData.fields.filter((field) => field.key && field.label).map((field) => ({ key: field.key, label: field.label, type: field.type, required: field.required, ...(field.type === FIELD_TYPES.SELECT ? { options: field.optionsText.split(',').map((option) => option.trim()).filter(Boolean) } : {}), ...(field.type === FIELD_TYPES.ENTITY_REFERENCE ? { entityTypeId: field.entityTypeId } : {}) })),
         actor: { actorType: 'USER', actorId: user.userId },
       });
       setShowForm(false);
       setFormData({ code: '', name: '', description: '', fields: [] });
+      workspaceQueryCache.invalidate(`${workspaceId}:entityDirectory:`);
       await loadTypes();
     } catch (err) {
       setActionError(err.message);
@@ -91,8 +95,8 @@ function EntityTypesPage() {
     );
   }
 
-  const coreTypes = types.filter((t) => t.category === 'CORE');
-  const domainTypes = types.filter((t) => t.category === 'DOMAIN');
+  const coreTypes = sortEntityTypes(types.filter((t) => t.category === 'CORE'));
+  const domainTypes = sortEntityTypes(types.filter((t) => t.category === 'DOMAIN'));
 
   return (
     <PageContainer>
@@ -137,11 +141,11 @@ function EntityTypesPage() {
                 <Button type="button" variant="ghost" size="sm" onClick={handleAddField}>+ Add Field</Button>
               </div>
               {formData.fields.map((field, i) => (
-                <div key={i} className="mb-2 flex items-center gap-2">
+                <div key={i} className="mb-2 grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto_auto]">
                   <Input className="flex-1" placeholder="Key" value={field.key} onChange={(e) => handleFieldChange(i, 'key', e.target.value)} />
                   <Input className="flex-1" placeholder="Label" value={field.label} onChange={(e) => handleFieldChange(i, 'label', e.target.value)} />
                   <select className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm" value={field.type} onChange={(e) => handleFieldChange(i, 'type', e.target.value)}>
-                    {Object.values(FIELD_TYPES).map((ft) => (
+                    {ENTITY_FIELD_TYPES.map((ft) => (
                       <option key={ft} value={ft}>{ft}</option>
                     ))}
                   </select>
@@ -149,6 +153,8 @@ function EntityTypesPage() {
                     <input type="checkbox" checked={field.required} onChange={(e) => handleFieldChange(i, 'required', e.target.checked)} />
                     Req
                   </label>
+                  {field.type === FIELD_TYPES.SELECT && <Input className="flex-1" placeholder="Options, comma separated" value={field.optionsText} onChange={(e) => handleFieldChange(i, 'optionsText', e.target.value)} />}
+                  {field.type === FIELD_TYPES.ENTITY_REFERENCE && <select className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm" value={field.entityTypeId} onChange={(e) => handleFieldChange(i, 'entityTypeId', e.target.value)} required><option value="">Target Entity Type</option>{types.map((type) => <option key={type.typeId} value={type.typeId}>{type.name}</option>)}</select>}
                   <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveField(i)}>x</Button>
                 </div>
               ))}
@@ -167,14 +173,7 @@ function EntityTypesPage() {
           <h2 className="mb-3 text-lg font-medium text-neutral-900">Core Entity Types</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {coreTypes.map((t) => (
-              <Card key={t.typeId} className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-neutral-900">{t.name}</span>
-                  <Badge variant="neutral">{t.code}</Badge>
-                </div>
-                <p className="mt-1 text-sm text-neutral-600">{t.description}</p>
-                <p className="mt-2 text-xs text-neutral-500">{t.fields?.length || 0} fields</p>
-              </Card>
+              <Link key={t.typeId} to={`/app/entity-types/${encodeURIComponent(t.typeId)}`} className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"><Card className="h-full p-4 transition-colors hover:border-primary-300"><div className="flex items-center justify-between"><span className="font-medium text-neutral-900">{t.name}</span><Badge variant="neutral">{t.code}</Badge></div><p className="mt-1 text-sm text-neutral-600">{t.description}</p><p className="mt-2 text-xs text-neutral-500">{t.fields?.length || 0} fields</p></Card></Link>
             ))}
           </div>
         </div>
@@ -185,14 +184,7 @@ function EntityTypesPage() {
           <h2 className="mb-3 text-lg font-medium text-neutral-900">Domain Entity Types</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {domainTypes.map((t) => (
-              <Card key={t.typeId} className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-neutral-900">{t.name}</span>
-                  <Badge variant="warning">{t.code}</Badge>
-                </div>
-                <p className="mt-1 text-sm text-neutral-600">{t.description}</p>
-                <p className="mt-2 text-xs text-neutral-500">{t.fields?.length || 0} fields</p>
-              </Card>
+              <Link key={t.typeId} to={`/app/entity-types/${encodeURIComponent(t.typeId)}`} className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"><Card className="h-full p-4 transition-colors hover:border-primary-300"><div className="flex items-center justify-between"><span className="font-medium text-neutral-900">{t.name}</span><Badge variant="warning">{t.code}</Badge></div><p className="mt-1 text-sm text-neutral-600">{t.description}</p><p className="mt-2 text-xs text-neutral-500">{t.fields?.length || 0} fields</p></Card></Link>
             ))}
           </div>
         </div>
