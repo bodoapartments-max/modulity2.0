@@ -3063,16 +3063,108 @@ describe('Ledger Entry rules', () => {
     await setupOrg('org-1', { createdByUserId: 'user1' }, [
       { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
     ]);
+    // Seed prerequisite records and books for provenance validation
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1'), {
+        ledgerBookId: 'lb-1', workspaceId: 'org-ws-1', ledgerCode: 'RI', name: 'Test',
+        status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+        numberingStrategy: 'SEQUENTIAL',
+      });
+      // Seed records referenced by immutability tests
+      const recs = ['rec-1', 'rec-seq', 'rec-ref', 'rec-rid', 'rec-rb', 'rec-cancel', 'rec-del'];
+      for (const recId of recs) {
+        await setDoc(doc(db, 'workspaces', 'org-ws-1', 'records', recId), {
+          recordId: recId, workspaceId: 'org-ws-1', recordType: 'test', status: 'SUBMITTED',
+          data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+        });
+      }
+    });
   });
 
-  it('allows member to create ledger entry', async () => {
+  it('allows member to create ledger entry with valid provenance', async () => {
+    // Setup: referenced Record and LedgerBook must exist
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'records', 'rec-1'), {
+        recordId: 'rec-1', workspaceId: 'org-ws-1', recordType: 'inspection', status: 'SUBMITTED',
+        data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1'), {
+        ledgerBookId: 'lb-1', workspaceId: 'org-ws-1', ledgerCode: 'RI', name: 'Test',
+        status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+        numberingStrategy: 'SEQUENTIAL',
+      });
+    });
     const db = authedDb('user1');
     await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-1'), {
       ledgerEntryId: 'le-1', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
       ledgerBlockId: 'block_1', recordId: 'rec-1', sequenceNumber: 1,
       referenceNumber: 'RI-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
       registeredBy: { actorType: 'USER', actorId: 'user1' },
-      registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      _registeredAt: new Date(),
+    }));
+  });
+
+  it('denies creating entry referencing nonexistent Record', async () => {
+    // Setup: only the book exists, no record
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-prov'), {
+        ledgerBookId: 'lb-prov', workspaceId: 'org-ws-1', ledgerCode: 'PROV', name: 'Prov',
+        status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+        numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-norec'), {
+      ledgerEntryId: 'le-norec', workspaceId: 'org-ws-1', ledgerBookId: 'lb-prov',
+      ledgerBlockId: 'block_1', recordId: 'nonexistent-record', sequenceNumber: 1,
+      referenceNumber: 'PROV-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+      registeredBy: { actorType: 'USER', actorId: 'user1' },
+      _registeredAt: new Date(),
+    }));
+  });
+
+  it('denies creating entry referencing nonexistent LedgerBook', async () => {
+    // Setup: only the record exists, no book
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'records', 'rec-nobook'), {
+        recordId: 'rec-nobook', workspaceId: 'org-ws-1', recordType: 'test', status: 'SUBMITTED',
+        data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-nobook'), {
+      ledgerEntryId: 'le-nobook', workspaceId: 'org-ws-1', ledgerBookId: 'nonexistent-book',
+      ledgerBlockId: 'block_1', recordId: 'rec-nobook', sequenceNumber: 1,
+      referenceNumber: 'X-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+      registeredBy: { actorType: 'USER', actorId: 'user1' },
+      _registeredAt: new Date(),
+    }));
+  });
+
+  it('denies creating entry with non-ACTIVE initial status', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'records', 'rec-badstat'), {
+        recordId: 'rec-badstat', workspaceId: 'org-ws-1', recordType: 'test', status: 'SUBMITTED',
+        data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-badstat'), {
+        ledgerBookId: 'lb-badstat', workspaceId: 'org-ws-1', ledgerCode: 'BS', name: 'BadStat',
+        status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' },
+        numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-badstat'), {
+      ledgerEntryId: 'le-badstat', workspaceId: 'org-ws-1', ledgerBookId: 'lb-badstat',
+      ledgerBlockId: 'block_1', recordId: 'rec-badstat', sequenceNumber: 1,
+      referenceNumber: 'BS-2026-000001', referenceFormatVersion: 1, entryStatus: 'CANCELLED',
+      registeredBy: { actorType: 'USER', actorId: 'user1' },
+      _registeredAt: new Date(),
     }));
   });
 

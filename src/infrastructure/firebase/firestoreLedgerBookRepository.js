@@ -4,13 +4,16 @@
  * Path: workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}
  * Blocks: workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}/blocks/{blockId}
  *
+ * CRITICAL: bootstrapBookAtomic() creates the code reservation, book,
+ * and initial block in ONE Firestore transaction. No orphan reservations.
+ *
  * @module infrastructure/firebase/firestoreLedgerBookRepository
  */
 
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc,
-  query, where, orderBy, limit as firestoreLimit,
-  serverTimestamp,
+  collection, doc, getDoc, getDocs, updateDoc,
+  query, orderBy, limit as firestoreLimit,
+  serverTimestamp, runTransaction,
 } from 'firebase/firestore';
 
 export function createFirestoreLedgerBookRepository(db) {
@@ -20,11 +23,11 @@ export function createFirestoreLedgerBookRepository(db) {
   function bookDoc(workspaceId, ledgerBookId) {
     return doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId);
   }
-  function blocksCol(workspaceId, ledgerBookId) {
-    return collection(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks');
-  }
   function blockDoc(workspaceId, ledgerBookId, blockId) {
     return doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks', blockId);
+  }
+  function codeDoc(workspaceId, ledgerCode) {
+    return doc(db, 'workspaces', workspaceId, 'ledgerCodes', ledgerCode);
   }
 
   function mapFromFirestore(snap) {
@@ -49,13 +52,6 @@ export function createFirestoreLedgerBookRepository(db) {
     return snap.docs.map(mapFromFirestore);
   }
 
-  async function create(book) {
-    const ref = bookDoc(book.workspaceId, book.ledgerBookId);
-    const { createdAt, updatedAt, ...rest } = book;
-    await setDoc(ref, { ...rest, _createdAt: serverTimestamp(), _updatedAt: serverTimestamp() });
-    return book;
-  }
-
   async function update(workspaceId, ledgerBookId, changes) {
     const ref = bookDoc(workspaceId, ledgerBookId);
     await updateDoc(ref, { ...changes, _updatedAt: serverTimestamp() });
@@ -64,43 +60,77 @@ export function createFirestoreLedgerBookRepository(db) {
   }
 
   /**
-   * Opens the initial block for a new Ledger Book.
-   * Returns the blockId.
+   * ATOMIC: Creates a LedgerBook with code reservation and initial block
+   * in ONE Firestore transaction.
+   *
+   * Ensures:
+   *  - Code reservation, book, and initial block are created atomically
+   *  - No orphan code reservation on failure
+   *  - Idempotent: if book with same code+bookId already exists, returns it
+   *
+   * @param {Object} book — the LedgerBook value object
+   * @param {Object} actor — ActorRef
+   * @returns {Object} created book with currentBlockId set
    */
-  async function openInitialBlock(workspaceId, ledgerBookId, blockSize, actor) {
-    const blockId = `block_1`;
-    const ref = blockDoc(workspaceId, ledgerBookId, blockId);
-    await setDoc(ref, {
-      ledgerBlockId: blockId,
-      ledgerBookId,
-      workspaceId,
-      blockNumber: 1,
-      startSequence: 1,
-      endSequence: blockSize,
-      nextSequence: 1,
-      capacity: blockSize,
-      status: 'OPEN',
-      openedAt: new Date().toISOString(),
-      closedAt: null,
-      createdBy: actor,
-      _createdAt: serverTimestamp(),
-    });
-    return blockId;
-  }
+  async function bootstrapBookAtomic(book, actor) {
+    return runTransaction(db, async (transaction) => {
+      const codeRef = codeDoc(book.workspaceId, book.ledgerCode);
+      const codeSnap = await transaction.get(codeRef);
 
-  /**
-   * Gets the current open block for a book.
-   */
-  async function getCurrentBlock(workspaceId, ledgerBookId) {
-    const q = query(
-      blocksCol(workspaceId, ledgerBookId),
-      where('status', '==', 'OPEN'),
-      firestoreLimit(1),
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const d = snap.docs[0].data();
-    return { ...d, ledgerBlockId: snap.docs[0].id };
+      // If code reservation exists, check if it's our book (idempotent retry)
+      if (codeSnap.exists()) {
+        const existingCode = codeSnap.data();
+        if (existingCode.ledgerBookId === book.ledgerBookId) {
+          // Idempotent: same book retrying
+          const existingBookSnap = await transaction.get(bookDoc(book.workspaceId, book.ledgerBookId));
+          if (existingBookSnap.exists()) {
+            return mapFromFirestore(existingBookSnap);
+          }
+        }
+        throw new Error(`Ledger code "${book.ledgerCode}" is already in use`);
+      }
+
+      const initialBlockId = 'block_1';
+      const bkRef = bookDoc(book.workspaceId, book.ledgerBookId);
+      const blkRef = blockDoc(book.workspaceId, book.ledgerBookId, initialBlockId);
+
+      // 1. Reserve code (includes bookId for idempotency)
+      transaction.set(codeRef, {
+        ledgerCode: book.ledgerCode,
+        workspaceId: book.workspaceId,
+        ledgerBookId: book.ledgerBookId,
+        reservedBy: actor,
+        _reservedAt: serverTimestamp(),
+      });
+
+      // 2. Create book
+      const { createdAt, updatedAt, ...bookRest } = book;
+      transaction.set(bkRef, {
+        ...bookRest,
+        currentBlockId: initialBlockId,
+        _createdAt: serverTimestamp(),
+        _updatedAt: serverTimestamp(),
+      });
+
+      // 3. Create initial block
+      transaction.set(blkRef, {
+        ledgerBlockId: initialBlockId,
+        ledgerBookId: book.ledgerBookId,
+        workspaceId: book.workspaceId,
+        blockNumber: 1,
+        startSequence: 1,
+        endSequence: book.blockSize,
+        nextSequence: 1,
+        capacity: book.blockSize,
+        status: 'OPEN',
+        closedAt: null,
+        createdBy: actor,
+        _createdAt: serverTimestamp(),
+        _openedAt: serverTimestamp(),
+      });
+
+      return { ...book, currentBlockId: initialBlockId };
+    });
   }
 
   /**
@@ -116,13 +146,14 @@ export function createFirestoreLedgerBookRepository(db) {
    * Lists all blocks for a book.
    */
   async function listBlocks(workspaceId, ledgerBookId) {
-    const q = query(blocksCol(workspaceId, ledgerBookId), orderBy('blockNumber', 'asc'));
+    const blocksColRef = collection(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks');
+    const q = query(blocksColRef, orderBy('blockNumber', 'asc'));
     const snap = await getDocs(q);
     return snap.docs.map((s) => ({ ...s.data(), ledgerBlockId: s.id }));
   }
 
   return {
-    getById, listByWorkspace, create, update,
-    openInitialBlock, getCurrentBlock, getBlock, listBlocks,
+    getById, listByWorkspace, update,
+    bootstrapBookAtomic, getBlock, listBlocks,
   };
 }

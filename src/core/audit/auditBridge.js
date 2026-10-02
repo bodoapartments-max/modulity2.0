@@ -7,6 +7,12 @@
  * Event Bus = runtime reactions (synchronous, in-memory, ephemeral).
  * Audit = permanent accountability history (persisted to Firestore).
  *
+ * AUDIT OWNERSHIP RULE:
+ *   - Ledger events (ledger.*) are NOT mapped here.
+ *     LedgerService owns durable audit writes for all ledger operations.
+ *     This prevents duplicate AuditEntries.
+ *   - Record/delivery/form_request events ARE mapped here.
+ *
  * @module core/audit/auditBridge
  */
 
@@ -21,6 +27,8 @@ const EVENT_TO_AUDIT = {
   'record.priority_changed': { action: AUDIT_ACTIONS.RECORD_PRIORITY_CHANGED, resourceType: AUDIT_RESOURCE_TYPES.RECORD },
   'record.sent': { action: AUDIT_ACTIONS.DELIVERY_CREATED, resourceType: AUDIT_RESOURCE_TYPES.DELIVERY },
   'delivery.status_changed': { action: null, resourceType: AUDIT_RESOURCE_TYPES.DELIVERY }, // handled below
+  // NOTE: ledger.* events are intentionally excluded.
+  // LedgerService owns durable audit for ledger operations (no duplication).
 };
 
 /**
@@ -36,7 +44,7 @@ export function startAuditBridge(eventBus, auditService) {
   const unsubscribe = eventBus.on('*', async (event) => {
     try {
       const mapping = EVENT_TO_AUDIT[event.eventType];
-      if (!mapping) return; // Not a mapped event
+      if (!mapping) return; // Not a mapped event (includes ledger.*)
 
       const workspaceId = event.workspaceId;
       if (!workspaceId) return;
@@ -74,7 +82,9 @@ export function startAuditBridge(eventBus, auditService) {
         source: AUDIT_SOURCES.WEB,
       });
     } catch {
-      // Audit bridge must not break the main application flow
+      // Audit bridge must not break the main application flow.
+      // This means AuditBridge audit writes are best-effort for mapped events.
+      // Critical operations (ledger, cancellation) use explicit audit writes.
     }
   });
 

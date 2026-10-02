@@ -814,6 +814,12 @@ service cloud.firestore {
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.registeredBy != null
           && isValidClientActor(request.resource.data.registeredBy)
+          // Provenance: referenced Record must exist in the same workspace
+          && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/records/$(request.resource.data.recordId))
+          // Provenance: referenced LedgerBook must exist in the same workspace
+          && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/ledgerBooks/$(request.resource.data.ledgerBookId))
+          // Entry must be created with ACTIVE status
+          && request.resource.data.entryStatus == 'ACTIVE'
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)

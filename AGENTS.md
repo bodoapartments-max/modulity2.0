@@ -231,9 +231,40 @@ Step 5.1 hardened atomicity and concurrency before Step 6 Ledger/Audit:
 
 ### Quick Commands
 - `npm run lint` — ESLint
-- `npm run test` — Vitest (541+ tests)
-- `npm run test:rules` — Firestore emulator security tests (234+ tests)
+- `npm run test` — Vitest (545+ tests)
+- `npm run test:rules` — Firestore emulator security + concurrency tests (241+ tests)
 - `npm run build` — Vite production build
+
+## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
+
+### Critical Fix: Transaction-Level Idempotency
+The idempotency check is now **inside** `registerRecordAtomic()`, within the same Firestore `runTransaction` that allocates the sequence number. The outer `getByBookAndRecord()` is an optimization only.
+
+### Hardened Invariants (Step 6.1)
+1. Same Record + same LedgerBook can consume only ONE sequence number
+2. Idempotency check exists inside the same transaction that allocates the sequence
+3. Existing LedgerEntry is never overwritten by retry
+4. Concurrent distinct registrations produce unique, contiguous sequences
+5. Block rollover never creates duplicate blocks
+6. Record↔Ledger linkage is atomic with entry creation (same transaction)
+7. LedgerBook bootstrap is atomic (code + book + block, no orphan reservations)
+8. Authoritative historical time comes from Firestore server timestamps
+9. Audit ownership prevents duplicate durable events (LedgerService vs AuditBridge)
+10. Documentation does not claim stronger trust guarantees than implementation provides
+
+### Audit Ownership Model
+| Owner | Actions |
+|---|---|
+| LedgerService (direct) | ledger.book_created, ledger.entry_registered, ledger.entry_cancelled, ledger.entry_voided, ledger.book_closed |
+| AuditBridge (Event Bus) | record.*, delivery.*, formRequest.* |
+
+Ledger events are **excluded** from AuditBridge to prevent duplicates.
+
+### Trusted-Boundary Limitations
+- Sequence allocation is concurrency-safe for honest clients but not tamper-resistant without a trusted backend
+- Audit writes are best-effort; audit failure does not roll back business operations
+- Firestore Rules validate Record/Book existence but cannot validate allocation logic
+- Full trusted audit/ledger requires Cloud Function (future)
 
 ## Step 2 Architecture Notes
 

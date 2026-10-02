@@ -371,5 +371,52 @@ AuditEntry (append-only accountability)
 
 ### Module Integration
 - Optional `ledgerConfig` on Module and Module Version
-- `registerOnSubmit: true` enables auto-registration on submission
+- `registerOnSubmit: true` enables auto-registration on submission (not yet wired)
 - Ledger logic isolated in LedgerService, not in RecordService
+
+## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
+
+### Transaction-Level Idempotency
+- The authoritative idempotency check is **inside** `registerRecordAtomic()`, within the same Firestore `runTransaction` that allocates the sequence number.
+- Flow: derive deterministic `entryRef` → `transaction.get(entryRef)` → if exists, return existing entry without allocating → only if absent, allocate sequence and create entry.
+- The outer `getByBookAndRecord()` is an optimization only; it is NOT the correctness boundary.
+- Existing LedgerEntries are **never overwritten** by retry — `_idempotent: true` flag distinguishes first-creation from idempotent return.
+
+### Atomic Record↔Ledger Linkage
+- Record linkage (`ledgerEntryId`, `ledgerBookId`, `referenceNumber`) is updated inside the **same Firestore transaction** that creates the LedgerEntry.
+- If the Record already has linkage to the same entry, it is left unchanged (idempotent).
+- If the Record has conflicting linkage (different entry), the record update is skipped and the entry is still returned.
+
+### Multiple-LedgerBook-per-Record Policy
+- A Record may participate in **multiple** LedgerBooks. Each `(bookId, recordId)` pair is unique.
+- Record model retains singular `ledgerEntryId`/`ledgerBookId`/`referenceNumber` for the **first** registration. These are convenience fields; the authoritative linkage is the LedgerEntry collection.
+- `ledgerEntryRepo.listByRecord()` returns all entries for a given Record across all books.
+
+### Atomic LedgerBook Bootstrap
+- `bootstrapBookAtomic()` creates the LedgerCode reservation, LedgerBook, initial LedgerBlock, and `currentBlockId` in a **single** Firestore `runTransaction`.
+- If any step fails, nothing is created. No orphan code reservations possible.
+- The code reservation is checked inside the transaction — concurrent duplicate creates are rejected.
+
+### Audit Ownership
+- **LedgerService** owns durable audit writes for all ledger operations (creation, registration, cancellation, voiding, closing).
+- **AuditBridge** maps non-ledger Event Bus events (record, delivery, formRequest) to durable audit entries.
+- Ledger events are **intentionally excluded** from AuditBridge to prevent duplicate AuditEntries.
+- If audit persistence fails after a successful ledger operation, the ledger operation is **not rolled back**. This is a documented best-effort limitation for audit.
+
+### Server Timestamp Authority
+- All Ledger operations use Firestore `serverTimestamp()` for authoritative historical time.
+- Fields: `_registeredAt`, `_createdAt`, `_updatedAt`, `_openedAt`, `_closedAt`, `_timestamp`.
+- ISO string fields in domain models are non-authoritative display values derived client-side.
+- Audit query ordering uses server-authoritative `_timestamp`, not client ISO strings.
+
+### Firestore Rules Provenance Validation
+- LedgerEntry create now requires: referenced Record exists in same workspace, referenced LedgerBook exists in same workspace, initial `entryStatus` must be `ACTIVE`.
+- LedgerEntry immutability: 15 fields protected against mutation on update.
+- LedgerCode reservation: create-only, no update, no delete.
+
+### Trusted-Boundary Limitations
+1. **Audit entries are created client-side.** Rules enforce `actorType: 'USER'` and `actorId == auth.uid`, but a sophisticated client could create audit entries with arbitrary action/resource combinations. Full trusted audit requires a Cloud Function.
+2. **Sequence allocation runs as client transaction.** Firestore transactions provide atomicity, but a malicious client could construct custom writes. Rules protect immutability post-creation but cannot validate allocation logic itself.
+3. **Provenance validation is limited to existence checks.** Rules verify Record and Book exist but cannot validate moduleId/version match or Record eligibility within security rules alone.
+4. **No rate limiting.** Firestore Rules cannot enforce rate limits on creation.
+5. **Auto-registration not wired.** `registerOnSubmit` config exists but the automatic trigger is deferred until the consistency boundary is safe for production use.

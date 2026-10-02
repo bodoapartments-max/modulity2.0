@@ -499,31 +499,44 @@ Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the tok
 
 ---
 
-## Ledger Data Model (Step 6)
+## Ledger Data Model (Step 6 + 6.1)
 
 ### LedgerBook
 - **Path**: `workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}`
 - Fields: ledgerBookId, workspaceId, ledgerCode, name, description, moduleId, recordType, status, numberingStrategy, blockSize, referencePrefix, referenceFormatVersion, currentBlockId, createdBy, createdAt, updatedAt, closedAt, closedBy
+- **Bootstrap atomicity (Step 6.1)**: LedgerCode reservation + LedgerBook + initial LedgerBlock + currentBlockId are created in a single `runTransaction`. No orphan code reservations possible.
 
 ### LedgerBlock
 - **Path**: `workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}/blocks/{blockId}`
 - Fields: ledgerBlockId, ledgerBookId, workspaceId, blockNumber, startSequence, endSequence, nextSequence, capacity, status, openedAt, closedAt, createdBy
+- Server-authoritative timestamps: `_createdAt`, `_openedAt`, `_closedAt`
 
 ### LedgerEntry
 - **Path**: `workspaces/{workspaceId}/ledgerEntries/{ledgerEntryId}`
-- Fields: ledgerEntryId, workspaceId, ledgerBookId, ledgerBlockId, recordId, moduleId, moduleVersion, recordType, sequenceNumber, referenceNumber, referenceFormatVersion, entryStatus, registeredAt, registeredBy, cancelledAt, cancelledBy, cancellationReason, voidedAt, voidedBy, voidReason, supersededByRecordId
+- **Deterministic ID**: `le_{ledgerBookId}_{recordId}` — guarantees at most one entry per (book, record) pair
+- Fields: ledgerEntryId, workspaceId, ledgerBookId, ledgerBlockId, recordId, moduleId, moduleVersion, recordType, sequenceNumber, referenceNumber, referenceFormatVersion, entryStatus, registeredBy, cancelledAt, cancelledBy, cancellationReason, voidedAt, voidedBy, voidReason, supersededByRecordId
+- **Server-authoritative timestamp**: `_registeredAt` (Firestore serverTimestamp)
+- **Transaction-level idempotency (Step 6.1)**: The idempotency check (`transaction.get(entryRef)`) happens inside the same Firestore transaction that allocates the sequence number. Existing entries are returned without consuming a sequence.
+- **Create-once semantics**: Entries are never overwritten by retry.
 
 ### LedgerCode Reservation
 - **Path**: `workspaces/{workspaceId}/ledgerCodes/{ledgerCode}`
 - Deterministic document ID prevents duplicate codes within workspace
+- Created atomically inside the LedgerBook bootstrap transaction (Step 6.1)
+- Create-only: no update, no delete (enforced by Firestore Rules)
 
 ### Record Ledger Linkage
 - Fields added to Record: `ledgerEntryId`, `ledgerBookId`, `referenceNumber`
 - Immutable once assigned (null → value allowed, value → different value denied)
+- **Updated atomically (Step 6.1)**: Record linkage is set inside the same Firestore transaction that creates the LedgerEntry
+- **Multiple-book policy**: A Record may have entries in multiple LedgerBooks. The Record fields store the first registration. Authoritative multi-book linkage is via `ledgerEntryRepo.listByRecord()`.
 
-## Audit Data Model (Step 6)
+## Audit Data Model (Step 6 + 6.1)
 
 ### AuditEntry
 - **Path**: `workspaces/{workspaceId}/auditEntries/{auditEntryId}`
 - Fields: auditEntryId, workspaceId, organizationId, actor, action, resourceType, resourceId, recordId, ledgerBookId, ledgerEntryId, timestamp, metadata, correlationId, causationId, source, sourceRequestId
+- **Server-authoritative timestamp**: `_timestamp` (Firestore serverTimestamp)
 - Append-only: create allowed, update/delete denied
+- **Audit ownership (Step 6.1)**: LedgerService owns durable audit for ledger operations. AuditBridge handles non-ledger Event Bus events. No duplication.
+- **Audit failure semantics**: If audit persistence fails after a ledger operation succeeds, the operation is NOT rolled back. Audit is best-effort for all operations. Full guaranteed audit requires a Cloud Function.

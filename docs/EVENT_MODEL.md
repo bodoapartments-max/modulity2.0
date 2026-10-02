@@ -211,24 +211,40 @@ In early implementations the event bus may be synchronous within the same proces
 - Events: record.created, record.updated, record.submitted, record.cancelled, record.archived, etc.
 - NOT the durable audit history
 
-## Durable Audit Layer (Step 6)
+## Durable Audit Layer (Step 6 + 6.1)
 - AuditEntry: append-only persistence in Firestore
 - Distinct from Event Bus runtime events
-- Audit Bridge subscribes to selected Event Bus events and maps them to durable audit actions
 - Audit actions are validated against a controlled vocabulary
+- Server-authoritative timestamps (`_timestamp` via Firestore `serverTimestamp()`)
 
-## Audit Bridge Mapping
+## Audit Ownership Model (Step 6.1)
+
+Each durable audit action has exactly **one owner** — either a business service or the AuditBridge. No action is written by both.
+
+### LedgerService-owned audit (direct writes)
+| Operation | Audit Action |
+|---|---|
+| Book creation | ledger.book_created |
+| Entry registration | ledger.entry_registered |
+| Entry cancellation | ledger.entry_cancelled |
+| Entry voiding | ledger.entry_voided |
+| Book close | ledger.book_closed |
+
+### AuditBridge-owned audit (Event Bus mapping)
 | Event Bus Event | Audit Action |
 |---|---|
 | record.created | record.created |
 | record.submitted | record.submitted |
 | record.cancelled | record.cancelled |
 | record.archived | record.archived |
-| delivery.created | delivery.created |
+| record.unarchived | record.unarchived |
+| record.priority_changed | record.priority_changed |
+| record.sent | delivery.created |
 | delivery.status_changed | delivery.{status} |
-| form_request.created | form_request.created |
-| form_request.completed | form_request.completed |
+
+**Ledger events are intentionally excluded from AuditBridge** to prevent duplicate AuditEntries.
 
 ## Safety
-- Audit persistence errors are caught and logged, never thrown into the Event Bus path
+- Audit persistence errors are caught and logged, never thrown into the Event Bus path or the LedgerService caller
 - This prevents audit failures from breaking primary business operations
+- **Limitation**: audit writes are best-effort. If a business operation succeeds but audit persistence fails, the audit entry is lost. Full guaranteed audit requires a Cloud Function (future)

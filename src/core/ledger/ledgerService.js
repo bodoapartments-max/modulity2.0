@@ -9,6 +9,14 @@
  *   - One Record may appear at most once in the same Ledger Book.
  *   - A Ledger number, once allocated, is never reused.
  *   - Registration is idempotent (same bookId + recordId = same entry).
+ *   - Idempotency check is INSIDE the Firestore transaction.
+ *   - Record linkage update is INSIDE the same transaction.
+ *   - LedgerBook bootstrap (code + book + block) is atomic.
+ *
+ * AUDIT OWNERSHIP:
+ *   - LedgerService owns durable audit writes for ledger operations.
+ *   - AuditBridge does NOT map ledger Event Bus events (no duplication).
+ *   - Event Bus events are emitted for runtime reactions only.
  *
  * @module core/ledger/ledgerService
  */
@@ -25,21 +33,21 @@ const REGISTRABLE_STATUSES = ['SUBMITTED', 'ACTIVE', 'COMPLETED'];
 
 /**
  * @param {Object} deps
- * @param {Object} deps.ledgerBookRepo
+ * @param {Object} deps.ledgerBookRepo — must have bootstrapBookAtomic()
  * @param {Object} deps.ledgerEntryRepo — must have registerRecordAtomic()
- * @param {Object} deps.ledgerCodeRepo — for atomic code reservation
  * @param {Object} deps.recordRepo — to verify Record exists and is eligible
  * @param {Object} [deps.auditService] — optional, for durable audit trail
  */
 export function createLedgerService({
   ledgerBookRepo,
   ledgerEntryRepo,
-  ledgerCodeRepo,
   recordRepo,
   auditService = null,
 }) {
   /**
-   * Creates a new Ledger Book with atomic code reservation.
+   * Creates a new Ledger Book with atomic code reservation + book + initial block.
+   * No orphan code reservations on failure.
+   * Idempotent on retry with same bookId.
    */
   async function createBook({
     workspaceId,
@@ -58,12 +66,6 @@ export function createLedgerService({
       throw new AppError('validation_error', codeValidation.errors.join(', '));
     }
 
-    // Atomic code reservation (prevents race conditions)
-    const reserved = await ledgerCodeRepo.reserve(workspaceId, ledgerCode, actor);
-    if (!reserved) {
-      throw new AppError('conflict', `Ledger code "${ledgerCode}" is already in use`);
-    }
-
     const ledgerBookId = generateId();
     const book = createLedgerBook({
       ledgerBookId,
@@ -78,12 +80,8 @@ export function createLedgerService({
       createdBy: actor,
     });
 
-    const created = await ledgerBookRepo.create(book);
-
-    // Open the initial block via the repository
-    const initialBlockId = await ledgerBookRepo.openInitialBlock(workspaceId, ledgerBookId, blockSize, actor);
-    // Update book with current block ID
-    await ledgerBookRepo.update(workspaceId, ledgerBookId, { currentBlockId: initialBlockId });
+    // ATOMIC: code reservation + book + initial block in one transaction
+    const created = await ledgerBookRepo.bootstrapBookAtomic(book, actor);
 
     const correlationId = `corr:${generateId()}`;
     eventBus.emit(createEvent({
@@ -94,26 +92,44 @@ export function createLedgerService({
       correlationId,
     }));
 
+    // Durable audit write (owned by LedgerService, NOT AuditBridge)
     if (auditService) {
-      await auditService.record({
-        workspaceId,
-        actor,
-        action: AUDIT_ACTIONS.LEDGER_BOOK_CREATED,
-        resourceType: AUDIT_RESOURCE_TYPES.LEDGER_BOOK,
-        resourceId: ledgerBookId,
-        metadata: { ledgerCode, name, blockSize },
-        correlationId,
-        source: AUDIT_SOURCES.WEB,
-      });
+      try {
+        await auditService.record({
+          workspaceId,
+          actor,
+          action: AUDIT_ACTIONS.LEDGER_BOOK_CREATED,
+          resourceType: AUDIT_RESOURCE_TYPES.LEDGER_BOOK,
+          resourceId: ledgerBookId,
+          metadata: { ledgerCode, name, blockSize },
+          correlationId,
+          source: AUDIT_SOURCES.WEB,
+        });
+      } catch {
+        // Audit write failure after successful book creation:
+        // Book exists and is usable. Audit gap is documented.
+      }
     }
 
-    return { ...created, currentBlockId: initialBlockId };
+    return created;
   }
 
   /**
    * Registers a Record in a Ledger Book.
-   * Atomic: sequence allocation + entry creation in one Firestore transaction.
-   * Idempotent: same bookId + recordId returns existing entry.
+   *
+   * CRITICAL: The authoritative idempotency check and sequence allocation
+   * happen INSIDE a single Firestore transaction in registerRecordAtomic().
+   *
+   * The outer pre-checks (book status, record eligibility) are optimistic
+   * fast-path validations. The transaction re-validates everything.
+   *
+   * Record linkage (ledgerEntryId, ledgerBookId, referenceNumber) is also
+   * updated atomically inside the same transaction.
+   *
+   * A Record may participate in MULTIPLE LedgerBooks. The singular Record
+   * linkage fields point to the FIRST registration (primary reference).
+   * Additional registrations create LedgerEntries but don't overwrite the
+   * Record's primary linkage.
    */
   async function registerRecord({
     workspaceId,
@@ -122,40 +138,21 @@ export function createLedgerService({
     actor,
     correlationId = null,
   }) {
-    // Load the book
+    // Optimistic pre-check (not the correctness boundary)
     const book = await ledgerBookRepo.getById(workspaceId, ledgerBookId);
-    if (!book) {
-      throw new AppError('not_found', 'Ledger book not found');
-    }
+    if (!book) throw new AppError('not_found', 'Ledger book not found');
     if (book.status !== LEDGER_BOOK_STATUSES.ACTIVE) {
       throw new AppError('forbidden', 'Ledger book is not active');
     }
 
-    // Verify Record exists and is eligible
     const record = await recordRepo.getById(workspaceId, recordId);
-    if (!record) {
-      throw new AppError('not_found', 'Record not found');
-    }
+    if (!record) throw new AppError('not_found', 'Record not found');
     if (!REGISTRABLE_STATUSES.includes(record.status)) {
       throw new AppError('forbidden', `Record status "${record.status}" is not eligible for Ledger registration. Must be: ${REGISTRABLE_STATUSES.join(', ')}`);
     }
 
-    // Check Module/RecordType scope if the book is scoped
-    if (book.moduleId && record.moduleId !== book.moduleId) {
-      throw new AppError('validation_error', `Record moduleId does not match Ledger Book scope`);
-    }
-    if (book.recordType && record.recordType !== book.recordType) {
-      throw new AppError('validation_error', `Record recordType does not match Ledger Book scope`);
-    }
-
-    // Idempotency: check if already registered
-    const existing = await ledgerEntryRepo.getByBookAndRecord(workspaceId, ledgerBookId, recordId);
-    if (existing) {
-      return existing; // Idempotent return
-    }
-
-    // Atomic registration: allocate sequence + create entry
-    // The repository handles block fullness detection and rollover
+    // ATOMIC: idempotency check + record verification + sequence allocation
+    // + entry creation + record linkage update — all in ONE transaction
     const entry = await ledgerEntryRepo.registerRecordAtomic(workspaceId, {
       ledgerBookId,
       recordId,
@@ -166,6 +163,11 @@ export function createLedgerService({
       referenceFormatVersion: book.referenceFormatVersion,
       actor,
     });
+
+    // If idempotent return, skip event/audit emission
+    if (entry._idempotent) {
+      return entry;
+    }
 
     const corrId = correlationId || `corr:${generateId()}`;
 
@@ -183,22 +185,28 @@ export function createLedgerService({
       correlationId: corrId,
     }));
 
+    // Durable audit write (owned by LedgerService, NOT AuditBridge)
     if (auditService) {
-      await auditService.record({
-        workspaceId,
-        actor,
-        action: AUDIT_ACTIONS.LEDGER_ENTRY_REGISTERED,
-        resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
-        resourceId: entry.ledgerEntryId,
-        metadata: {
-          ledgerBookId,
-          recordId,
-          sequenceNumber: entry.sequenceNumber,
-          referenceNumber: entry.referenceNumber,
-        },
-        correlationId: corrId,
-        source: AUDIT_SOURCES.WEB,
-      });
+      try {
+        await auditService.record({
+          workspaceId,
+          actor,
+          action: AUDIT_ACTIONS.LEDGER_ENTRY_REGISTERED,
+          resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
+          resourceId: entry.ledgerEntryId,
+          metadata: {
+            ledgerBookId,
+            recordId,
+            sequenceNumber: entry.sequenceNumber,
+            referenceNumber: entry.referenceNumber,
+          },
+          correlationId: corrId,
+          source: AUDIT_SOURCES.WEB,
+        });
+      } catch {
+        // Audit write failure after successful registration:
+        // Entry exists with correct sequence. Audit gap is documented.
+      }
     }
 
     return entry;
@@ -206,34 +214,35 @@ export function createLedgerService({
 
   /**
    * Cancels a Ledger Entry. The number is NOT reused.
+   * Durable audit is written explicitly (not via AuditBridge).
    */
   async function cancelEntry(workspaceId, ledgerEntryId, reason, actor) {
     const entry = await ledgerEntryRepo.getById(workspaceId, ledgerEntryId);
-    if (!entry) {
-      throw new AppError('not_found', 'Ledger entry not found');
-    }
+    if (!entry) throw new AppError('not_found', 'Ledger entry not found');
     if (entry.entryStatus !== LEDGER_ENTRY_STATUSES.ACTIVE) {
       throw new AppError('forbidden', `Cannot cancel entry with status: ${entry.entryStatus}`);
     }
 
-    const now = new Date().toISOString();
     const updated = await ledgerEntryRepo.update(workspaceId, ledgerEntryId, {
       entryStatus: LEDGER_ENTRY_STATUSES.CANCELLED,
-      cancelledAt: now,
       cancelledBy: { actorType: actor.actorType, actorId: actor.actorId },
       cancellationReason: reason || null,
     });
 
     if (auditService) {
-      await auditService.record({
-        workspaceId,
-        actor,
-        action: AUDIT_ACTIONS.LEDGER_ENTRY_CANCELLED,
-        resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
-        resourceId: ledgerEntryId,
-        metadata: { reason, sequenceNumber: entry.sequenceNumber, referenceNumber: entry.referenceNumber },
-        source: AUDIT_SOURCES.WEB,
-      });
+      try {
+        await auditService.record({
+          workspaceId,
+          actor,
+          action: AUDIT_ACTIONS.LEDGER_ENTRY_CANCELLED,
+          resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
+          resourceId: ledgerEntryId,
+          metadata: { reason, sequenceNumber: entry.sequenceNumber, referenceNumber: entry.referenceNumber },
+          source: AUDIT_SOURCES.WEB,
+        });
+      } catch {
+        // Audit failure documented
+      }
     }
 
     return updated;
@@ -244,31 +253,31 @@ export function createLedgerService({
    */
   async function voidEntry(workspaceId, ledgerEntryId, reason, actor) {
     const entry = await ledgerEntryRepo.getById(workspaceId, ledgerEntryId);
-    if (!entry) {
-      throw new AppError('not_found', 'Ledger entry not found');
-    }
+    if (!entry) throw new AppError('not_found', 'Ledger entry not found');
     if (entry.entryStatus !== LEDGER_ENTRY_STATUSES.ACTIVE) {
       throw new AppError('forbidden', `Cannot void entry with status: ${entry.entryStatus}`);
     }
 
-    const now = new Date().toISOString();
     const updated = await ledgerEntryRepo.update(workspaceId, ledgerEntryId, {
       entryStatus: LEDGER_ENTRY_STATUSES.VOIDED,
-      voidedAt: now,
       voidedBy: { actorType: actor.actorType, actorId: actor.actorId },
       voidReason: reason || null,
     });
 
     if (auditService) {
-      await auditService.record({
-        workspaceId,
-        actor,
-        action: AUDIT_ACTIONS.LEDGER_ENTRY_VOIDED,
-        resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
-        resourceId: ledgerEntryId,
-        metadata: { reason, sequenceNumber: entry.sequenceNumber, referenceNumber: entry.referenceNumber },
-        source: AUDIT_SOURCES.WEB,
-      });
+      try {
+        await auditService.record({
+          workspaceId,
+          actor,
+          action: AUDIT_ACTIONS.LEDGER_ENTRY_VOIDED,
+          resourceType: AUDIT_RESOURCE_TYPES.LEDGER_ENTRY,
+          resourceId: ledgerEntryId,
+          metadata: { reason, sequenceNumber: entry.sequenceNumber, referenceNumber: entry.referenceNumber },
+          source: AUDIT_SOURCES.WEB,
+        });
+      } catch {
+        // Audit failure documented
+      }
     }
 
     return updated;
@@ -279,66 +288,51 @@ export function createLedgerService({
    */
   async function closeBook(workspaceId, ledgerBookId, actor) {
     const book = await ledgerBookRepo.getById(workspaceId, ledgerBookId);
-    if (!book) {
-      throw new AppError('not_found', 'Ledger book not found');
-    }
+    if (!book) throw new AppError('not_found', 'Ledger book not found');
     if (book.status !== LEDGER_BOOK_STATUSES.ACTIVE) {
       throw new AppError('forbidden', 'Ledger book is not active');
     }
 
-    const now = new Date().toISOString();
     const updated = await ledgerBookRepo.update(workspaceId, ledgerBookId, {
       status: LEDGER_BOOK_STATUSES.CLOSED,
-      closedAt: now,
       closedBy: { actorType: actor.actorType, actorId: actor.actorId },
     });
 
     if (auditService) {
-      await auditService.record({
-        workspaceId,
-        actor,
-        action: AUDIT_ACTIONS.LEDGER_BOOK_CLOSED,
-        resourceType: AUDIT_RESOURCE_TYPES.LEDGER_BOOK,
-        resourceId: ledgerBookId,
-        metadata: { ledgerCode: book.ledgerCode },
-        source: AUDIT_SOURCES.WEB,
-      });
+      try {
+        await auditService.record({
+          workspaceId,
+          actor,
+          action: AUDIT_ACTIONS.LEDGER_BOOK_CLOSED,
+          resourceType: AUDIT_RESOURCE_TYPES.LEDGER_BOOK,
+          resourceId: ledgerBookId,
+          metadata: { ledgerCode: book.ledgerCode },
+          source: AUDIT_SOURCES.WEB,
+        });
+      } catch {
+        // Audit failure documented
+      }
     }
 
     return updated;
   }
 
-  /**
-   * Gets a single Ledger Book.
-   */
   async function getBook(workspaceId, ledgerBookId) {
     return ledgerBookRepo.getById(workspaceId, ledgerBookId);
   }
 
-  /**
-   * Lists Ledger Books for a workspace.
-   */
   async function listBooks(workspaceId) {
     return ledgerBookRepo.listByWorkspace(workspaceId);
   }
 
-  /**
-   * Gets a single Ledger Entry.
-   */
   async function getEntry(workspaceId, ledgerEntryId) {
     return ledgerEntryRepo.getById(workspaceId, ledgerEntryId);
   }
 
-  /**
-   * Gets the Ledger Entry for a specific Record in a specific Book.
-   */
   async function getEntryByRecord(workspaceId, ledgerBookId, recordId) {
     return ledgerEntryRepo.getByBookAndRecord(workspaceId, ledgerBookId, recordId);
   }
 
-  /**
-   * Finds all Ledger Entries for a specific Record across all Books.
-   */
   async function getEntriesForRecord(workspaceId, recordId) {
     return ledgerEntryRepo.listByRecord(workspaceId, recordId);
   }

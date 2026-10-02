@@ -88,7 +88,6 @@ function createServices() {
   const ledgerSvc = createLedgerService({
     ledgerBookRepo: repositories.ledgerBooks,
     ledgerEntryRepo: repositories.ledgerEntries,
-    ledgerCodeRepo: repositories.ledgerCodes,
     recordRepo: repositories.records,
     auditService: auditSvc,
   });

@@ -471,3 +471,36 @@ All new workspace-scoped collections enforce:
 - Clients can only create audit entries with `actorType: 'USER'` and `actorId: request.auth.uid`
 - INTERNAL_AGENT and EXTERNAL_INTEGRATION are rejected
 - Full trusted-actor enforcement requires Cloud Function boundary (future)
+
+## Step 6.1 — Ledger Consistency & Audit Hardening
+
+### Provenance Validation (Step 6.1)
+- LedgerEntry create now validates:
+  - Referenced Record must `exists()` in the same workspace
+  - Referenced LedgerBook must `exists()` in the same workspace
+  - Initial `entryStatus` must be `ACTIVE` (cannot create pre-cancelled entries)
+- **Limitation**: Rules can verify existence but cannot validate moduleId/version match, Record eligibility status, or sequence allocation correctness. These are enforced by client-side LedgerService transaction logic.
+
+### Sequence Integrity Limitation
+- Firestore Rules **cannot** validate that `sequenceNumber`, `ledgerBlockId`, or `referenceNumber` are correctly allocated from the current block state.
+- Sequence allocation is concurrency-safe for honest clients using LedgerService (`runTransaction`).
+- **Not fully tamper-resistant**: a malicious client could construct a valid-looking write with an invented sequence number. Full allocation integrity requires a trusted backend (Cloud Function).
+- This is an explicit, documented limitation — not a hidden gap.
+
+### Audit Ownership Model (Step 6.1)
+- **LedgerService** directly writes durable audit entries for all ledger operations (book creation, entry registration, cancellation, voiding, book close).
+- **AuditBridge** handles non-ledger Event Bus events (record, delivery, formRequest) only.
+- Ledger events are **excluded** from AuditBridge mapping to prevent duplicate durable AuditEntries.
+- Each audit action has exactly one owner (either the business service or the bridge, never both).
+
+### Audit Failure Semantics (Step 6.1)
+- Audit persistence is **best-effort** for all operations.
+- If a ledger operation succeeds but the subsequent audit write fails, the ledger operation is NOT rolled back.
+- AuditBridge catches all errors silently to avoid breaking the main application flow.
+- **Do not describe audit as guaranteed permanent accountability** until writes move behind a Cloud Function.
+
+### Timestamp Authority (Step 6.1)
+- All Ledger and Audit operations use Firestore `serverTimestamp()` for authoritative historical time.
+- Authoritative fields: `_registeredAt`, `_createdAt`, `_updatedAt`, `_openedAt`, `_closedAt`, `_timestamp`.
+- Client ISO string fields exist for immediate display only and are non-authoritative.
+- Audit query ordering uses `_timestamp`, not client-generated ISO strings.

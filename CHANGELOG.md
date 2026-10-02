@@ -2,6 +2,31 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
+
+### Fixed
+- **Transaction-level idempotency** — authoritative idempotency check moved inside the same Firestore `runTransaction` that allocates sequence numbers. The outer `getByBookAndRecord()` is now an optimization only, not the correctness boundary.
+- **Create-once LedgerEntry semantics** — existing entries are never overwritten by retry. Uses `_idempotent` flag to distinguish first-creation from idempotent return.
+- **Atomic Record↔Ledger linkage** — Record `ledgerEntryId`/`ledgerBookId`/`referenceNumber` updated inside the same transaction that creates the LedgerEntry.
+- **Atomic LedgerBook bootstrap** — code reservation + book + initial block + `currentBlockId` in a single `runTransaction`. No orphan code reservations on failure.
+- **Audit duplication prevention** — LedgerService owns durable audit for ledger operations; AuditBridge handles non-ledger events only. Ledger events excluded from bridge mapping.
+- **Server-authoritative timestamps** — all Ledger/Audit operations use Firestore `serverTimestamp()` for authoritative historical time. Client ISO strings are display-only.
+
+### Added
+- **Provenance validation in Firestore Rules** — LedgerEntry create requires: referenced Record exists in same workspace, referenced LedgerBook exists in same workspace, initial `entryStatus` must be `ACTIVE`
+- **Multiple-LedgerBook-per-Record policy** — explicit support; `ledgerEntryRepo.listByRecord()` returns entries across all books
+- **Emulator concurrency integration tests** — 20 concurrent same-record registrations (1 entry, 1 sequence consumed), 50 concurrent distinct records (50 unique contiguous sequences), block rollover under concurrency, cancelled number gap preservation
+- **Provenance security tests** — nonexistent Record/Book rejected, non-ACTIVE initial status rejected
+- **Audit ownership model** — documented: each audit action has exactly one owner (service or bridge)
+- **Audit failure semantics** — documented: best-effort, audit failure does not roll back business operations
+
+### Architecture
+- Idempotency check is inside the transaction that allocates the sequence
+- Record linkage is atomic with LedgerEntry creation
+- LedgerBook bootstrap is atomic (code + book + block + currentBlockId)
+- Audit is best-effort — not guaranteed permanent unless moved behind Cloud Function
+- Sequence allocation is concurrency-safe for honest clients but not tamper-resistant without trusted backend
+
 ## Step 6 — Ledger & Audit Engine
 
 ### Added

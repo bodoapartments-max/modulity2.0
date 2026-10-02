@@ -95,6 +95,22 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Record History UI — audit timeline on Record detail page
 - 10 new composite indexes
 
+## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
+
+**Status:** Complete
+
+- **Transaction-level idempotency** — authoritative check inside the same `runTransaction` that allocates sequence numbers
+- **Create-once LedgerEntry semantics** — existing entries never overwritten by retry, `_idempotent` flag distinguishes first-creation
+- **Atomic Record↔Ledger linkage** — Record linkage updated inside the same Firestore transaction as LedgerEntry creation
+- **Multiple-LedgerBook-per-Record policy** — explicit support; Record fields store first registration, `listByRecord()` returns all
+- **Atomic LedgerBook bootstrap** — code reservation + book + block + currentBlockId in one `runTransaction`, no orphan code reservations
+- **Audit ownership model** — LedgerService owns ledger audit, AuditBridge handles non-ledger events, no duplicate AuditEntries
+- **Audit failure semantics** — documented best-effort; audit failure does not roll back business operations
+- **Server-authoritative timestamps** — Firestore `serverTimestamp()` for all Ledger/Audit historical fields
+- **Provenance validation in Rules** — LedgerEntry create requires Record and Book exist in same workspace, initial status must be ACTIVE
+- **Emulator concurrency tests** — same-record (20 concurrent), distinct-record (50 concurrent), block rollover, sequence gap preservation
+- **Client trust limitations documented** — sequence allocation, audit creation, provenance validation limitations are explicit
+
 ---
 
 ## Step 7 — Workspace Experience
