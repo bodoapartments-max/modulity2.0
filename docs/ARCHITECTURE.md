@@ -339,3 +339,37 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 - Indexed queries for common filters.
 - Optimistic UI only where safe and rollback is possible.
 - No loading of entire organization datasets on startup.
+
+---
+
+## Step 6 — Ledger & Audit Engine
+
+### Three-Layer Separation
+```
+Record (canonical business object)
+   ↓ references
+LedgerEntry (durable register identity)
+   ↓ records
+AuditEntry (append-only accountability)
+```
+
+### Ledger Architecture
+- **LedgerBook**: workspace-scoped numbered register with configurable block size
+- **LedgerBlock**: physical-book pages, auto-rollover when full
+- **LedgerEntry**: immutable registration with sequence number and human reference
+- Atomic sequence allocation via Firestore `runTransaction`
+- Idempotent registration: `(bookId, recordId)` → at most one entry
+- Deterministic code reservation: `workspaces/{wsId}/ledgerCodes/{code}`
+- Reference format: `{PREFIX}-{YEAR}-{SEQ:6}` (v1)
+
+### Audit Architecture
+- **AuditEntry**: append-only durable record, distinct from Event Bus
+- **Audit Bridge**: subscribes to Event Bus, maps events to audit actions
+- Controlled action registry with 30+ stable names
+- Server-authoritative timestamps (`serverTimestamp()`)
+- ActorRef validation: clients can only claim `USER` + own UID
+
+### Module Integration
+- Optional `ledgerConfig` on Module and Module Version
+- `registerOnSubmit: true` enables auto-registration on submission
+- Ledger logic isolated in LedgerService, not in RecordService

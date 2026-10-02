@@ -190,6 +190,51 @@ Step 5.1 hardened atomicity and concurrency before Step 6 Ledger/Audit:
 
 **Trusted submission limitation:** Completion runs as client-side Firestore transaction. Firestore Rules provide defense-in-depth (immutability, workspace isolation, actor validation) but cannot reproduce arbitrary schema validation. Full trusted-submission enforcement deferred to Cloud Function (Step 6+).
 
+## Step 6 — Ledger & Audit Engine
+
+### New Domain Models
+| Model | Path | Purpose |
+|---|---|---|
+| LedgerBook | `src/core/ledger/ledgerBook.js` | Numbered register with code, blocks, reference prefix |
+| LedgerBlock | `src/core/ledger/ledgerBlock.js` | Physical-book block with capacity and rollover |
+| LedgerEntry | `src/core/ledger/ledgerEntry.js` | Immutable registration linking Record to Ledger identity |
+| AuditEntry | `src/core/audit/auditEntry.js` | Append-only accountability record |
+| AuditActions | `src/core/audit/auditActions.js` | Controlled action vocabulary and resource types |
+
+### Services
+| Service | Path | Purpose |
+|---|---|---|
+| LedgerService | `src/core/ledger/ledgerService.js` | Book management, atomic registration, cancellation |
+| LedgerQueryService | `src/core/ledger/ledgerQueryService.js` | Paginated Ledger queries |
+| AuditService | `src/core/audit/auditService.js` | Durable audit recording and queries |
+| AuditBridge | `src/core/audit/auditBridge.js` | Event Bus → Audit persistence mapping |
+
+### Repositories
+| Repository | Path |
+|---|---|
+| LedgerBookRepo | `src/infrastructure/firebase/firestoreLedgerBookRepository.js` |
+| LedgerEntryRepo | `src/infrastructure/firebase/firestoreLedgerEntryRepository.js` |
+| AuditEntryRepo | `src/infrastructure/firebase/firestoreAuditEntryRepository.js` |
+| LedgerCodeRepo | `src/infrastructure/firebase/firestoreLedgerCodeRepository.js` |
+
+### Step 6 Invariants
+1. Ledger Entry never replaces or copies the canonical Record
+2. A Ledger number, once allocated, is never reused
+3. Concurrent registration can never create duplicate sequence numbers
+4. One Record may appear at most once in the same Ledger Book
+5. Cancelled or voided entries remain permanently visible
+6. Ledger numbering is server/transaction authoritative
+7. Audit history is append-only
+8. Audit is not the same thing as the runtime Event Bus
+9. Record, Ledger, and Audit remain three distinct layers
+10. Clients cannot claim trusted agent/integration identities
+
+### Quick Commands
+- `npm run lint` — ESLint
+- `npm run test` — Vitest (541+ tests)
+- `npm run test:rules` — Firestore emulator security tests (234+ tests)
+- `npm run build` — Vite production build
+
 ## Step 2 Architecture Notes
 
 - **Workspace** is the central operating context. All future modules/records operate within a workspace.

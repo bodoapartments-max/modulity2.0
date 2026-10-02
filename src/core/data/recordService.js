@@ -136,6 +136,10 @@ export function createRecordService({ recordRepo, entityRepo }) {
     delete safeChanges.recordType;
     // Source request provenance is immutable
     delete safeChanges.sourceRequestId;
+    // Ledger linkage is immutable after assignment
+    delete safeChanges.ledgerEntryId;
+    delete safeChanges.ledgerBookId;
+    delete safeChanges.referenceNumber;
 
     // Re-validate entity references if changed
     if (safeChanges.entityReferences !== undefined) {

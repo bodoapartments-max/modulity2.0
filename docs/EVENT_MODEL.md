@@ -202,3 +202,33 @@ In early implementations the event bus may be synchronous within the same proces
 - Event schemas are versioned independently of module versions.
 - Backward-compatible additions do not require a new major version.
 - Breaking changes require a new event type or schema version and a migration strategy.
+
+---
+
+## Runtime Event Bus
+- In-process, synchronous event delivery
+- Used for reactive UI updates and service coordination
+- Events: record.created, record.updated, record.submitted, record.cancelled, record.archived, etc.
+- NOT the durable audit history
+
+## Durable Audit Layer (Step 6)
+- AuditEntry: append-only persistence in Firestore
+- Distinct from Event Bus runtime events
+- Audit Bridge subscribes to selected Event Bus events and maps them to durable audit actions
+- Audit actions are validated against a controlled vocabulary
+
+## Audit Bridge Mapping
+| Event Bus Event | Audit Action |
+|---|---|
+| record.created | record.created |
+| record.submitted | record.submitted |
+| record.cancelled | record.cancelled |
+| record.archived | record.archived |
+| delivery.created | delivery.created |
+| delivery.status_changed | delivery.{status} |
+| form_request.created | form_request.created |
+| form_request.completed | form_request.completed |
+
+## Safety
+- Audit persistence errors are caught and logged, never thrown into the Event Bus path
+- This prevents audit failures from breaking primary business operations

@@ -43,6 +43,9 @@ export const RECORD_PRIORITIES = Object.freeze({
  * @property {string[]} attachments       — file IDs
  * @property {string[]} createdEntityIds  — entity IDs created from this record
  * @property {string|null} sourceRequestId — FormRequest that produced this Record (null for normal submissions, immutable)
+ * @property {string|null} ledgerEntryId — LedgerEntry for this Record (null if not registered, immutable after set)
+ * @property {string|null} ledgerBookId — LedgerBook this Record is registered in (immutable after set)
+ * @property {string|null} referenceNumber — human-readable Ledger reference (immutable after set)
  * @property {string} schemaVersion
  * @property {string} createdAt
  * @property {string} updatedAt
@@ -71,6 +74,9 @@ export function createRecord({
   attachments = [],
   createdEntityIds = [],
   sourceRequestId = null,
+  ledgerEntryId = null,
+  ledgerBookId = null,
+  referenceNumber = null,
   schemaVersion = '1.0.0',
   createdAt,
   updatedAt,
@@ -114,6 +120,9 @@ export function createRecord({
     attachments: Object.freeze([...attachments]),
     createdEntityIds: Object.freeze([...createdEntityIds]),
     sourceRequestId,
+    ledgerEntryId,
+    ledgerBookId,
+    referenceNumber,
     schemaVersion,
     createdAt: createdAt || new Date().toISOString(),
     updatedAt: updatedAt || new Date().toISOString(),

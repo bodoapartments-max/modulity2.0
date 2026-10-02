@@ -2985,7 +2985,377 @@ describe('Step 5.1 — Form Request resultRecordId immutability', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 28. DENY BY DEFAULT
+// 28. STEP 6 — LEDGER & AUDIT SECURITY
+// ═══════════════════════════════════════════════════════
+
+describe('Ledger Book rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('org-ws-1', { type: 'ORGANIZATION', organizationId: 'org-1' });
+    await setupOrg('org-1', { createdByUserId: 'user1' }, [
+      { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
+    ]);
+  });
+
+  it('allows workspace member to read ledger books', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1'), {
+        ledgerBookId: 'lb-1', workspaceId: 'org-ws-1', ledgerCode: 'RI', name: 'Test',
+        createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1')));
+  });
+
+  it('denies cross-workspace ledger book read', async () => {
+    await setupUser('outsider');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1'), {
+        ledgerBookId: 'lb-1', workspaceId: 'org-ws-1', ledgerCode: 'RI', name: 'Test',
+        createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('outsider');
+    await assertFails(getDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1')));
+  });
+
+  it('allows member to create ledger book', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-new'), {
+      ledgerBookId: 'lb-new', workspaceId: 'org-ws-1', ledgerCode: 'TEST', name: 'Test Book',
+      status: 'ACTIVE', blockSize: 100,
+      createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
+    }));
+  });
+
+  it('denies changing immutable ledger code', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-immut'), {
+        ledgerBookId: 'lb-immut', workspaceId: 'org-ws-1', ledgerCode: 'ORIG', name: 'Test',
+        createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-immut'), {
+      ledgerCode: 'CHANGED',
+    }));
+  });
+
+  it('denies deleting ledger book', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-del'), {
+        ledgerBookId: 'lb-del', workspaceId: 'org-ws-1', ledgerCode: 'DEL', name: 'Del',
+        createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-del')));
+  });
+});
+
+describe('Ledger Entry rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('org-ws-1', { type: 'ORGANIZATION', organizationId: 'org-1' });
+    await setupOrg('org-1', { createdByUserId: 'user1' }, [
+      { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
+    ]);
+  });
+
+  it('allows member to create ledger entry', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-1'), {
+      ledgerEntryId: 'le-1', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+      ledgerBlockId: 'block_1', recordId: 'rec-1', sequenceNumber: 1,
+      referenceNumber: 'RI-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+      registeredBy: { actorType: 'USER', actorId: 'user1' },
+      registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+    }));
+  });
+
+  it('denies mutating sequenceNumber', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-seq'), {
+        ledgerEntryId: 'le-seq', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-seq', sequenceNumber: 1,
+        referenceNumber: 'RI-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-seq'), {
+      sequenceNumber: 99,
+    }));
+  });
+
+  it('denies mutating referenceNumber', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-ref'), {
+        ledgerEntryId: 'le-ref', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-ref', sequenceNumber: 2,
+        referenceNumber: 'RI-2026-000002', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-ref'), {
+      referenceNumber: 'CHANGED',
+    }));
+  });
+
+  it('denies mutating recordId', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-rid'), {
+        ledgerEntryId: 'le-rid', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-rid', sequenceNumber: 3,
+        referenceNumber: 'RI-2026-000003', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-rid'), {
+      recordId: 'different-rec',
+    }));
+  });
+
+  it('denies mutating registeredBy', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-rb'), {
+        ledgerEntryId: 'le-rb', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-rb', sequenceNumber: 4,
+        referenceNumber: 'RI-2026-000004', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-rb'), {
+      registeredBy: { actorType: 'USER', actorId: 'hacker' },
+    }));
+  });
+
+  it('allows status change to CANCELLED', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-cancel'), {
+        ledgerEntryId: 'le-cancel', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-cancel', sequenceNumber: 5,
+        referenceNumber: 'RI-2026-000005', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-cancel'), {
+      entryStatus: 'CANCELLED', cancelledAt: '2026-06-01T00:00:00Z',
+      cancelledBy: { actorType: 'USER', actorId: 'user1' }, cancellationReason: 'Duplicate',
+    }));
+  });
+
+  it('denies deleting ledger entry', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-del'), {
+        ledgerEntryId: 'le-del', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
+        ledgerBlockId: 'block_1', recordId: 'rec-del', sequenceNumber: 6,
+        referenceNumber: 'RI-2026-000006', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
+        registeredBy: { actorType: 'USER', actorId: 'user1' },
+        registeredAt: '2026-01-01T00:00:00Z', _registeredAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-del')));
+  });
+});
+
+describe('Audit Entry rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('org-ws-1', { type: 'ORGANIZATION', organizationId: 'org-1' });
+    await setupOrg('org-1', { createdByUserId: 'user1' }, [
+      { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
+    ]);
+  });
+
+  it('allows creating audit entry with own USER actor', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-1'), {
+      auditEntryId: 'ae-1', workspaceId: 'org-ws-1',
+      actor: { actorType: 'USER', actorId: 'user1' },
+      action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+      timestamp: '2026-01-01T00:00:00Z', _timestamp: new Date(),
+      metadata: {}, source: 'web',
+    }));
+  });
+
+  it('denies creating audit entry claiming another user', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-spoof'), {
+      auditEntryId: 'ae-spoof', workspaceId: 'org-ws-1',
+      actor: { actorType: 'USER', actorId: 'otherUser' },
+      action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+      timestamp: '2026-01-01T00:00:00Z', metadata: {}, source: 'web',
+    }));
+  });
+
+  it('denies creating audit entry claiming INTERNAL_AGENT', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-agent'), {
+      auditEntryId: 'ae-agent', workspaceId: 'org-ws-1',
+      actor: { actorType: 'INTERNAL_AGENT', actorId: 'user1' },
+      action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+      timestamp: '2026-01-01T00:00:00Z', metadata: {}, source: 'web',
+    }));
+  });
+
+  it('denies updating audit entry', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-upd'), {
+        auditEntryId: 'ae-upd', workspaceId: 'org-ws-1',
+        actor: { actorType: 'USER', actorId: 'user1' },
+        action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+        timestamp: '2026-01-01T00:00:00Z', _timestamp: new Date(),
+        metadata: {}, source: 'web',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-upd'), {
+      action: 'record.archived',
+    }));
+  });
+
+  it('denies deleting audit entry', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-del'), {
+        auditEntryId: 'ae-del', workspaceId: 'org-ws-1',
+        actor: { actorType: 'USER', actorId: 'user1' },
+        action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+        timestamp: '2026-01-01T00:00:00Z', _timestamp: new Date(),
+        metadata: {}, source: 'web',
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-del')));
+  });
+
+  it('denies cross-workspace audit read', async () => {
+    await setupUser('outsider');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-xws'), {
+        auditEntryId: 'ae-xws', workspaceId: 'org-ws-1',
+        actor: { actorType: 'USER', actorId: 'user1' },
+        action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
+        timestamp: '2026-01-01T00:00:00Z', _timestamp: new Date(),
+        metadata: {}, source: 'web',
+      });
+    });
+    const db = authedDb('outsider');
+    await assertFails(getDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-xws')));
+  });
+});
+
+describe('Ledger Code rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('org-ws-1', { type: 'ORGANIZATION', organizationId: 'org-1' });
+    await setupOrg('org-1', { createdByUserId: 'user1' }, [
+      { userId: 'user1', roles: ['OWNER'], status: 'ACTIVE' },
+    ]);
+  });
+
+  it('allows creating ledger code reservation', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'TEST_CODE'), {
+      ledgerCode: 'TEST_CODE', workspaceId: 'org-ws-1',
+      reservedBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('denies updating ledger code reservation', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'IMMUT_CODE'), {
+        ledgerCode: 'IMMUT_CODE', workspaceId: 'org-ws-1',
+        reservedBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'IMMUT_CODE'), {
+      ledgerCode: 'CHANGED',
+    }));
+  });
+
+  it('denies deleting ledger code reservation', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'DEL_CODE'), {
+        ledgerCode: 'DEL_CODE', workspaceId: 'org-ws-1',
+        reservedBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'DEL_CODE')));
+  });
+});
+
+describe('Record ledger linkage immutability', () => {
+  beforeEach(async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await setupUser('user1');
+  });
+
+  it('denies changing ledgerEntryId once set', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-ll'), {
+        recordId: 'rec-ll', workspaceId: 'ws-p', recordType: 'test', status: 'SUBMITTED',
+        data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+        submittedBy: { actorType: 'USER', actorId: 'user1' },
+        moduleId: null, moduleVersion: null, sourceRequestId: null,
+        entityReferences: [], entityReferenceIds: [],
+        ledgerEntryId: 'le-1', ledgerBookId: 'lb-1', referenceNumber: 'RI-2026-000001',
+        _createdAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-ll'), {
+      ledgerEntryId: 'le-different',
+    }));
+  });
+
+  it('allows setting ledger linkage on record that had null', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-nol'), {
+        recordId: 'rec-nol', workspaceId: 'ws-p', recordType: 'test', status: 'SUBMITTED',
+        data: {}, createdBy: { actorType: 'USER', actorId: 'user1' },
+        submittedBy: { actorType: 'USER', actorId: 'user1' },
+        moduleId: null, moduleVersion: null, sourceRequestId: null,
+        entityReferences: [], entityReferenceIds: [],
+        ledgerEntryId: null, ledgerBookId: null, referenceNumber: null,
+        _createdAt: new Date(),
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-nol'), {
+      ledgerEntryId: 'le-new', ledgerBookId: 'lb-new', referenceNumber: 'RI-2026-000099',
+    }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 29. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

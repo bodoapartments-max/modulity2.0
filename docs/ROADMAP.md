@@ -6,7 +6,7 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ## Step 0 — Architecture Blueprint & Project Constitution
 
-**Status:** In progress
+**Status:** Complete
 
 - Define architecture, boundaries, dependency direction
 - Define data model, module contract, agent contract, event contract
@@ -74,12 +74,26 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ## Step 6 — Ledger & Audit Engine
 
-- Ledger books and sequences
-- Reference number allocation
-- Cross-out / cancellation display
-- Audit event logging
-- Ledger view
-- Audit trail view
+**Status:** Complete
+
+- LedgerBook model — workspace-scoped numbered registers with configurable block size
+- LedgerBlock model — physical-book blocks with automatic rollover
+- LedgerEntry model — immutable registration linking Records to durable register identity
+- Atomic sequence allocation via Firestore transactions
+- Block rollover concurrency-safe
+- Idempotent registration (same bookId + recordId = same entry)
+- Human reference number format: `{PREFIX}-{YEAR}-{SEQ:6}`
+- Deterministic ledger code uniqueness reservation
+- Cancellation/voiding preserves sequence numbers permanently
+- AuditEntry — append-only durable accountability history
+- Audit Action Registry — 30+ controlled action names
+- Audit Bridge — maps Event Bus events to durable audit persistence
+- Module ledgerConfig — optional Ledger auto-registration configuration
+- Record ↔ Ledger linkage — immutable reference fields on Record
+- Firestore Security Rules — workspace isolation, immutability, append-only audit
+- Ledger UI — book list, book detail, entry detail, book creation
+- Record History UI — audit timeline on Record detail page
+- 10 new composite indexes
 
 ---
 

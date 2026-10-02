@@ -103,6 +103,80 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "starred", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ledgerBookId", "order": "ASCENDING" },
+        { "fieldPath": "sequenceNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ledgerBookId", "order": "ASCENDING" },
+        { "fieldPath": "_registeredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ledgerBookId", "order": "ASCENDING" },
+        { "fieldPath": "recordId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ledgerBookId", "order": "ASCENDING" },
+        { "fieldPath": "entryStatus", "order": "ASCENDING" },
+        { "fieldPath": "sequenceNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recordId", "order": "ASCENDING" },
+        { "fieldPath": "_registeredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "auditEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "resourceType", "order": "ASCENDING" },
+        { "fieldPath": "resourceId", "order": "ASCENDING" },
+        { "fieldPath": "_timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "auditEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "action", "order": "ASCENDING" },
+        { "fieldPath": "_timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "auditEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actor.actorId", "order": "ASCENDING" },
+        { "fieldPath": "_timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledgerBooks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

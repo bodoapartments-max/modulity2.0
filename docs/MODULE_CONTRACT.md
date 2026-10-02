@@ -358,3 +358,29 @@ Codes are reserved atomically via `writeBatch` during Module creation. A reserva
 
 - The registry may store all installed versions and resolve the active version per workspace.
 - Backward-incompatible manifest changes may require a new `moduleCode` or explicit migration logic.
+
+---
+
+## Module Ledger Configuration (Step 6)
+
+Modules may optionally declare Ledger behavior through `ledgerConfig`:
+
+```javascript
+ledgerConfig: {
+  enabled: true,           // Whether Records auto-register in Ledger
+  ledgerBookId: "lb-xxx",  // Target LedgerBook ID
+  registerOnSubmit: true   // Auto-register on Record submission
+}
+```
+
+### Rules
+- `ledgerConfig` is optional — modules without it work normally
+- `ledgerConfig` is included in Module Version snapshots
+- `enabled: false` or missing config = no automatic ledger participation
+- `registerOnSubmit: true` triggers registration after successful submission
+- Registration is idempotent: re-submitting or retrying never creates duplicate entries
+- Ledger logic is in LedgerService, not in Module or RecordService
+
+### Compatibility
+- Existing modules are unaffected (null/undefined ledgerConfig)
+- Future entitlement integration: `canUse("ledger")` may gate access

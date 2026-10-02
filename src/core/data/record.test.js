@@ -122,4 +122,23 @@ describe('record', () => {
     const record = createRecord(baseArgs);
     expect(Object.isFrozen(record)).toBe(true);
   });
+
+  it('defaults ledger linkage fields to null', () => {
+    const r = createRecord(baseArgs);
+    expect(r.ledgerEntryId).toBeNull();
+    expect(r.ledgerBookId).toBeNull();
+    expect(r.referenceNumber).toBeNull();
+  });
+
+  it('accepts ledger linkage fields', () => {
+    const r = createRecord({
+      ...baseArgs,
+      ledgerEntryId: 'le-1',
+      ledgerBookId: 'lb-1',
+      referenceNumber: 'RI-2026-000001',
+    });
+    expect(r.ledgerEntryId).toBe('le-1');
+    expect(r.ledgerBookId).toBe('lb-1');
+    expect(r.referenceNumber).toBe('RI-2026-000001');
+  });
 });

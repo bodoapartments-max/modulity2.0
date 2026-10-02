@@ -30,6 +30,10 @@ const ModuleFormPage = lazy(() => import('../../features/modules/ui/ModuleFormPa
 const RecordDetailPage = lazy(() => import('../../features/records/ui/RecordDetailPage.jsx'));
 const RecordListPage = lazy(() => import('../../features/records/ui/RecordListPage.jsx'));
 const ModuleRecordListPage = lazy(() => import('../../features/records/ui/ModuleRecordListPage.jsx'));
+const LedgerListPage = lazy(() => import('../../features/ledger/ui/LedgerListPage.jsx'));
+const LedgerBookPage = lazy(() => import('../../features/ledger/ui/LedgerBookPage.jsx'));
+const CreateLedgerBookPage = lazy(() => import('../../features/ledger/ui/CreateLedgerBookPage.jsx'));
+const LedgerEntryDetailPage = lazy(() => import('../../features/ledger/ui/LedgerEntryDetailPage.jsx'));
 
 function PageLoader() {
   return (
@@ -70,6 +74,10 @@ function AppShell() {
               <Route path="modules/:moduleId/records" element={<ModuleRecordListPage />} />
               <Route path="records" element={<RecordListPage />} />
               <Route path="records/:recordId" element={<RecordDetailPage />} />
+              <Route path="ledger" element={<LedgerListPage />} />
+              <Route path="ledger/new" element={<CreateLedgerBookPage />} />
+              <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />
+              <Route path="ledger/:ledgerBookId/entry/:ledgerEntryId" element={<LedgerEntryDetailPage />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Routes>
           </Suspense>

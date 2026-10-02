@@ -288,6 +288,10 @@ service cloud.firestore {
           && fieldUnchanged('recordType')
           && fieldUnchanged('sourceRequestId')
           && fieldUnchanged('submittedBy')
+          // Ledger linkage immutable after assignment
+          && (resource.data.ledgerEntryId == null || fieldUnchanged('ledgerEntryId'))
+          && (resource.data.ledgerBookId == null || fieldUnchanged('ledgerBookId'))
+          && (resource.data.referenceNumber == null || fieldUnchanged('referenceNumber'))
           // Submitted Record business data immutability:
           // If status is not DRAFT, data/entityReferences/entityReferenceIds are frozen.
           && (
@@ -700,6 +704,211 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        allow delete: if false;
+      }
+
+      // ─── Ledger Books ─────────────────────────────────────
+      // Path: workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}
+      // Numbered registers. Multiple independent books per workspace.
+
+      match /ledgerBooks/{ledgerBookId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.createdBy != null
+          && isValidClientActor(request.resource.data.createdBy)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: immutable identity/numbering fields protected
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('ledgerBookId')
+          && fieldUnchanged('ledgerCode')
+          && fieldUnchanged('createdBy')
+          && fieldUnchanged('numberingStrategy')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow delete: if false;
+
+        // ─── Ledger Blocks (subcollection) ────────────────────
+        // Path: workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}/blocks/{blockId}
+
+        match /blocks/{blockId} {
+          allow read: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          allow create: if isAuthenticated()
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.ledgerBookId == ledgerBookId
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          // Update: immutable identity fields protected
+          allow update: if isAuthenticated()
+            && fieldUnchanged('workspaceId')
+            && fieldUnchanged('ledgerBookId')
+            && fieldUnchanged('ledgerBlockId')
+            && fieldUnchanged('blockNumber')
+            && fieldUnchanged('startSequence')
+            && fieldUnchanged('endSequence')
+            && fieldUnchanged('capacity')
+            && fieldUnchanged('createdBy')
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+
+          allow delete: if false;
+        }
+      }
+
+      // ─── Ledger Entries ───────────────────────────────────
+      // Path: workspaces/{workspaceId}/ledgerEntries/{ledgerEntryId}
+      // Immutable registration records. Sequence numbers never reused.
+
+      match /ledgerEntries/{ledgerEntryId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.registeredBy != null
+          && isValidClientActor(request.resource.data.registeredBy)
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Update: identity and numbering immutable; only status transitions allowed
+        allow update: if isAuthenticated()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('ledgerEntryId')
+          && fieldUnchanged('ledgerBookId')
+          && fieldUnchanged('ledgerBlockId')
+          && fieldUnchanged('recordId')
+          && fieldUnchanged('moduleId')
+          && fieldUnchanged('moduleVersion')
+          && fieldUnchanged('recordType')
+          && fieldUnchanged('sequenceNumber')
+          && fieldUnchanged('referenceNumber')
+          && fieldUnchanged('referenceFormatVersion')
+          && fieldUnchanged('registeredAt')
+          && fieldUnchanged('registeredBy')
+          && fieldUnchanged('_registeredAt')
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Ledger entries are NEVER deleted
+        allow delete: if false;
+      }
+
+      // ─── Ledger Codes ─────────────────────────────────────
+      // Path: workspaces/{workspaceId}/ledgerCodes/{ledgerCode}
+      // Deterministic reservation for code uniqueness.
+
+      match /ledgerCodes/{ledgerCode} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Code reservations are immutable
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // ─── Audit Entries ────────────────────────────────────
+      // Path: workspaces/{workspaceId}/auditEntries/{auditEntryId}
+      // Append-only accountability history.
+
+      match /auditEntries/{auditEntryId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Create: actor must be valid client actor
+        allow create: if isAuthenticated()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.actor != null
+          && request.resource.data.actor.actorType == 'USER'
+          && request.resource.data.actor.actorId == request.auth.uid
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Audit entries are NEVER updated or deleted
+        allow update: if false;
         allow delete: if false;
       }
     }

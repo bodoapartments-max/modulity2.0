@@ -25,6 +25,11 @@ import { createSecureShareService } from '../core/data/secureShareService.js';
 import { createFileService } from '../core/data/fileService.js';
 import { createModuleService } from '../modules/moduleService.js';
 import { createModuleSubmissionService } from '../modules/moduleSubmissionService.js';
+import { createLedgerService } from '../core/ledger/ledgerService.js';
+import { createLedgerQueryService } from '../core/ledger/ledgerQueryService.js';
+import { createAuditService } from '../core/audit/auditService.js';
+import { startAuditBridge } from '../core/audit/auditBridge.js';
+import { eventBus } from '../core/events/eventBus.js';
 
 function createServices() {
   if (!repositories) {
@@ -76,6 +81,25 @@ function createServices() {
     recordRepo: repositories.records,
   });
 
+  const auditSvc = createAuditService({
+    auditEntryRepo: repositories.auditEntries,
+  });
+
+  const ledgerSvc = createLedgerService({
+    ledgerBookRepo: repositories.ledgerBooks,
+    ledgerEntryRepo: repositories.ledgerEntries,
+    ledgerCodeRepo: repositories.ledgerCodes,
+    recordRepo: repositories.records,
+    auditService: auditSvc,
+  });
+
+  const ledgerQuerySvc = createLedgerQueryService({
+    ledgerEntryRepo: repositories.ledgerEntries,
+  });
+
+  // Start the audit bridge to persist Event Bus events as durable audit entries
+  startAuditBridge(eventBus, auditSvc);
+
   return {
     workspace: createWorkspaceService({
       workspaceRepo: repositories.workspaces,
@@ -122,6 +146,9 @@ function createServices() {
     folder: folderSvc,
     formRequest: formRequestSvc,
     secureShare: secureShareSvc,
+    ledger: ledgerSvc,
+    ledgerQuery: ledgerQuerySvc,
+    audit: auditSvc,
   };
 }
 

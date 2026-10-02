@@ -23,6 +23,10 @@ import { createFirestoreFormRequestRepository } from './firebase/firestoreFormRe
 import { createFirestoreFolderRepository } from './firebase/firestoreFolderRepository.js';
 import { createFirestoreUserRecordStateRepository } from './firebase/firestoreUserRecordStateRepository.js';
 import { createFirestoreShareTokenRepository } from './firebase/firestoreShareTokenRepository.js';
+import { createFirestoreLedgerBookRepository } from './firebase/firestoreLedgerBookRepository.js';
+import { createFirestoreLedgerEntryRepository } from './firebase/firestoreLedgerEntryRepository.js';
+import { createFirestoreAuditEntryRepository } from './firebase/firestoreAuditEntryRepository.js';
+import { createFirestoreLedgerCodeRepository } from './firebase/firestoreLedgerCodeRepository.js';
 
 function createRepositories() {
   if (!firebaseDb) {
@@ -48,6 +52,10 @@ function createRepositories() {
     folders: createFirestoreFolderRepository(firebaseDb),
     userRecordState: createFirestoreUserRecordStateRepository(firebaseDb),
     shareTokens: createFirestoreShareTokenRepository(firebaseDb),
+    ledgerBooks: createFirestoreLedgerBookRepository(firebaseDb),
+    ledgerEntries: createFirestoreLedgerEntryRepository(firebaseDb),
+    auditEntries: createFirestoreAuditEntryRepository(firebaseDb),
+    ledgerCodes: createFirestoreLedgerCodeRepository(firebaseDb),
   };
 }
 

@@ -15,7 +15,7 @@ const mainLinks = [
   { label: 'Entities', to: '/app/entities' },
   { label: 'My Modules', to: '/app/modules' },
   { label: 'Records', to: '/app/records' },
-  { label: 'Ledger', to: '/app/ledger', disabled: true },
+  { label: 'Ledger', to: '/app/ledger' },
   { label: 'Widgets', to: '/app/widgets', disabled: true },
   { label: 'Reports', to: '/app/reports', disabled: true },
 ];

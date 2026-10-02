@@ -429,3 +429,45 @@ All new workspace-scoped collections enforce:
 - Rate limits per user / service identity.
 - CORS configured only for known origins.
 - Webhooks validate signatures.
+
+---
+
+## Step 6 — Ledger & Audit Security
+
+### Ledger Book Rules
+- Workspace isolation via membership/ownership check
+- Immutable: workspaceId, ledgerBookId, ledgerCode, createdBy, numberingStrategy
+- Delete: always denied
+
+### Ledger Block Rules
+- Workspace isolation
+- Immutable: workspaceId, ledgerBookId, ledgerBlockId, blockNumber, startSequence, endSequence, capacity, createdBy
+- Delete: always denied
+
+### Ledger Entry Rules
+- Workspace isolation
+- Create: actor must be valid client actor (USER + own UID)
+- Immutable: workspaceId, ledgerEntryId, ledgerBookId, ledgerBlockId, recordId, moduleId, moduleVersion, recordType, sequenceNumber, referenceNumber, referenceFormatVersion, registeredAt, registeredBy, _registeredAt
+- Status transitions (ACTIVE → CANCELLED/VOIDED) allowed with proper provenance
+- Delete: always denied
+
+### Ledger Code Rules
+- Workspace isolation
+- Create only (reservation)
+- Update: always denied
+- Delete: always denied
+
+### Audit Entry Rules
+- Workspace isolation
+- Create: actor must be USER type with actorId == auth.uid (no agent/integration spoofing)
+- Update: always denied
+- Delete: always denied
+
+### Record Ledger Linkage
+- ledgerEntryId, ledgerBookId, referenceNumber: immutable once non-null
+- Can be set from null (initial linkage)
+
+### Trusted Actor Boundary
+- Clients can only create audit entries with `actorType: 'USER'` and `actorId: request.auth.uid`
+- INTERNAL_AGENT and EXTERNAL_INTEGRATION are rejected
+- Full trusted-actor enforcement requires Cloud Function boundary (future)

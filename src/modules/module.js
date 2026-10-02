@@ -46,6 +46,10 @@ export const MODULE_STATUSES = Object.freeze({
  * @property {Object} recordConfig — how Records from this module are identified
  * @property {string} recordConfig.recordType — stable machine-readable Record type
  * @property {DisplayConfig} displayConfig — presentation metadata for future views
+ * @property {Object|null} ledgerConfig — optional Ledger registration configuration
+ * @property {boolean} [ledgerConfig.enabled] — whether Records from this Module auto-register
+ * @property {string} [ledgerConfig.ledgerBookId] — target LedgerBook ID
+ * @property {boolean} [ledgerConfig.registerOnSubmit] — auto-register on Record submission
  * @property {string|null} primaryEntityTypeId — Entity Type this module primarily works with
  * @property {Object} createdBy — ActorRef
  * @property {string} createdAt
@@ -70,6 +74,7 @@ export function createModule({
   formSchema = { schemaVersion: '1.0.0', fields: [] },
   recordConfig = {},
   displayConfig = {},
+  ledgerConfig = null,
   primaryEntityTypeId = null,
   createdBy,
   createdAt,
@@ -109,6 +114,7 @@ export function createModule({
     }),
     recordConfig: resolvedRecordConfig,
     displayConfig: Object.freeze({ ...displayConfig }),
+    ledgerConfig: ledgerConfig ? Object.freeze({ ...ledgerConfig }) : null,
     primaryEntityTypeId,
     createdBy: Object.freeze({ ...createdBy }),
     createdAt: createdAt || new Date().toISOString(),

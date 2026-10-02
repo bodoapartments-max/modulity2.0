@@ -2,6 +2,35 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 6 — Ledger & Audit Engine
+
+### Added
+- **LedgerBook** — numbered register model with workspace-scoped code uniqueness, configurable block size (25–10000), reference prefix, module/recordType scoping
+- **LedgerBlock** — physical-book block model with automatic rollover when capacity reached
+- **LedgerEntry** — immutable registration record linking canonical Records to Ledger identity with unique sequence numbers and human-readable reference numbers
+- **AuditEntry** — append-only durable accountability history, distinct from runtime Event Bus
+- **Audit Action Registry** — controlled vocabulary of 30+ stable action names across records, modules, entities, deliveries, form requests, ledger, and secure shares
+- **Audit Bridge** — maps selected Event Bus runtime events to durable AuditEntry persistence
+- **Ledger Service** — atomic sequence allocation, idempotent registration, cancellation/voiding, book lifecycle management
+- **Ledger Query Service** — paginated, filtered Ledger Entry queries with stable ordering
+- **Audit Service** — durable audit recording, resource/actor/general history queries
+- **Module ledgerConfig** — optional Ledger configuration on Module and Module Version (enabled, ledgerBookId, registerOnSubmit)
+- **Record ↔ Ledger linkage** — immutable `ledgerEntryId`, `ledgerBookId`, `referenceNumber` fields on Record
+- **Ledger UI** — book list, book detail with paginated entries, entry detail, book creation form
+- **Record History UI** — audit timeline on Record detail page showing chronological accountability trail
+- **Firestore Security Rules** — Ledger Books, Blocks, Entries, Codes, Audit Entries with workspace isolation, immutability enforcement, append-only audit, actor validation
+- **Composite indexes** — 10 new Firestore indexes for Ledger and Audit queries
+
+### Architecture
+- Ledger Entry never replaces or copies the canonical Record
+- Sequence numbers allocated atomically via Firestore transactions
+- Block rollover is concurrency-safe
+- Registration is idempotent (same bookId + recordId = same entry)
+- Cancelled/voided entries retain their sequence number permanently
+- Audit is append-only and separate from the runtime Event Bus
+- Server-authoritative timestamps for all historical operations
+- Clients cannot claim trusted agent/integration identities in audit
+
 ## [Step 5.1] — Transaction, Idempotency & Concurrency Hardening
 
 ### Fixed

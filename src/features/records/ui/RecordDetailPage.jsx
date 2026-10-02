@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
+import RecordHistory from './RecordHistory.jsx';
 import services from '../../../infrastructure/services.js';
 
 const STATUS_COLORS = {
@@ -234,6 +235,35 @@ export default function RecordDetailPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Ledger Reference */}
+      {record.referenceNumber && (
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold text-neutral-800 mb-3">Ledger Registration</h2>
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <span className="text-neutral-500">Reference</span>
+              <p className="font-mono font-bold text-neutral-900">{record.referenceNumber}</p>
+            </div>
+            {record.ledgerBookId && (
+              <div>
+                <span className="text-neutral-500">Ledger Book</span>
+                <p>
+                  <Link to={`/app/ledger/${record.ledgerBookId}`} className="text-primary-600 hover:underline font-medium">
+                    View Book
+                  </Link>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Record History (Audit Trail) */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-neutral-800 mb-4">History</h2>
+        <RecordHistory workspaceId={workspaceId} recordId={recordId} />
       </div>
     </div>
   );

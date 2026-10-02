@@ -496,3 +496,34 @@ Per-user state (starred) that does NOT pollute canonical Record data.
 Path: `workspaces/{workspaceId}/shareTokens/{tokenId}`
 
 Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the token is stored — never the plaintext. QR codes encode an opaque capability token reference, not Record contents.
+
+---
+
+## Ledger Data Model (Step 6)
+
+### LedgerBook
+- **Path**: `workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}`
+- Fields: ledgerBookId, workspaceId, ledgerCode, name, description, moduleId, recordType, status, numberingStrategy, blockSize, referencePrefix, referenceFormatVersion, currentBlockId, createdBy, createdAt, updatedAt, closedAt, closedBy
+
+### LedgerBlock
+- **Path**: `workspaces/{workspaceId}/ledgerBooks/{ledgerBookId}/blocks/{blockId}`
+- Fields: ledgerBlockId, ledgerBookId, workspaceId, blockNumber, startSequence, endSequence, nextSequence, capacity, status, openedAt, closedAt, createdBy
+
+### LedgerEntry
+- **Path**: `workspaces/{workspaceId}/ledgerEntries/{ledgerEntryId}`
+- Fields: ledgerEntryId, workspaceId, ledgerBookId, ledgerBlockId, recordId, moduleId, moduleVersion, recordType, sequenceNumber, referenceNumber, referenceFormatVersion, entryStatus, registeredAt, registeredBy, cancelledAt, cancelledBy, cancellationReason, voidedAt, voidedBy, voidReason, supersededByRecordId
+
+### LedgerCode Reservation
+- **Path**: `workspaces/{workspaceId}/ledgerCodes/{ledgerCode}`
+- Deterministic document ID prevents duplicate codes within workspace
+
+### Record Ledger Linkage
+- Fields added to Record: `ledgerEntryId`, `ledgerBookId`, `referenceNumber`
+- Immutable once assigned (null → value allowed, value → different value denied)
+
+## Audit Data Model (Step 6)
+
+### AuditEntry
+- **Path**: `workspaces/{workspaceId}/auditEntries/{auditEntryId}`
+- Fields: auditEntryId, workspaceId, organizationId, actor, action, resourceType, resourceId, recordId, ledgerBookId, ledgerEntryId, timestamp, metadata, correlationId, causationId, source, sourceRequestId
+- Append-only: create allowed, update/delete denied
