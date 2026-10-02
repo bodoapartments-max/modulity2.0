@@ -18,6 +18,7 @@ import {
   updateDoc,
   query,
   where,
+  limit,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -84,8 +85,8 @@ export function createFirestoreModuleRepository(db) {
     return mapFromFirestore(snap.docs[0]);
   }
 
-  async function listByWorkspace(workspaceId) {
-    const snap = await getDocs(modulesCol(workspaceId));
+  async function listByWorkspace(workspaceId, maxResults = 100) {
+    const snap = await getDocs(query(modulesCol(workspaceId), limit(Math.min(maxResults, 100))));
     return snap.docs.map(mapFromFirestore);
   }
 

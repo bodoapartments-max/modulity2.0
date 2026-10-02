@@ -440,7 +440,10 @@ All new workspace-scoped collections enforce:
 - The Orchestrator has no Firestore repository and cannot write Modules, Records, Entities, Ledger, Memberships, permissions, or plans.
 - BuildPlans reject unsafe/executable keys, unknown resource properties, broken references, unsupported field/capability configuration, excessive depth/count/size, and Workspace mismatch.
 - `INTERNAL_AGENT` remains unavailable to browser canonical writes. Confidence is metadata, never authority.
-- Step 9.0 persists neither executions nor plans, so it adds no Firestore collection, Rule, index, trusted actor write, API token, provider secret, or external endpoint.
+- Step 9.0/9.1 persist neither executions nor plans, so they add no Firestore collection, Rule, index, trusted actor write, API token, provider secret, or external endpoint.
+- Step 9.1 accepts only the current authenticated Workspace from application context, then Firestore Rules authorize six bounded configuration reads. Workspace IDs from arbitrary form input are rejected.
+- Before/after snapshot fingerprints verify that planning did not alter canonical configuration. The planner has no mutation method.
+- Deterministic structured knowledge runs behind the provider adapter; malformed, oversized, unknown-property, timeout, and provider failures settle without canonical effects.
 - Authorization, server timestamps, plan lifecycle persistence, trusted approval, idempotent apply, and audit are Step 9.2 decisions.
 
 ## Step 8.1 — Workspace Reset Security

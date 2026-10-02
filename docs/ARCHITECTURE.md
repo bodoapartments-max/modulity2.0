@@ -355,7 +355,9 @@ User Intent
 → STOP
 ```
 
-The Agent layer is React-independent and has no repository or canonical mutation dependency. Step 9.0 remains domain-only: no execution/plan persistence, external AI provider, canonical apply service, or generated UI code. WorkspaceConfigurationSnapshot contains bounded configuration summaries only and excludes operational datasets. See `docs/AUTOMAT_ARCHITECTURE.md`.
+The Agent layer is React-independent and has no repository or canonical mutation dependency. Step 9.0 remains domain-only: no execution/plan persistence, external AI provider, canonical apply service, or generated UI code. WorkspaceConfigurationSnapshot contains bounded configuration summaries only and excludes operational datasets.
+
+Step 9.1 composes six registered specialists through the same Orchestrator and deterministic provider boundary. Structured operating-domain knowledge produces review-only hotel, theatre, and school plans; Core validation remains industry-neutral. The lazy `/app/automat` client reads the current authenticated Workspace, performs bounded parallel configuration reads before and after planning, verifies no mutation, and renders the in-memory plan. See `docs/AUTOMAT_ARCHITECTURE.md`.
 
 ## Step 8.1 — Trusted Workspace Reset
 

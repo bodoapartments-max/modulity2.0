@@ -193,13 +193,18 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Domain-only persistence decision; no Firestore collections or canonical writes
 - Generic hotel/existing Workspace/invalid-plan deterministic fixtures
 
-### Step 9.1 — Organization Intelligence
+### Step 9.1 — Organization Analyzer & System Planner
 
-**Status:** Not started
+**Status:** Complete — deterministic planning scope
 
-- Real organization and industry analysis
-- Specialist reasoning/provider integration
-- User-facing analysis/review experience
+- Six-stage specialist planning pipeline through the Step 9.0 Registry/Orchestrator
+- Structured deterministic operating-domain knowledge for hotel, theatre, and school
+- Organization profile, business areas, domain-object classification, processes, capabilities, Modules/Forms, Relationships, Worksets, Widgets, and Reports
+- System review diagnostics, generic-specialization quality gate, assumptions, and unresolved questions
+- Existing Workspace REUSE/CONFLICT classification and stable resource references
+- Bounded before/after WorkspaceConfigurationSnapshot verification; no canonical mutation
+- Lazy responsive `/app/automat` planning/review UI with no Apply action
+- Deferred: live/remote AI providers and all Step 9.2 application behavior
 
 ### Step 9.2 — Deterministic BuildPlan Application
 

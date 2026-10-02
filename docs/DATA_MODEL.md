@@ -509,7 +509,7 @@ Step 9.0 introduces non-persisted domain contracts:
 - `WorkspaceConfigurationSnapshot` — bounded summaries of Entity Types, Modules, Relationships/configuration, Worksets, Widgets, and Reports
 - `OrganizationAnalysisInput` / `OrganizationAnalysisOutput` — Step 9.1 contract only
 
-These have no Firestore paths in Step 9.0. They do not copy Records, Entity instances, Ledger history, Messages, Notifications, or Audit history. Persistence and canonical BuildPlan application remain deferred.
+These have no Firestore paths through Step 9.1. They do not copy Records, Entity instances, Ledger history, Messages, Notifications, or Audit history. Step 9.1 fills the contracts with structured OrganizationProfile, BusinessArea, DomainObject classification, Process, Capability, proposed configuration, assumptions, questions, reviewer diagnostics, validation, and classifications. Plans remain in memory; persistence and canonical BuildPlan application remain deferred.
 
 ## Workspace Reset Metadata (Step 8.1)
 

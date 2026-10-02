@@ -186,11 +186,13 @@ Step 9.0 implements the provider-independent Agent Registry, versioned execution
 
 The earlier OpenAI/model names in this document are illustrative only. Domain contracts use provider adapter types and do not hard-code a model vendor. Step 9.0 ships only `DETERMINISTIC_TEST` as an executable adapter and requires no secret.
 
-AgentExecutionResult and AutomatBuildPlan remain domain-only in Step 9.0. No Agent or provider has a repository, Firestore, Module, Record, Ledger, Membership, permission, or apply path. See `AUTOMAT_ARCHITECTURE.md`.
+AgentExecutionResult and AutomatBuildPlan remain domain-only through Step 9.1. No Agent or provider has a repository, Firestore, Module, Record, Ledger, Membership, permission, or apply path.
+
+Step 9.1 registers six specialists: ORGANIZATION_ANALYZER, DOMAIN_MODEL_PLANNER, PROCESS_PLANNER, MODULE_PLANNER, WORKSPACE_EXPERIENCE_PLANNER, and SYSTEM_REVIEWER. Structured outputs flow through the common Orchestrator and deterministic validators into a review-only BuildPlan. The shipped provider is deterministic structured knowledge; live AI providers remain optional and unimplemented. See `AUTOMAT_ARCHITECTURE.md`.
 
 ## 10. Future Extensions
 
-- Step 9.1 organization intelligence
+- Optional remote/local organization intelligence providers
 - Step 9.2 human approval and deterministic application
 - Multi-agent workflows
 - Persisted execution/plan audit history

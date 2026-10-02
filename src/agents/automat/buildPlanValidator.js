@@ -15,11 +15,11 @@ const RESOURCE_GROUPS = [
 ];
 const RESOURCE_KEYS = Object.freeze({
   proposedEntityTypes: new Set(['ref', 'code', 'name', 'description', 'fields']),
-  proposedModules: new Set(['ref', 'moduleCode', 'name', 'description', 'category', 'capabilities', 'formSchema', 'primaryEntityTypeRef']),
-  proposedRelationships: new Set(['ref', 'sourceRef', 'targetRef', 'relationshipType']),
-  proposedWorksets: new Set(['ref', 'name', 'description', 'moduleRefs']),
-  proposedWidgets: new Set(['ref', 'name', 'moduleRefs', 'definition']),
-  proposedReports: new Set(['ref', 'name', 'definition']),
+  proposedModules: new Set(['ref', 'moduleCode', 'name', 'description', 'category', 'businessAreaRef', 'processRef', 'recordType', 'capabilities', 'formSchema', 'primaryEntityTypeRef', 'lifecycle', 'ledgerRequirements', 'rationale']),
+  proposedRelationships: new Set(['ref', 'sourceRef', 'targetRef', 'relationshipType', 'rationale']),
+  proposedWorksets: new Set(['ref', 'name', 'description', 'moduleRefs', 'rationale']),
+  proposedWidgets: new Set(['ref', 'name', 'moduleRefs', 'definition', 'rationale']),
+  proposedReports: new Set(['ref', 'name', 'definition', 'rationale']),
 });
 
 function issue(code, path, message, relatedRef = null, severity = BUILD_PLAN_ISSUE_SEVERITIES.ERROR) { return { code, severity, path, message, relatedRef }; }
@@ -102,6 +102,7 @@ export function validateAutomatBuildPlan(value, snapshot) {
     entityCodes.add(entityType.code);
     const result = validateFieldDefinitions(entityType.fields || [], { allowedTypes: ENTITY_FIELD_TYPES });
     result.errors.forEach((message) => issues.push(issue('INVALID_ENTITY_TYPE', `proposedEntityTypes[${index}].fields`, message, entityType.ref)));
+    for (const [fieldIndex, field] of (entityType.fields || []).entries()) if (field.type === 'entity-reference' && !refs.has(field.entityTypeId) && !snapshot?.entityTypes?.some((item) => item.typeId === field.entityTypeId || `entityType:${item.code}` === field.entityTypeId)) issues.push(issue('BROKEN_REFERENCE', `proposedEntityTypes[${index}].fields[${fieldIndex}].entityTypeId`, `Unknown Entity Type reference: ${field.entityTypeId}`, field.entityTypeId));
     if ((entityType.fields || []).length > AUTOMAT_BOUNDS.MAX_FIELDS_PER_RESOURCE) issues.push(issue('RESOURCE_LIMIT_EXCEEDED', `proposedEntityTypes[${index}].fields`, 'Entity Type field limit exceeded', entityType.ref));
   }
   const moduleCodes = new Set();

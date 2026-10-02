@@ -309,7 +309,10 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 - Use the implemented shared Entity/Module/Form/Widget/Report validators; do not create a parallel schema language.
 - WorkspaceConfigurationSnapshot is bounded configuration metadata only—never hydrate Records, Entities, Ledger, Messages, or Notifications for planning.
 - Step 9.0 persists neither AgentExecutionResult nor AutomatBuildPlan. New persistence requires Rules, negative isolation tests, and a trusted lifecycle decision.
-- Step 9.1 reasoning/providers and Step 9.2 approval/application are not started.
+- Step 9.1 uses six registered specialist Agents and deterministic structured knowledge; Core validation remains industry-neutral.
+- `/app/automat` is lazy-loaded, review-only, and must never expose a functional Apply operation.
+- Planning accepts only the current authenticated Workspace, loads bounded configuration summaries, and verifies a before/after snapshot fingerprint.
+- BuildPlans remain in memory. Live AI providers and Step 9.2 approval/application are not started.
 - See `docs/AUTOMAT_ARCHITECTURE.md`.
 
 ## Step 8.1 — Workspace Reset

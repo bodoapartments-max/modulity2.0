@@ -16,7 +16,7 @@ User Intent
 
 Agents propose. Core validates. A human reviews. A future deterministic application service may execute an approved plan in Step 9.2 through existing canonical services.
 
-Step 9.0 does not analyze real organizations, apply plans, write Firestore, create Modules, generate React/JSX, invoke external AI, or require provider secrets.
+Step 9.0 established contracts without organization reasoning. Step 9.1 now generates and reviews plans through deterministic specialist Agents, but still does not apply plans, write Firestore, create canonical resources, generate React/JSX, invoke external AI, or require provider secrets.
 
 ## Agent infrastructure
 
@@ -117,9 +117,9 @@ It excludes Records, Entity instances, Ledger history, Messages, Notifications, 
 
 ## Persistence decision
 
-Step 9.0 keeps AgentExecutionResult and AutomatBuildPlan domain-only and in-memory. Persistence is intentionally deferred because plans cannot yet be applied and trusted authorization, server timestamps, lifecycle transitions, retention, audit, and idempotent apply semantics belong to later milestones.
+Step 9.0 and Step 9.1 keep AgentExecutionResult and AutomatBuildPlan domain-only and in-memory. Persistence is intentionally deferred because plans cannot yet be applied and trusted authorization, server timestamps, lifecycle transitions, retention, audit, and idempotent apply semantics belong to later milestones.
 
-Therefore Step 9.0 adds no `automatPlans` collection, repository, Firestore Rules, indexes, or browser-writable trusted actor path.
+Therefore Step 9.1 adds no `automatPlans` collection, repository, Firestore Rules, indexes, or browser-writable trusted actor path.
 
 ## Provenance
 
@@ -150,14 +150,42 @@ The hotel fixture proves that generic contracts represent ROOM, GUEST, RESERVATI
 
 The existing-Workspace fixture classifies compatible ROOM and RESERVATION resources as REUSE. The invalid fixture deterministically rejects duplicate Module codes, broken Entity references, unsupported fields, and unsafe Widget sources.
 
+## Step 9.1 — Organization Analyzer and System Planner
+
+Step 9.1 implements a planning-only specialist pipeline:
+
+```text
+Organization Analyzer
+→ Domain Model Planner
+→ Process Planner
+→ Module Planner
+→ Workspace Experience Planner
+→ System Reviewer
+→ AutomatBuildPlan
+→ deterministic BuildPlan Validator
+→ human review
+→ STOP
+```
+
+Every stage runs through the Step 9.0 Agent Registry, execution contracts, deterministic input/output validators, provider adapter, timeout boundary, and provenance result. Handoffs are structured versioned objects rather than free-text prompts.
+
+The executable Step 9.1 provider is `DETERMINISTIC_TEST`, backed by structured operating-domain knowledge for hospitality/hotel, performing arts/theatre, and education/school. Knowledge selection scores organization terminology against configuration; Core validation contains no industry branching. No live AI, API key, vendor, model, or paid service is required.
+
+Every specialist resolves the injected capability boundary. The development runtime grants only `automat.organization_analysis` and `automat.system_builder` when authenticated Workspace/requester context is present. Subscription-backed trusted entitlement enforcement is required before remote providers or persisted usage are introduced.
+
+The analyzer produces a structured profile, business areas, domain-object classifications, assumptions, questions, and terminology. Domain objects are explicitly classified as Core reuse, Domain Entity, Record/process data, or configuration. The planners produce declarative supported Form Schemas, EntityReferences, processes, capabilities, Relationships, Worksets, Widgets, and Reports.
+
+The reviewer emits diagnostics for coverage, unsupported capabilities, warnings, conflicts, generic-module ratio, and orphan references. Generic administration dominating a specialized plan produces a warning. Diagnostics never grant security or approval authority.
+
+`/app/automat` is lazy-loaded and supports IDLE, ANALYZING, PLANNING, VALIDATING, READY, and ERROR states. Review uses user-facing sections and has no functional Apply action. Plans remain in memory.
+
+Before and after planning, the application loads a bounded configuration snapshot using six parallel configuration queries. It verifies the snapshot fingerprint is unchanged. Entity Type and Module list reads are capped at 100. Planning reads no Records, Entity instances, Ledger, Messages, Notifications, Files, or Audit history.
+
+Deterministic tests cover hotel, theatre, school, stable identities, REUSE, CONFLICT, quality gates, malformed/oversized provider output, missing stages, timeout, failure, bounded snapshots, no mutation, and UI settlement.
+
+Authenticated browser verification on `modulity-2-dev` used the clean disposable `Reset Test Hotel` Workspace and the deterministic provider. The hotel description produced six domain-specific Business Areas, five Business Objects, four Processes, four operational Modules with supported fields and EntityReferences, three Worksets, three Widgets, three Reports, explicit questions/assumptions, and `VALID` with zero issues. Dashboard and every canonical configuration page remained empty afterward. Desktop, 768px, and 375px review flows passed.
+
 ## Explicit deferrals
-
-### Step 9.1 not implemented
-
-- Real organization/industry reasoning
-- LLM prompts or provider calls
-- Confidence-driven product behavior
-- Organization analysis UI
 
 ### Step 9.2 not implemented
 

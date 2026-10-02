@@ -2,6 +2,21 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 9.1 — Organization Analyzer & System Planner
+
+### Added
+- Six registered specialist stages with strict structured handoffs: Organization Analyzer, Domain Model, Process, Module, Workspace Experience, and System Reviewer
+- Deterministic provider-backed operating-domain knowledge for meaningful hotel, theatre, and school planning without industry branches in Core validation
+- Structured OrganizationProfile, BusinessAreas, DomainObject classification/Core reuse, Processes, Capabilities, operational Forms, Relationships, Worksets, Widgets, Reports, assumptions, questions, and reviewer diagnostics
+- Stable planning identities plus existing Workspace REUSE and CONFLICT behavior
+- Bounded six-query WorkspaceConfigurationSnapshot assembly with before/after no-mutation fingerprint verification
+- Lazy `/app/automat` Planner and sectioned review UI with explicit states and disabled future Apply control
+- Malformed/oversized provider, missing stage, timeout, failure, specialization quality, no-mutation, and UI settlement tests
+- Authenticated `Reset Test Hotel` hotel-plan browser smoke with canonical empty-state preservation and desktop/768px/375px responsive verification
+
+### Scope
+- Deterministic development provider only; no paid/live AI, secrets, plan persistence, canonical writes, or Step 9.2 apply behavior
+
 ## Step 9.0 — Agent Infrastructure & Automat Contracts
 
 ### Added

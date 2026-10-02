@@ -43,6 +43,7 @@ const ChatPage = lazy(() => import('../../features/chat/ui/ChatPage.jsx'));
 const ReportsPage = lazy(() => import('../../features/reports/ui/ReportsPage.jsx'));
 const ReportBuilderPage = lazy(() => import('../../features/reports/ui/ReportBuilderPage.jsx'));
 const ReportDetailPage = lazy(() => import('../../features/reports/ui/ReportDetailPage.jsx'));
+const AutomatPlannerPage = lazy(() => import('../../features/automat/ui/AutomatPlannerPage.jsx'));
 
 function PageLoader() {
   return (
@@ -93,6 +94,7 @@ function AppShell() {
               <Route path="reports/new" element={<ReportBuilderPage />} />
               <Route path="reports/:reportId" element={<ReportDetailPage />} />
               <Route path="reports/:reportId/edit" element={<ReportBuilderPage />} />
+              <Route path="automat" element={<AutomatPlannerPage />} />
               <Route path="ledger" element={<LedgerListPage />} />
               <Route path="ledger/new" element={<CreateLedgerBookPage />} />
               <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />

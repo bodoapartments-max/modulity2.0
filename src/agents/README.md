@@ -10,7 +10,7 @@ This folder contains the optional intelligent agent layer of Modulity 2.0.
 - `providers` — replaceable provider contract plus deterministic test adapter
 - `automat` — BuildPlan/snapshot/analyzer contracts, references, fixtures, classification, and deterministic validation
 
-Step 9.0 is domain-only. It has no Firestore repository or canonical apply operation. See `docs/AUTOMAT_ARCHITECTURE.md`.
+Step 9.1 adds the `planning` specialist pipeline, deterministic structured knowledge adapter, bounded Workspace snapshot service, System Reviewer, and review-only BuildPlan generation. Agent execution and plans remain in memory; there is no Firestore persistence or canonical apply operation. See `docs/AUTOMAT_ARCHITECTURE.md`.
 
 ## Core Rules
 
