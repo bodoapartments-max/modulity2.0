@@ -180,10 +180,20 @@ If validation fails, the result is rejected or returned for user review. Never p
 
 ---
 
-## 9. Future Extensions
+## 9. Step 9.0 implemented contract
 
+Step 9.0 implements the provider-independent Agent Registry, versioned execution envelopes, deterministic test adapter, timeout/error-normalizing Orchestrator, declarative AutomatBuildPlan, stable temporary plan references, bounded WorkspaceConfigurationSnapshot, Organization Analyzer input/output contract, and deterministic validation/classification.
+
+The earlier OpenAI/model names in this document are illustrative only. Domain contracts use provider adapter types and do not hard-code a model vendor. Step 9.0 ships only `DETERMINISTIC_TEST` as an executable adapter and requires no secret.
+
+AgentExecutionResult and AutomatBuildPlan remain domain-only in Step 9.0. No Agent or provider has a repository, Firestore, Module, Record, Ledger, Membership, permission, or apply path. See `AUTOMAT_ARCHITECTURE.md`.
+
+## 10. Future Extensions
+
+- Step 9.1 organization intelligence
+- Step 9.2 human approval and deterministic application
 - Multi-agent workflows
-- Human-in-the-loop approvals
-- Agent confidence thresholds
+- Persisted execution/plan audit history
 - Output versioning and diffing
-- Agent audit trail
+- Remote/local/external provider adapters
+- Cancellation and retry policies

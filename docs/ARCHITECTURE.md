@@ -342,6 +342,21 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 9.0 — Agent Infrastructure and Automat Planning
+
+```text
+User Intent
+→ Agent Orchestrator
+→ provider-independent registered Agent
+→ structured versioned output
+→ declarative AutomatBuildPlan
+→ deterministic validation and CREATE/REUSE/CONFLICT classification
+→ human review boundary
+→ STOP
+```
+
+The Agent layer is React-independent and has no repository or canonical mutation dependency. Step 9.0 remains domain-only: no execution/plan persistence, external AI provider, canonical apply service, or generated UI code. WorkspaceConfigurationSnapshot contains bounded configuration summaries only and excludes operational datasets. See `docs/AUTOMAT_ARCHITECTURE.md`.
+
 ## Step 8.1 — Trusted Workspace Reset
 
 ```text

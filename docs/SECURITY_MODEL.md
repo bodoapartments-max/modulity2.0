@@ -432,6 +432,17 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 9.0 — Agent/Automat Planning Security
+
+- Provider output is untrusted structured input until deterministic validation succeeds.
+- Agent definitions and execution envelopes are versioned, strict, serializable, bounded, and timeout-limited.
+- Agent Registry resolution has an injected entitlement/capability boundary; UI visibility is not entitlement enforcement.
+- The Orchestrator has no Firestore repository and cannot write Modules, Records, Entities, Ledger, Memberships, permissions, or plans.
+- BuildPlans reject unsafe/executable keys, unknown resource properties, broken references, unsupported field/capability configuration, excessive depth/count/size, and Workspace mismatch.
+- `INTERNAL_AGENT` remains unavailable to browser canonical writes. Confidence is metadata, never authority.
+- Step 9.0 persists neither executions nor plans, so it adds no Firestore collection, Rule, index, trusted actor write, API token, provider secret, or external endpoint.
+- Authorization, server timestamps, plan lifecycle persistence, trusted approval, idempotent apply, and audit are Step 9.2 decisions.
+
 ## Step 8.1 — Workspace Reset Security
 
 - Workspace Reset is unavailable through Firestore client writes and ordinary repositories.

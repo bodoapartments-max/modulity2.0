@@ -162,28 +162,24 @@ The form schema configures the generic renderer. It is not compiled into a uniqu
 }
 ```
 
-### Supported Field Types (v1)
+### Supported Field Types (implemented v1)
+
+The authoritative implemented registry is `FIELD_TYPES` in `core/data/entityType.js`:
 
 - `text`
 - `textarea`
 - `number`
-- `currency`
 - `date`
 - `datetime`
+- `boolean`
 - `select`
-- `multiselect`
-- `checkbox`
-- `radio`
-- `file`
-- `image`
-- `signature`
+- `email`
+- `phone`
+- `url`
 - `entity-reference`
-- `domain-entity-reference`
-- `user-reference`
-- `location`
-- `rich-text` (sanitized HTML)
+- `file-reference`
 
-Custom field types are registered through a controlled extension mechanism.
+Entity Type schemas use the documented `ENTITY_FIELD_TYPES` subset. Earlier blueprint examples such as currency, multiselect, radio, image, signature, rich-text, and specialized reference types are not implemented and are rejected by deterministic Module/Automat validation until a controlled field-registry extension is approved.
 
 ---
 

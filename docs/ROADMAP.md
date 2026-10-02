@@ -179,14 +179,47 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ---
 
-## Step 9 — Automat System Builder
+## Step 9.0 — Agent Infrastructure & Automat Contracts
 
-- Automation rule engine
-- Trigger / action model
+**Status:** Complete
+
+- Provider-independent Agent Registry and versioned execution contracts
+- Deterministic test adapter and timeout/error-normalizing Agent Orchestrator
+- Declarative AutomatBuildPlan with stable temporary plan references
+- Deterministic validation using existing Entity/Module/Form/Widget/Report contracts
+- CREATE/REUSE/CONFLICT classification; no REPLACE_DELETE
+- Bounded WorkspaceConfigurationSnapshot and Organization Analyzer contract
+- Agent/plan provenance and explicit entitlement/security boundary
+- Domain-only persistence decision; no Firestore collections or canonical writes
+- Generic hotel/existing Workspace/invalid-plan deterministic fixtures
+
+### Step 9.1 — Organization Intelligence
+
+**Status:** Not started
+
+- Real organization and industry analysis
+- Specialist reasoning/provider integration
+- User-facing analysis/review experience
+
+### Step 9.2 — Deterministic BuildPlan Application
+
+**Status:** Not started
+
+- Human approval boundary
+- Trusted authorization/entitlement checks
+- Idempotent Plan Reference → canonical resource mapping
+- Application through existing Entity Type, Module, Relationship, Workset, Widget, and Report services
+- Apply audit, conflict handling, retries, and migration policy
+
+### Later automation/integration milestones
+
+Deferred from the older Step 9 roadmap definition:
+
+- Automation rule engine and trigger/action model
 - Visual automation builder
 - Integration webhooks
-- External API tokens and service identities
-- External agent support
+- External API tokens/service identities
+- External-agent execution
 
 ---
 

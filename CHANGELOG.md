@@ -2,6 +2,21 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 9.0 — Agent Infrastructure & Automat Contracts
+
+### Added
+- Provider-independent AgentDefinition/Execution contracts, versioned Agent Registry, entitlement boundary, deterministic test adapter, and timeout/error-normalizing Orchestrator
+- Declarative AutomatBuildPlan, stable temporary plan references, explicit lifecycle/provenance, and bounded WorkspaceConfigurationSnapshot
+- Deterministic BuildPlan validation reusing Entity Type, Module, Form, Widget, and Report validators
+- CREATE/REUSE/CONFLICT classification without destructive replacement
+- Strict Organization Analyzer input/output contract for Step 9.1 without implementing analysis
+- Generic hotel, existing Workspace REUSE, invalid plan, malformed provider, timeout, bounds, and provenance fixtures/tests
+- `docs/AUTOMAT_ARCHITECTURE.md` and aligned Agent/Architecture/Data/Security/Roadmap contracts
+
+### Scope
+- Domain-only: no AgentExecution/BuildPlan persistence, Firestore collection, provider secret, external AI, canonical mutation, React planning logic, Step 9.1 intelligence, or Step 9.2 apply service
+- Older automation rule/webhook/API-token/external-agent roadmap items explicitly deferred
+
 ## Step 8.1 — Safe Workspace Reset
 
 ### Added

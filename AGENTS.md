@@ -301,6 +301,17 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 9.0 — Agent Infrastructure & Automat Contracts
+
+- Agent code lives in `src/agents/`; it is optional, React-independent, and has no canonical persistence path.
+- Agents propose structured versioned output; `buildPlanValidator.js` deterministically validates/classifies it.
+- BuildPlan operations are CREATE/REUSE/SAFE_UPDATE/CONFLICT/UNSUPPORTED. Never add REPLACE_DELETE.
+- Use the implemented shared Entity/Module/Form/Widget/Report validators; do not create a parallel schema language.
+- WorkspaceConfigurationSnapshot is bounded configuration metadata only—never hydrate Records, Entities, Ledger, Messages, or Notifications for planning.
+- Step 9.0 persists neither AgentExecutionResult nor AutomatBuildPlan. New persistence requires Rules, negative isolation tests, and a trusted lifecycle decision.
+- Step 9.1 reasoning/providers and Step 9.2 approval/application are not started.
+- See `docs/AUTOMAT_ARCHITECTURE.md`.
+
 ## Step 8.1 — Workspace Reset
 
 - Workspace Reset is implemented only through the trusted Firebase callable/Admin SDK boundary.
