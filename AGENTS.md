@@ -295,6 +295,16 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 7 — Workspace Experience
+
+- **Workset is context, not authorization.** It references canonical `moduleIds`; Module access remains governed by workspace membership and permissions.
+- **Widget is configuration, not data.** Renderers query canonical Records/Relationships through controlled, bounded query definitions.
+- **Notification != Event != Audit.** The notification bridge selectively maps user-facing events; it does not mirror every event.
+- User-specific workspace state lives at `workspaces/{workspaceId}/userWorkspacePreferences/{userId}`.
+- Every workspace loader must settle into loading, ready, empty, or error. Early returns must clear loading.
+- Workspace changes must clear stale arrays and key requests by active `workspaceId`.
+- Step 7 collections: `worksets`, `widgetDefinitions`, `notifications`, `userWorkspacePreferences`.
+
 ## Migration Note
 
 This is a clean rebuild. Modulity V1 is only a reference and must not be copied.

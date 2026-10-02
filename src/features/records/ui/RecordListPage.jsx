@@ -45,7 +45,13 @@ export default function RecordListPage() {
   const sortDir = searchParams.get('dir') || 'desc';
 
   const loadRecords = useCallback(async (cursor = null) => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      setRecords([]);
+      setHasMore(false);
+      setNextCursor(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

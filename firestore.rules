@@ -111,6 +111,15 @@ service cloud.firestore {
 
       allow delete: if false;
 
+      function canAccessWorkspace() {
+        return isAuthenticated() && (
+          (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+            && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+          || (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+            && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+        );
+      }
+
       // ─── Workspace Data Subcollections ───────────────────
       // Universal Data Core: entityTypes, entities, relationships, records, files
       // Access requires workspace ownership (personal) or active org membership (org).
@@ -704,6 +713,63 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        allow delete: if false;
+      }
+
+      // ─── Worksets ─────────────────────────────────────────
+      match /worksets/{worksetId} {
+        allow read: if isAuthenticated() && (
+          (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+            && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+          || (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+            && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+        );
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.worksetId == worksetId
+          && isValidClientActor(request.resource.data.createdBy);
+        allow update: if canAccessWorkspace()
+          && fieldUnchanged('workspaceId') && fieldUnchanged('worksetId') && fieldUnchanged('createdBy');
+        allow delete: if false;
+      }
+
+      // ─── Widget Definitions ────────────────────────────────
+      match /widgetDefinitions/{widgetId} {
+        allow read: if isAuthenticated() && resource.data.workspaceId == workspaceId
+          && resource.data.ownerUserId == request.auth.uid;
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.widgetId == widgetId
+          && request.resource.data.ownerUserId == request.auth.uid
+          && isValidClientActor(request.resource.data.createdBy);
+        allow update: if resource.data.ownerUserId == request.auth.uid
+          && fieldUnchanged('workspaceId') && fieldUnchanged('widgetId')
+          && fieldUnchanged('ownerUserId') && fieldUnchanged('createdBy');
+        allow delete: if false;
+      }
+
+      // ─── Notifications ─────────────────────────────────────
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated() && resource.data.workspaceId == workspaceId
+          && resource.data.recipientUserId == request.auth.uid;
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.notificationId == notificationId;
+        allow update: if resource.data.recipientUserId == request.auth.uid
+          && fieldUnchanged('workspaceId') && fieldUnchanged('notificationId')
+          && fieldUnchanged('recipientUserId') && fieldUnchanged('type')
+          && fieldUnchanged('resourceType') && fieldUnchanged('resourceId');
+        allow delete: if false;
+      }
+
+      // ─── User Workspace Preferences ────────────────────────
+      match /userWorkspacePreferences/{userId} {
+        allow read: if isUser(userId) && resource.data.workspaceId == workspaceId;
+        allow create: if isUser(userId) && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.userId == userId;
+        allow update: if isUser(userId) && resource.data.workspaceId == workspaceId
+          && request.resource.data.workspaceId == workspaceId
+          && fieldUnchanged('userId');
         allow delete: if false;
       }
 

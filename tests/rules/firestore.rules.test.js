@@ -3447,7 +3447,50 @@ describe('Record ledger linkage immutability', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 29. DENY BY DEFAULT
+// 29. STEP 7 — WORKSPACE EXPERIENCE SECURITY
+// ═══════════════════════════════════════════════════════
+
+describe('Step 7 workspace experience rules', () => {
+  beforeEach(async () => {
+    await setupWorkspace('ws-step7', { type: 'PERSONAL', ownerUserId: 'user1' });
+    await setupWorkspace('ws-other', { type: 'PERSONAL', ownerUserId: 'user2' });
+    await setupUser('user1');
+    await setupUser('user2');
+  });
+
+  it('allows owner Workset writes and denies cross-workspace writes', async () => {
+    const db = authedDb('user1');
+    const data = { worksetId: 'w1', workspaceId: 'ws-step7', name: 'Field', moduleIds: [], status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' } };
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'worksets', 'w1'), data));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-other', 'worksets', 'w1'), { ...data, workspaceId: 'ws-other' }));
+  });
+
+  it('denies Workset actor spoofing', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'worksets', 'spoof'), { worksetId: 'spoof', workspaceId: 'ws-step7', name: 'Field', moduleIds: [], status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user2' } }));
+  });
+
+  it('isolates Widgets by owner and workspace', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1'), { widgetId: 'wi1', workspaceId: 'ws-step7', ownerUserId: 'user1', name: 'KPI', type: 'KPI', source: 'RECORDS', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' } }));
+    await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1')));
+  });
+
+  it('isolates Notifications to the recipient', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n1'), { notificationId: 'n1', workspaceId: 'ws-step7', recipientUserId: 'user1', type: 'RECORD_SENT', title: 'Sent', status: 'UNREAD' }));
+    await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-step7', 'notifications', 'n1')));
+    await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'notifications', 'n1')));
+  });
+
+  it('allows only preference owner access', async () => {
+    const db = authedDb('user1');
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1'), { workspaceId: 'ws-step7', userId: 'user1', activeWorksetId: null }));
+    await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 30. DENY BY DEFAULT
 // ═══════════════════════════════════════════════════════
 
 describe('deny-by-default', () => {

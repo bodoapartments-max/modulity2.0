@@ -499,6 +499,30 @@ Foundation for QR-code and secure-link sharing. Only the SHA-256 hash of the tok
 
 ---
 
+## Workspace Experience Data Model (Step 7)
+
+### Workset
+- Path: `workspaces/{workspaceId}/worksets/{worksetId}`
+- Stores name, description, icon, canonical `moduleIds[]`, default/status/category/sort metadata, and creator provenance
+- Status is ACTIVE or ARCHIVED; no physical deletion
+- Workset membership is not authorization
+
+### User Workspace Preference
+- Path: `workspaces/{workspaceId}/userWorkspacePreferences/{userId}`
+- Stores `activeWorksetId` and future-compatible `dashboardWidgetIds`
+- User-specific and workspace-specific; never stored globally on Workspace
+
+### WidgetDefinition
+- Path: `workspaces/{workspaceId}/widgetDefinitions/{widgetId}`
+- Stores owner, type, source, module/record scope, controlled filters, metric/grouping, display, size, and status
+- Configuration only; no copied Records, Entities, Relationships, or Ledger entries
+
+### Notification
+- Path: `workspaces/{workspaceId}/notifications/{notificationId}`
+- Stores recipient, type, title/message, canonical resource reference, action URL, status, metadata, and server timestamps
+- Status is UNREAD, READ, or ARCHIVED
+- Notification is neither Event nor AuditEntry
+
 ## Ledger Data Model (Step 6 + 6.1)
 
 ### LedgerBook

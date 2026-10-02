@@ -115,13 +115,17 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 ## Step 7 — Workspace Experience
 
-- Reusable Record List Engine (module and global)
-- Table view
-- Folders and favorites
-- Filters and saved views
-- Notifications UI
-- Mobile-first responsive layouts
-- Chat foundation
+**Status:** Complete
+
+- Workspace-aware Dashboard with quick actions, Workset Modules, recent Records, and Widgets
+- Workset model, persistence, active user preference, and management UI
+- Controlled WidgetDefinition/query foundation and My Widgets UI
+- Notification model/service, selective event mapping, unread header indicator, and Notification Center
+- Runtime loading audit and explicit loading/ready/empty/error settlement
+- Safe multi-workspace switching with active Workset restoration
+- Grouped responsive sidebar, mobile drawer, responsive grids and forms
+- Firestore Rules and emulator tests for all Step 7 collections
+- Chat remains an architecture-compatible placeholder
 
 ---
 

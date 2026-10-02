@@ -30,6 +30,14 @@ import { createLedgerQueryService } from '../core/ledger/ledgerQueryService.js';
 import { createAuditService } from '../core/audit/auditService.js';
 import { startAuditBridge } from '../core/audit/auditBridge.js';
 import { eventBus } from '../core/events/eventBus.js';
+import { createWorksetService } from '../core/workspace/worksetService.js';
+import {
+  createWidgetService,
+  createWidgetQueryService,
+  createNotificationService,
+  createWorkspacePreferenceService,
+} from '../core/workspace/workspaceExperienceServices.js';
+import { startNotificationBridge } from '../core/workspace/notificationBridge.js';
 
 function createServices() {
   if (!repositories) {
@@ -95,9 +103,11 @@ function createServices() {
   const ledgerQuerySvc = createLedgerQueryService({
     ledgerEntryRepo: repositories.ledgerEntries,
   });
+  const notificationSvc = createNotificationService({ notificationRepo: repositories.notifications });
 
-  // Start the audit bridge to persist Event Bus events as durable audit entries
+  // Start selective persistence bridges. Event, Audit, and Notification remain distinct.
   startAuditBridge(eventBus, auditSvc);
+  startNotificationBridge(eventBus, notificationSvc);
 
   return {
     workspace: createWorkspaceService({
@@ -148,6 +158,14 @@ function createServices() {
     ledger: ledgerSvc,
     ledgerQuery: ledgerQuerySvc,
     audit: auditSvc,
+    workset: createWorksetService({ worksetRepo: repositories.worksets, moduleRepo: repositories.modules }),
+    widget: createWidgetService({ widgetRepo: repositories.widgets }),
+    widgetQuery: createWidgetQueryService({ recordQueryService: recordQuerySvc, relationshipRepo: repositories.relationships }),
+    notification: notificationSvc,
+    workspacePreference: createWorkspacePreferenceService({
+      preferenceRepo: repositories.workspacePreferences,
+      worksetRepo: repositories.worksets,
+    }),
   };
 }
 

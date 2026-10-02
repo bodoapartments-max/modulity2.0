@@ -35,9 +35,15 @@ function EntitiesPage() {
   const workspaceId = currentWorkspace?.workspaceId;
 
   const loadData = useCallback(async () => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      setEntities([]);
+      setEntityTypes([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      setError(null);
       const [ents, types] = await Promise.all([
         services.entity.listEntities(workspaceId),
         services.entityType.listEntityTypes(workspaceId),

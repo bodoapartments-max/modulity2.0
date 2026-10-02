@@ -2,6 +2,29 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 7 — Workspace Experience
+
+### Added
+- Workspace-aware Dashboard with quick actions, active Workset Modules, recent Records, and Widget area
+- Workset model/service/repository and user-specific active Workset preferences
+- Workset list, creation, detail, activation, and archive UI
+- Configuration-only WidgetDefinition model with controlled sources, fields, operators, and bounded limits
+- My Widgets UI and responsive dashboard grid
+- Notification model/service/repository, selective `record.sent` notification bridge, header unread count, and Notification Center
+- Workspace Experience Firestore Rules and indexes for Worksets, Widgets, Notifications, and preferences
+- Responsive grouped sidebar navigation and active Workset header selector
+
+### Fixed
+- Workspace and page loaders now settle when workspace/services are unavailable
+- Entity Types, Entities, Modules, and Records no longer leave loading active when no workspace or zero data is available
+- Workspace switching validates accessibility, loads membership before committing the switch, clears stale workspace views, and reports errors
+
+### Architecture
+- Workset is navigation context, never authorization
+- Widget definitions store query configuration, never copied business data
+- Event, Audit, and Notification remain distinct
+- Loading, empty, ready, and error states are separate
+
 ## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
 
 ### Fixed

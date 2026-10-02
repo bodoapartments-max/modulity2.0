@@ -211,6 +211,18 @@ In early implementations the event bus may be synchronous within the same proces
 - Events: record.created, record.updated, record.submitted, record.cancelled, record.archived, etc.
 - NOT the durable audit history
 
+## Notification Layer (Step 7)
+
+Notifications are selective, recipient-scoped, actionable UI messages. They are not a complete event stream and not an accountability log.
+
+Initial mapping:
+
+| Runtime Event | Notification |
+|---|---|
+| `record.sent` | `RECORD_SENT` for `recipientUserId` with canonical Record link |
+
+The Notification Bridge is best-effort and intentionally ignores all unmapped events. Push/email delivery and durable retries are deferred.
+
 ## Durable Audit Layer (Step 6 + 6.1)
 - AuditEntry: append-only persistence in Firestore
 - Distinct from Event Bus runtime events

@@ -432,6 +432,15 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 7 — Workspace Experience Security
+
+- Worksets require active workspace access, valid USER/self creator provenance, immutable identity/workspace/creator fields, and deny deletion.
+- WidgetDefinitions are readable and writable only by their owner inside the active workspace; identity, owner, workspace, and creator provenance are immutable.
+- Notifications are readable/updateable only by `recipientUserId`; immutable resource/recipient provenance prevents reassignment. Creation requires workspace access.
+- User Workspace Preferences use deterministic `{userId}` documents and permit only that user to read/write their workspace-scoped preference.
+- Worksets never override Module or Record security rules. Widget queries execute against canonical collections and remain subject to their existing rules.
+- Browser-created Notifications remain a trust limitation: full trusted origin validation requires a backend dispatcher.
+
 ## Step 6 — Ledger & Audit Security
 
 ### Ledger Book Rules

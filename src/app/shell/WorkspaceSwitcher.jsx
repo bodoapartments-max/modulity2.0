@@ -41,12 +41,16 @@ function WorkspaceSwitcher() {
     availableWorkspaces,
     switchWorkspace,
     loading,
+    switching,
+    error,
   } = useWorkspace();
 
-  if (loading || !currentWorkspace) {
-    return (
-      <span className="text-sm text-neutral-400">Loading...</span>
-    );
+  if (loading) {
+    return <span className="text-sm text-neutral-400">Loading workspace...</span>;
+  }
+
+  if (error || !currentWorkspace) {
+    return <span className="text-sm text-red-600">Workspace unavailable</span>;
   }
 
   const workspaceName = currentWorkspace.type === WORKSPACE_TYPES.PERSONAL
@@ -59,8 +63,9 @@ function WorkspaceSwitcher() {
       trigger={
         <button
           type="button"
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
           aria-label={`Current workspace: ${workspaceName}`}
+          disabled={switching}
         >
           <WorkspaceIcon type={currentWorkspace.type} />
           <span className="hidden max-w-[8rem] truncate sm:inline">{workspaceName}</span>
@@ -79,9 +84,8 @@ function WorkspaceSwitcher() {
         return (
           <DropdownItem
             key={ws.workspaceId}
-            onClick={() => {
-              switchWorkspace(ws.workspaceId);
-              navigate('/app');
+            onClick={async () => {
+              if (await switchWorkspace(ws.workspaceId)) navigate('/app');
             }}
             className={isActive ? 'bg-primary-50 font-semibold text-primary-700' : ''}
           >

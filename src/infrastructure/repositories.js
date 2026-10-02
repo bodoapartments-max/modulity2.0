@@ -27,6 +27,12 @@ import { createFirestoreLedgerBookRepository } from './firebase/firestoreLedgerB
 import { createFirestoreLedgerEntryRepository } from './firebase/firestoreLedgerEntryRepository.js';
 import { createFirestoreAuditEntryRepository } from './firebase/firestoreAuditEntryRepository.js';
 import { createFirestoreLedgerCodeRepository } from './firebase/firestoreLedgerCodeRepository.js';
+import {
+  createFirestoreWorksetRepository,
+  createFirestoreWidgetRepository,
+  createFirestoreNotificationRepository,
+  createFirestoreWorkspacePreferenceRepository,
+} from './firebase/firestoreWorkspaceExperienceRepositories.js';
 
 function createRepositories() {
   if (!firebaseDb) {
@@ -56,6 +62,10 @@ function createRepositories() {
     ledgerEntries: createFirestoreLedgerEntryRepository(firebaseDb),
     auditEntries: createFirestoreAuditEntryRepository(firebaseDb),
     ledgerCodes: createFirestoreLedgerCodeRepository(firebaseDb),
+    worksets: createFirestoreWorksetRepository(firebaseDb),
+    widgets: createFirestoreWidgetRepository(firebaseDb),
+    notifications: createFirestoreNotificationRepository(firebaseDb),
+    workspacePreferences: createFirestoreWorkspacePreferenceRepository(firebaseDb),
   };
 }
 

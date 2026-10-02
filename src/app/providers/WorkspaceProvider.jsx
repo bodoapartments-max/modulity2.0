@@ -51,11 +51,21 @@ export function WorkspaceProvider({ children }) {
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
   const [availableWorkspaces, setAvailableWorkspaces] = useState([]);
   const [currentMembership, setCurrentMembership] = useState(null);
+  const [worksets, setWorksets] = useState([]);
+  const [activeWorkset, setActiveWorkset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState(null);
 
   const loadWorkspaces = useCallback(async () => {
-    if (!user || !services) return;
+    if (!user || !services) {
+      setCurrentWorkspace(null);
+      setAvailableWorkspaces([]);
+      setCurrentMembership(null);
+      setError(!services ? new Error('Workspace services are unavailable.') : null);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -96,7 +106,9 @@ export function WorkspaceProvider({ children }) {
         }
       }
     } catch (err) {
-      console.error('[WorkspaceProvider] Failed to load workspaces:', err);
+      setCurrentWorkspace(null);
+      setAvailableWorkspaces([]);
+      setCurrentMembership(null);
       setError(err);
     } finally {
       setLoading(false);
@@ -116,33 +128,79 @@ export function WorkspaceProvider({ children }) {
     loadWorkspaces();
   }, [isAuthenticated, authLoading, loadWorkspaces]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadWorkspaceExperience = async () => {
+      if (!currentWorkspace?.workspaceId || !user) {
+        setWorksets([]);
+        setActiveWorkset(null);
+        return;
+      }
+      try {
+        const [nextWorksets, preference] = await Promise.all([
+          services.workset.list(currentWorkspace.workspaceId),
+          services.workspacePreference.get(currentWorkspace.workspaceId, user.userId),
+        ]);
+        if (cancelled) return;
+        setWorksets(nextWorksets);
+        setActiveWorkset(nextWorksets.find((item) => item.worksetId === preference?.activeWorksetId) || null);
+      } catch (err) {
+        if (!cancelled) setError(err);
+      }
+    };
+    loadWorkspaceExperience();
+    return () => { cancelled = true; };
+  }, [currentWorkspace?.workspaceId, user]);
+
+  const activateWorkset = useCallback(async (worksetId) => {
+    if (!currentWorkspace || !user) return false;
+    try {
+      setError(null);
+      await services.workspacePreference.setActiveWorkset(currentWorkspace.workspaceId, user.userId, worksetId);
+      setActiveWorkset(worksets.find((item) => item.worksetId === worksetId) || null);
+      return true;
+    } catch (err) {
+      setError(err);
+      return false;
+    }
+  }, [currentWorkspace, user, worksets]);
+
   const switchWorkspace = useCallback(async (workspaceId) => {
     const target = availableWorkspaces.find((w) => w.workspaceId === workspaceId);
     if (!target) {
-      console.error('[WorkspaceProvider] Workspace not accessible:', workspaceId);
-      return;
+      setError(new Error('This workspace is no longer available.'));
+      return false;
     }
 
-    setCurrentWorkspace(target);
-    safeSetStoredWorkspaceId(workspaceId);
+    try {
+      setSwitching(true);
+      setError(null);
+      let membership = null;
+      if (target.type === WORKSPACE_TYPES.ORGANIZATION && target.organizationId && user) {
+        membership = await repositories.memberships.getByOrgAndUser(
+          target.organizationId,
+          user.userId,
+        );
+      }
 
-    if (target.type === WORKSPACE_TYPES.ORGANIZATION && target.organizationId && user) {
-      const membership = await repositories.memberships.getByOrgAndUser(
-        target.organizationId,
-        user.userId,
-      );
+      setCurrentWorkspace(target);
       setCurrentMembership(membership);
-    } else {
-      setCurrentMembership(null);
-    }
+      safeSetStoredWorkspaceId(workspaceId);
 
-    if (user) {
-      eventBus.emit(createEvent({
-        eventType: 'workspace.switched',
-        workspaceId,
-        actor: { type: 'user', id: user.userId },
-        payload: { workspaceId, type: target.type },
-      }));
+      if (user) {
+        eventBus.emit(createEvent({
+          eventType: 'workspace.switched',
+          workspaceId,
+          actor: { type: 'user', id: user.userId },
+          payload: { workspaceId, type: target.type },
+        }));
+      }
+      return true;
+    } catch (err) {
+      setError(err);
+      return false;
+    } finally {
+      setSwitching(false);
     }
   }, [availableWorkspaces, user]);
 
@@ -150,13 +208,17 @@ export function WorkspaceProvider({ children }) {
     currentWorkspace,
     availableWorkspaces,
     currentMembership,
+    worksets,
+    activeWorkset,
+    activateWorkset,
     switchWorkspace,
     refreshWorkspaces: loadWorkspaces,
     loading,
+    switching,
     error,
     isPersonalWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.PERSONAL,
     isOrganizationWorkspace: currentWorkspace?.type === WORKSPACE_TYPES.ORGANIZATION,
-  }), [currentWorkspace, availableWorkspaces, currentMembership, switchWorkspace, loadWorkspaces, loading, error]);
+  }), [currentWorkspace, availableWorkspaces, currentMembership, worksets, activeWorkset, activateWorkset, switchWorkspace, loadWorkspaces, loading, switching, error]);
 
   return (
     <WorkspaceContext.Provider value={value}>

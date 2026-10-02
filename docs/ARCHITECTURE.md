@@ -342,6 +342,26 @@ See `docs/MODULE_CONTRACT.md` for the authoritative Module contract.
 
 ---
 
+## Step 7 — Workspace Experience
+
+### Workspace Orchestration
+The Dashboard, Worksets, Widgets, and Notifications are projections/orchestration over canonical Workspace, Module, Record, Relationship, and Ledger data. They do not duplicate those objects.
+
+### Worksets
+A Workset is a workspace-scoped list of canonical Module IDs used to adapt navigation and the Dashboard. It never grants permission. Active Workset is stored per user and workspace in `userWorkspacePreferences`, allowing the same user to maintain different contexts across Personal and Organization Workspaces. Favorites remain an independent personal frequency signal.
+
+### Widgets
+WidgetDefinition is validated configuration interpreted by trusted renderers. Sources, fields, operators, and limits are allow-listed. Widget documents do not contain Record or Entity copies. Dashboard placement is stored separately in user workspace preferences.
+
+### Notifications
+Notification is actionable user-facing information, distinct from transient Event Bus events and append-only AuditEntries. A selective bridge maps `record.sent` to a recipient-scoped Notification. Delivery is best-effort until a durable backend dispatcher exists.
+
+### Workspace Switching
+WorkspaceProvider verifies target accessibility and membership before committing a switch. Workspace-scoped effects depend on `workspaceId`, cancel stale async results, clear old arrays, and reload active Workset preferences. Invalid targets fail without exposing previous-workspace data.
+
+### Async State Policy
+Every loader must settle into LOADING, READY, EMPTY, or ERROR. Empty data is not loading. Missing workspace/service dependencies settle to unavailable/empty; query failures expose a user-safe ErrorState with optional retry.
+
 ## Step 6 — Ledger & Audit Engine
 
 ### Three-Layer Separation

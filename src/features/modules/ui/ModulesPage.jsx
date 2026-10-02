@@ -20,8 +20,14 @@ export default function ModulesPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!currentWorkspace?.workspaceId) return;
+    if (!currentWorkspace?.workspaceId) {
+      setModules([]);
+      setLoading(false);
+      return undefined;
+    }
     let cancelled = false;
+    setModules([]);
+    setError(null);
     setLoading(true);
     services?.module?.listModules(currentWorkspace.workspaceId)
       .then((list) => { if (!cancelled) setModules(list || []); })

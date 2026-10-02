@@ -31,9 +31,14 @@ function EntityTypesPage() {
   const workspaceId = currentWorkspace?.workspaceId;
 
   const loadTypes = useCallback(async () => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      setTypes([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      setError(null);
       await services.entityType.seedCoreTypes(workspaceId);
       const list = await services.entityType.listEntityTypes(workspaceId);
       setTypes(list);

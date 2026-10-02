@@ -34,6 +34,11 @@ const LedgerListPage = lazy(() => import('../../features/ledger/ui/LedgerListPag
 const LedgerBookPage = lazy(() => import('../../features/ledger/ui/LedgerBookPage.jsx'));
 const CreateLedgerBookPage = lazy(() => import('../../features/ledger/ui/CreateLedgerBookPage.jsx'));
 const LedgerEntryDetailPage = lazy(() => import('../../features/ledger/ui/LedgerEntryDetailPage.jsx'));
+const WorksetsPage = lazy(() => import('../../features/worksets/ui/WorksetsPage.jsx'));
+const CreateWorksetPage = lazy(() => import('../../features/worksets/ui/CreateWorksetPage.jsx'));
+const WorksetDetailPage = lazy(() => import('../../features/worksets/ui/WorksetDetailPage.jsx'));
+const WidgetsPage = lazy(() => import('../../features/widgets/ui/WidgetsPage.jsx'));
+const NotificationsPage = lazy(() => import('../../features/notifications/ui/NotificationsPage.jsx'));
 
 function PageLoader() {
   return (
@@ -74,6 +79,11 @@ function AppShell() {
               <Route path="modules/:moduleId/records" element={<ModuleRecordListPage />} />
               <Route path="records" element={<RecordListPage />} />
               <Route path="records/:recordId" element={<RecordDetailPage />} />
+              <Route path="worksets" element={<WorksetsPage />} />
+              <Route path="worksets/new" element={<CreateWorksetPage />} />
+              <Route path="worksets/:worksetId" element={<WorksetDetailPage />} />
+              <Route path="widgets" element={<WidgetsPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="ledger" element={<LedgerListPage />} />
               <Route path="ledger/new" element={<CreateLedgerBookPage />} />
               <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />
