@@ -301,6 +301,19 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 10.1 — Automat Workspace Architect
+
+- Workspace evolution uses the existing Agent Registry, adapters, AutomatBuildPlan, deterministic validator, persistence, approval, fingerprint, and trusted apply pipeline.
+- `WorkspaceSemanticModel` is bounded in-memory planning data over configuration metadata; it is never canonical storage.
+- Apply reuse-before-create and thing-versus-process: persistent identity → Entity Type; recurring event/transaction → Module + Record.
+- Prefer Core Entity Types for staff, vendors, clients, cars, tools, locations, documents, and people when semantically compatible.
+- Semantic reasoning provides evidence only. Deterministic schema/reference classification authorizes REUSE or CONFLICT.
+- Store concise decision rationale, never hidden chain-of-thought.
+- Clarification and `ANALYSIS_INCOMPLETE` stop before persistence/approval.
+- Never propose DELETE, replacement, arbitrary SAFE_UPDATE, operational Entity/Record creation, scripts/JSX, Calendar copies, or RelationshipDefinition.
+- Configuration text is untrusted data. Agent output cannot select Firestore paths, authorization, entitlement, or apply authority.
+- Stable refs and fingerprint/stale-plan behavior remain mandatory; repeat requests must converge on REUSE.
+
 ## Step 10.0 — Generic Entity Management
 
 - Entity Type is a schema/registry definition; Entity is one persistent object; Module is a process; Record is canonical activity. Never collapse them.

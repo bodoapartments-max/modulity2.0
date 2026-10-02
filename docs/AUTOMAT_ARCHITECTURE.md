@@ -187,6 +187,34 @@ Authenticated browser verification on `modulity-2-dev` used the clean disposable
 
 ## Explicit deferrals
 
+## Step 10.1 — Automat Workspace Architect
+
+The Workspace Architect evolves existing configuration rather than generating an isolated replacement system:
+
+```text
+Business request
+→ bounded WorkspaceConfigurationSnapshot
+→ in-memory WorkspaceSemanticModel
+→ provider-neutral WORKSPACE_ARCHITECT Agent
+→ WorkspaceEvolutionPlan
+→ existing AutomatBuildPlan
+→ deterministic validation/classification
+→ review/approval
+→ existing trusted Step 9.2 apply
+```
+
+`WorkspaceSemanticModel` contains configuration metadata only: Core/Domain Entity Types and fields, Modules/Form schemas/EntityReference targets, Worksets, Widgets, Reports, and review-only relationship metadata. Operational Entities and Records are excluded. Stable sorting, per-kind/item/field/byte bounds, deterministic truncation, and `ANALYSIS_INCOMPLETE` prevent silent partial-context assumptions.
+
+The Architect applies reuse-before-create and thing-versus-process reasoning. Semantic interpretation can explain that waiter→EMPLOYEE, vendor→SUPPLIER, company car→VEHICLE, or tools→EQUIPMENT, but deterministic BuildPlan classification remains authoritative. Same-code incompatible schemas become CONFLICT. SAFE_UPDATE, DELETE, replacement, operational Entity generation, and RelationshipDefinition remain unsupported.
+
+Each significant decision stores concise rationale, requested concept, operation, target ref, and planning confidence—not hidden model reasoning. Ambiguous requests produce required clarification and are not persisted for approval. Repeated requests compile to the same stable refs and converge on REUSE.
+
+Calendar-compatible processes use canonical date/datetime fields such as `startDateTime`, `endDateTime`, `dueDate`, and `appointmentDateTime`; no Calendar event copies are created.
+
+Authenticated `modulity-2-dev` verification analyzed 22 existing hotel resources, reused five Core concepts, created 15 restaurant/inventory configuration resources through the trusted apply engine, and fabricated zero Entity instances. The repeated request analyzed 37 resources and applied CREATE 0 / REUSE 20 without duplicates. Room Inspection reused ROOM/EMPLOYEE and proposed only a Module, Workset, and Report. Ambiguous storage produced clarification with no approval path. Desktop, 768px, and 375px review passed. Deterministic conflict coverage rejects an incompatible same-code TABLE without mutation.
+
+See ADR-0003.
+
 ## Step 9.2 — Trusted BuildPlan Application
 
 ```text

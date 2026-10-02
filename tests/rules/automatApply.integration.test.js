@@ -5,6 +5,7 @@ import { createSystemPlanningOrchestrator } from '../../src/agents/planning/syst
 import { applyAutomatPlan, getAutomatApplyOperation } from '../../functions/src/automatApplyEngine.js';
 import { approveAutomatPlan, persistAutomatPlan } from '../../functions/src/automatPlanService.js';
 import { configurationFingerprint, loadAdminWorkspaceSnapshot } from '../../functions/src/automatSnapshot.js';
+import { CORE_ENTITY_TYPES } from '../../src/core/data/coreEntityTypes.js';
 
 let app;
 let db;
@@ -35,6 +36,16 @@ async function generatePlan(workspaceId = 'hotel-workspace', requestId = 'reques
   const snapshot = await loadAdminWorkspaceSnapshot(db, workspaceId);
   const organizationInput = { schemaVersion: '1.0.0', workspaceId, organizationName: 'Reset Test Hotel', description: '', userDescription: hotelDescription, existingConfiguration: snapshot };
   const result = await createSystemPlanningOrchestrator().plan({ requestId, workspaceId, requestedBy: 'owner', organizationInput, snapshot });
+  return { ...result, configurationFingerprint: await configurationFingerprint(db, workspaceId) };
+}
+
+async function seedCoreEntityTypes(workspaceId = 'hotel-workspace') {
+  await Promise.all(CORE_ENTITY_TYPES.map((item) => db.doc(`workspaces/${workspaceId}/entityTypes/${item.typeId}`).set({ ...item, workspaceId })));
+}
+
+async function generateEvolutionPlan(businessRequest, requestId, workspaceId = 'hotel-workspace') {
+  const snapshot = await loadAdminWorkspaceSnapshot(db, workspaceId);
+  const result = await createSystemPlanningOrchestrator().evolve({ requestId, workspaceId, requestedBy: 'owner', businessRequest, snapshot });
   return { ...result, configurationFingerprint: await configurationFingerprint(db, workspaceId) };
 }
 
@@ -77,6 +88,29 @@ describe('trusted Automat BuildPlan application', () => {
     expect(retry.idempotent).toBe(true);
     expect((await db.collection('workspaces/hotel-workspace/modules').get()).size).toBe(counts.modules);
     expect((await db.collection('workspaces/hotel-workspace/entityTypes').get()).size).toBe(counts.entityTypes);
+  });
+
+  it('applies and safely repeats a Workspace Architect restaurant evolution', async () => {
+    await seedWorkspace();
+    await seedCoreEntityTypes();
+    const baseline = await persistApprove(await generatePlan('hotel-workspace', 'request-baseline'));
+    await applyAutomatPlan(db, { workspaceId: 'hotel-workspace', userId: 'owner', planId: baseline.planId, operationId: 'operation-baseline' });
+    const request = 'We opened a restaurant inside the hotel. Add table reservations, customer orders, suppliers and inventory.';
+    const firstGenerated = await generateEvolutionPlan(request, 'request-restaurant-first');
+    expect(firstGenerated.validation.classifications).toEqual(expect.arrayContaining([expect.objectContaining({ ref: 'entityType:EMPLOYEE', operation: 'REUSE' }), expect.objectContaining({ ref: 'entityType:TABLE', operation: 'CREATE' }), expect.objectContaining({ ref: 'module:CUSTOMER_ORDER', operation: 'CREATE' })]));
+    const first = await persistApprove(firstGenerated);
+    const applied = await applyAutomatPlan(db, { workspaceId: 'hotel-workspace', userId: 'owner', planId: first.planId, operationId: 'operation-restaurant-first' });
+    expect(applied.status).toBe('APPLIED');
+    expect((await db.collection('workspaces/hotel-workspace/entityTypes').where('code', 'in', ['TABLE', 'PRODUCT', 'STORAGE_LOCATION']).get()).size).toBe(3);
+    expect((await db.collection('workspaces/hotel-workspace/entities').get()).size).toBe(0);
+    const counts = { entityTypes: (await db.collection('workspaces/hotel-workspace/entityTypes').get()).size, modules: (await db.collection('workspaces/hotel-workspace/modules').get()).size };
+    const repeatedGenerated = await generateEvolutionPlan(request, 'request-restaurant-repeat');
+    expect(repeatedGenerated.validation.status).toBe('VALID');
+    expect(repeatedGenerated.validation.classifications.every((item) => item.operation === 'REUSE')).toBe(true);
+    const repeated = await persistApprove(repeatedGenerated);
+    await applyAutomatPlan(db, { workspaceId: 'hotel-workspace', userId: 'owner', planId: repeated.planId, operationId: 'operation-restaurant-repeat' });
+    expect((await db.collection('workspaces/hotel-workspace/entityTypes').get()).size).toBe(counts.entityTypes);
+    expect((await db.collection('workspaces/hotel-workspace/modules').get()).size).toBe(counts.modules);
   });
 
   it('rejects stale plans and incompatible conflicts without writes', async () => {

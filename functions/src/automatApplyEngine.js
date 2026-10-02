@@ -30,13 +30,13 @@ async function findOne(db, path, field, value) {
   return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
 }
 
-async function createEntityTypeResource(db, workspaceId, proposal) {
+async function createEntityTypeResource(db, workspaceId, proposal, references) {
   const existing = await findOne(db, `workspaces/${workspaceId}/entityTypes`, 'code', proposal.code);
   if (existing) return { id: existing.id, action: 'REUSED' };
   const id = idFor('et', proposal.code);
   const ref = db.doc(`workspaces/${workspaceId}/entityTypes/${id}`);
   if ((await ref.get()).exists) fail('CONFLICT', `Entity Type identity is occupied: ${proposal.code}`);
-  const value = createEntityType({ typeId: id, workspaceId, code: proposal.code, name: proposal.name, category: 'DOMAIN', description: proposal.description || '', status: 'ACTIVE', schemaVersion: '1.0.0', fields: proposal.fields || [] });
+  const value = createEntityType({ typeId: id, workspaceId, code: proposal.code, name: proposal.name, category: 'DOMAIN', description: proposal.description || '', status: 'ACTIVE', schemaVersion: '1.0.0', fields: resolveFields(proposal.fields || [], references) });
   await ref.create({ ...cleanTimestamps(value), createdBy: internalActor, _createdAt: FieldValue.serverTimestamp(), _updatedAt: FieldValue.serverTimestamp() });
   return { id, action: 'CREATED' };
 }

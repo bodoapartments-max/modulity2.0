@@ -192,10 +192,11 @@ Step 9.1 registers six specialists: ORGANIZATION_ANALYZER, DOMAIN_MODEL_PLANNER,
 
 Step 9.2 does not grant these Agents persistence authority. A separate Firebase callable persists/revalidates the exact plan, records human approval, verifies fingerprints/authority/entitlement, and invokes a deterministic Admin apply engine. No Agent or provider executes during apply. See `AUTOMAT_ARCHITECTURE.md`.
 
+Step 10.1 registers `WORKSPACE_ARCHITECT@1.0.0` through the same Registry/Adapter/Orchestrator boundary. It receives a versioned business request and bounded in-memory WorkspaceSemanticModel, then returns an untrusted WorkspaceEvolutionPlan. It can recommend reuse and concise rationale but cannot authorize, persist, approve, or apply. Configuration text is treated as data; incomplete context and material ambiguity stop before approval. Deterministic fixtures cover restaurant, room-inspection, vehicle, school, and installation scenarios without live AI.
+
 ## 10. Future Extensions
 
 - Optional remote/local organization intelligence providers
-- Step 9.2 human approval and deterministic application
 - Multi-agent workflows
 - Persisted execution/plan audit history
 - Output versioning and diffing

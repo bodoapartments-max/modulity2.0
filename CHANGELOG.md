@@ -2,6 +2,22 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 10.1 — Automat Workspace Architect / Evolution Engine
+
+### Added
+- Provider-neutral `WORKSPACE_ARCHITECT` Agent, bounded WorkspaceSemanticModel, WorkspaceEvolutionPlan, concise decision rationale, and BuildPlan compilation
+- Reuse-before-create semantic planning for Core/Domain Entity Types, Modules, Worksets, Widgets, and Reports
+- Deterministic restaurant expansion, room inspection, vehicle, school, and installation-company scenarios
+- Ambiguity clarification, prompt-injection resistance, bounded-context `ANALYSIS_INCOMPLETE`, conflict detection, stable refs, and no-destructive/no-operational-data safety
+- Workspace Architect review UX showing analyzed resources, REUSE/CREATE totals, decisions, connections, questions, and existing trusted approval/apply
+- Trusted Emulator integration proving restaurant CREATE then repeated REUSE without duplicates or fabricated Entity instances
+- EntityReference-aware repeated Entity Type classification across stable plan refs and canonical IDs
+- Authenticated `Reset Test Hotel` verification: restaurant CREATE 15 / REUSE 5, repeated CREATE 0 / REUSE 20, Room Inspection process reasoning, ambiguity stop-before-approval, no fabricated Entities, no duplicates, and responsive review
+
+### Architecture
+- ADR-0003 keeps Workspace evolution in-memory and compiles into the existing AutomatBuildPlan/Step 9.2 trusted apply boundary
+- Snapshot summaries now include bounded semantic description/category/display metadata while fingerprints and stale-plan protection remain authoritative
+
 ## Step 10.0 — Generic Entity Management Experience
 
 ### Added

@@ -221,6 +221,20 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Type-level Relationship recommendations remain optional UNSUPPORTED planning output
 - Workspace Reset compatibility for plans, generated configuration, and lock state
 
+## Step 10.1 — Automat Workspace Architect / Evolution Engine
+
+**Status:** CLOSED — DEPLOYMENT VERIFIED
+
+- Bounded in-memory WorkspaceSemanticModel over canonical configuration
+- Business-request classification and thing-versus-process reasoning
+- Reuse-before-create across Core/Domain Entity Types, Modules, Worksets, Widgets, and Reports
+- Semantic synonym evidence with concise Architect decisions
+- Ambiguity and `ANALYSIS_INCOMPLETE` stops before approval
+- Restaurant, room inspection, vehicle, school, and installation deterministic scenarios
+- WorkspaceEvolutionPlan compilation into the existing AutomatBuildPlan
+- Existing validation, fingerprints, approval, trusted apply, lock, audit, and notification reused
+- No destructive evolution, Entity/Record generation, Calendar engine, or RelationshipDefinition
+
 ## Step 10.0 — Generic Entity Management Experience
 
 **Status:** CLOSED — DEPLOYMENT VERIFIED

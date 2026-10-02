@@ -2,7 +2,7 @@ import { AGENT_PROVIDER_TYPES, AGENT_STATUSES } from '../contracts/agentContract
 import { validateOrganizationAnalysisInput, validateOrganizationAnalysisOutput } from '../automat/automatContracts.js';
 
 export const PLANNING_SCHEMA_VERSION = '1.0.0';
-export const PLANNING_AGENT_CODES = Object.freeze({ ORGANIZATION_ANALYZER: 'ORGANIZATION_ANALYZER', DOMAIN_MODEL_PLANNER: 'DOMAIN_MODEL_PLANNER', PROCESS_PLANNER: 'PROCESS_PLANNER', MODULE_PLANNER: 'MODULE_PLANNER', WORKSPACE_EXPERIENCE_PLANNER: 'WORKSPACE_EXPERIENCE_PLANNER', SYSTEM_REVIEWER: 'SYSTEM_REVIEWER' });
+export const PLANNING_AGENT_CODES = Object.freeze({ WORKSPACE_ARCHITECT: 'WORKSPACE_ARCHITECT', ORGANIZATION_ANALYZER: 'ORGANIZATION_ANALYZER', DOMAIN_MODEL_PLANNER: 'DOMAIN_MODEL_PLANNER', PROCESS_PLANNER: 'PROCESS_PLANNER', MODULE_PLANNER: 'MODULE_PLANNER', WORKSPACE_EXPERIENCE_PLANNER: 'WORKSPACE_EXPERIENCE_PLANNER', SYSTEM_REVIEWER: 'SYSTEM_REVIEWER' });
 
 const strict = (value, allowed, required, label) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -19,6 +19,7 @@ export function createPlanningAgentDefinitions() {
 }
 
 export const planningInputValidators = Object.freeze({
+  'WORKSPACE_ARCHITECT@1.0.0': (value) => strict(value, ['schemaVersion', 'businessRequest', 'semanticModel'], ['schemaVersion', 'businessRequest', 'semanticModel'], 'WorkspaceArchitectInput'),
   'ORGANIZATION_ANALYZER@1.0.0': validateOrganizationAnalysisInput,
   'DOMAIN_MODEL_PLANNER@1.0.0': (value) => strict(value, ['schemaVersion', 'analysis'], ['schemaVersion', 'analysis'], 'DomainModelPlannerInput'),
   'PROCESS_PLANNER@1.0.0': (value) => strict(value, ['schemaVersion', 'analysis', 'domainModel'], ['schemaVersion', 'analysis', 'domainModel'], 'ProcessPlannerInput'),
@@ -28,6 +29,7 @@ export const planningInputValidators = Object.freeze({
 });
 
 export const planningOutputValidators = Object.freeze({
+  'WORKSPACE_ARCHITECT@1.0.0': (value) => { strict(value, ['schemaVersion', 'status', 'scenario', 'requestedChange', 'currentState', 'reuse', 'create', 'connect', 'conflicts', 'unsupported', 'questions', 'warnings', 'decisions', 'businessAreas', 'entityTypes', 'modules', 'worksets', 'widgets', 'reports', 'refs'], ['schemaVersion', 'status', 'scenario', 'requestedChange', 'currentState', 'reuse', 'create', 'connect', 'conflicts', 'unsupported', 'questions', 'warnings', 'decisions', 'businessAreas', 'entityTypes', 'modules', 'worksets', 'widgets', 'reports'], 'WorkspaceEvolutionPlan'); return arrays(value, ['reuse', 'create', 'connect', 'conflicts', 'unsupported', 'questions', 'warnings', 'decisions', 'businessAreas', 'entityTypes', 'modules', 'worksets', 'widgets', 'reports'], 'WorkspaceEvolutionPlan'); },
   'ORGANIZATION_ANALYZER@1.0.0': validateOrganizationAnalysisOutput,
   'DOMAIN_MODEL_PLANNER@1.0.0': (value) => { strict(value, ['schemaVersion', 'domainObjects', 'proposedEntityTypes', 'proposedRelationships'], ['schemaVersion', 'domainObjects', 'proposedEntityTypes', 'proposedRelationships'], 'DomainModelPlan'); return arrays(value, ['domainObjects', 'proposedEntityTypes', 'proposedRelationships'], 'DomainModelPlan'); },
   'PROCESS_PLANNER@1.0.0': (value) => { strict(value, ['schemaVersion', 'processes', 'capabilities'], ['schemaVersion', 'processes', 'capabilities'], 'ProcessPlan'); return arrays(value, ['processes', 'capabilities'], 'ProcessPlan'); },

@@ -4,8 +4,9 @@ import { createAutomatBuildPlan } from '../automat/automatContracts.js';
 import { validateAutomatBuildPlan } from '../automat/buildPlanValidator.js';
 import { createDeterministicPlanningAdapter } from './deterministicPlanningAdapter.js';
 import { PLANNING_AGENT_CODES, createPlanningAgentDefinitions, planningInputValidators, planningOutputValidators } from './planningContracts.js';
+import { assertEvolutionSafety, compileEvolutionBuildPlan, createWorkspaceSemanticModel } from './workspaceArchitect.js';
 
-const STAGES = Object.freeze([PLANNING_AGENT_CODES.ORGANIZATION_ANALYZER, PLANNING_AGENT_CODES.DOMAIN_MODEL_PLANNER, PLANNING_AGENT_CODES.PROCESS_PLANNER, PLANNING_AGENT_CODES.MODULE_PLANNER, PLANNING_AGENT_CODES.WORKSPACE_EXPERIENCE_PLANNER, PLANNING_AGENT_CODES.SYSTEM_REVIEWER]);
+const STAGES = Object.freeze([PLANNING_AGENT_CODES.WORKSPACE_ARCHITECT, PLANNING_AGENT_CODES.ORGANIZATION_ANALYZER, PLANNING_AGENT_CODES.DOMAIN_MODEL_PLANNER, PLANNING_AGENT_CODES.PROCESS_PLANNER, PLANNING_AGENT_CODES.MODULE_PLANNER, PLANNING_AGENT_CODES.WORKSPACE_EXPERIENCE_PLANNER, PLANNING_AGENT_CODES.SYSTEM_REVIEWER]);
 const stageRequest = (requestId, workspaceId, requestedBy, agentCode, input) => ({ requestId: `${requestId}:${agentCode}`, workspaceId, agentCode, agentVersion: '1.0.0', inputSchemaVersion: '1.0.0', outputSchemaVersion: '1.0.0', requestedBy, input, context: { planningOnly: true } });
 
 export function createSystemPlanningOrchestrator({ canUse = async () => true, adapter = createDeterministicPlanningAdapter(), clock, timeoutMs = 5_000 } = {}) {
@@ -22,6 +23,19 @@ export function createSystemPlanningOrchestrator({ canUse = async () => true, ad
 
   return {
     agentCodes: STAGES,
+    async evolve({ requestId, workspaceId, requestedBy, businessRequest, snapshot, onStage }) {
+      if (!requestId || !workspaceId || !requestedBy || !businessRequest) throw new Error('Workspace evolution request identity is required');
+      if (snapshot.workspaceId !== workspaceId) throw new Error('Planning Workspace mismatch');
+      const semanticModel = createWorkspaceSemanticModel(snapshot);
+      const execution = await executeStage(PLANNING_AGENT_CODES.WORKSPACE_ARCHITECT, requestId, workspaceId, requestedBy, { schemaVersion: '1.0.0', businessRequest, semanticModel }, onStage);
+      const evolution = execution.output;
+      assertEvolutionSafety(evolution);
+      const draft = createAutomatBuildPlan(compileEvolutionBuildPlan({ evolution, requestId, workspaceId, requestedBy, execution }));
+      onStage?.('VALIDATING');
+      const validation = validateAutomatBuildPlan(draft, snapshot);
+      const plan = createAutomatBuildPlan({ ...draft, status: validation.status === 'INVALID' ? 'INVALID' : 'READY_FOR_REVIEW', validation });
+      return Object.freeze({ plan, validation, evolution: Object.freeze(evolution), semanticModel, review: Object.freeze({ warnings: evolution.warnings, unresolvedQuestions: evolution.questions, assumptions: plan.organizationProfile.assumptions, diagnostics: { businessAreasCovered: plan.businessAreas.length, processesCovered: plan.processes.length, domainObjectsCovered: plan.domainObjects.length, analyzedResources: evolution.currentState.analyzedResources, reuseCount: evolution.reuse.length, createCount: evolution.create.length, conflictsCount: validation.classifications.filter((item) => item.operation === 'CONFLICT').length } }), executions: Object.freeze([execution]), requiresClarification: evolution.status !== 'READY_FOR_REVIEW' });
+    },
     async plan({ requestId, workspaceId, requestedBy, organizationInput, snapshot, onStage }) {
       if (!requestId || !workspaceId || !requestedBy) throw new Error('Planning request identity is required');
       if (organizationInput.workspaceId !== workspaceId || snapshot.workspaceId !== workspaceId) throw new Error('Planning Workspace mismatch');

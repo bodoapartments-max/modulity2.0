@@ -1,5 +1,6 @@
 import { DeterministicTestAdapter } from '../providers/deterministicTestAdapter.js';
 import { INDUSTRY_KNOWLEDGE, PLATFORM_CAPABILITIES, resolveIndustryKnowledge } from './industryKnowledge.js';
+import { architectWorkspaceEvolution } from './workspaceArchitect.js';
 
 const clone = (value) => structuredClone(value);
 const knowledgeFromAnalysis = (analysis) => {
@@ -11,6 +12,7 @@ const extractCount = (text, noun) => Number(text?.match(new RegExp(`(\\d+)\\s*[-
 
 export function createDeterministicPlanningAdapter() {
   return new DeterministicTestAdapter({
+    WORKSPACE_ARCHITECT: (_definition, request) => architectWorkspaceEvolution(request.input),
     ORGANIZATION_ANALYZER: (_definition, request) => {
       const knowledge = resolveIndustryKnowledge(request.input);
       const description = request.input.userDescription || request.input.description || '';

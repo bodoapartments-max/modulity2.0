@@ -2,13 +2,13 @@ export const AUTOMAT_PLAN_VERSION = '1.0.0';
 export const AUTOMAT_PLAN_STATUSES = Object.freeze({ DRAFT: 'DRAFT', ANALYZING: 'ANALYZING', READY_FOR_REVIEW: 'READY_FOR_REVIEW', INVALID: 'INVALID', APPROVED: 'APPROVED', APPLYING: 'APPLYING', APPLIED: 'APPLIED', FAILED: 'FAILED', SUPERSEDED: 'SUPERSEDED' });
 export const PLAN_OPERATION_CLASSIFICATIONS = Object.freeze({ CREATE: 'CREATE', REUSE: 'REUSE', SAFE_UPDATE: 'SAFE_UPDATE', CONFLICT: 'CONFLICT', UNSUPPORTED: 'UNSUPPORTED' });
 export const PLAN_REF_KINDS = Object.freeze({ ENTITY_TYPE: 'entityType', MODULE: 'module', RELATIONSHIP: 'relationship', WORKSET: 'workset', WIDGET: 'widget', REPORT: 'report' });
-export const AUTOMAT_BOUNDS = Object.freeze({ MAX_ENTITY_TYPES: 50, MAX_MODULES: 50, MAX_RELATIONSHIPS: 100, MAX_WORKSETS: 25, MAX_WIDGETS: 50, MAX_REPORTS: 50, MAX_BUSINESS_AREAS: 30, MAX_DOMAIN_OBJECTS: 100, MAX_PROCESSES: 100, MAX_CAPABILITIES: 100, MAX_WARNINGS: 100, MAX_QUESTIONS: 50, MAX_FIELDS_PER_RESOURCE: 50, MAX_PLAN_BYTES: 512_000, MAX_SNAPSHOT_ITEMS_PER_TYPE: 100 });
+export const AUTOMAT_BOUNDS = Object.freeze({ MAX_ENTITY_TYPES: 50, MAX_MODULES: 50, MAX_RELATIONSHIPS: 100, MAX_WORKSETS: 25, MAX_WIDGETS: 50, MAX_REPORTS: 50, MAX_BUSINESS_AREAS: 30, MAX_DOMAIN_OBJECTS: 100, MAX_PROCESSES: 100, MAX_CAPABILITIES: 100, MAX_WARNINGS: 100, MAX_QUESTIONS: 50, MAX_ARCHITECT_DECISIONS: 200, MAX_FIELDS_PER_RESOURCE: 50, MAX_PLAN_BYTES: 512_000, MAX_SNAPSHOT_ITEMS_PER_TYPE: 100 });
 export const ORGANIZATION_ANALYSIS_SCHEMA_VERSION = '1.0.0';
 
-const PLAN_KEYS = new Set(['planId', 'planVersion', 'status', 'workspaceId', 'source', 'organizationProfile', 'industryAnalysis', 'businessAreas', 'domainObjects', 'processes', 'capabilities', 'proposedEntityTypes', 'proposedModules', 'proposedRelationships', 'proposedWorksets', 'proposedWidgets', 'proposedReports', 'warnings', 'unresolvedQuestions', 'validation', 'provenance']);
+const PLAN_KEYS = new Set(['planId', 'planVersion', 'status', 'workspaceId', 'source', 'organizationProfile', 'industryAnalysis', 'businessAreas', 'domainObjects', 'processes', 'capabilities', 'proposedEntityTypes', 'proposedModules', 'proposedRelationships', 'proposedWorksets', 'proposedWidgets', 'proposedReports', 'architectDecisions', 'evolutionSummary', 'warnings', 'unresolvedQuestions', 'validation', 'provenance']);
 const SNAPSHOT_KEYS = Object.freeze({
-  entityTypes: ['typeId', 'code', 'name', 'status', 'schemaVersion', 'fields'],
-  modules: ['moduleId', 'moduleCode', 'name', 'status', 'version', 'formSchema', 'primaryEntityTypeId'],
+  entityTypes: ['typeId', 'code', 'name', 'description', 'category', 'status', 'schemaVersion', 'fields'],
+  modules: ['moduleId', 'moduleCode', 'name', 'description', 'category', 'status', 'version', 'formSchema', 'displayConfig', 'capabilities', 'primaryEntityTypeId'],
   relationships: ['relationshipId', 'relationshipType', 'source', 'target'],
   worksets: ['worksetId', 'name', 'status', 'moduleIds'],
   widgets: ['widgetId', 'name', 'type', 'source', 'moduleId', 'moduleIds', 'status'],
@@ -46,7 +46,7 @@ export function createAutomatBuildPlan(value) {
     if (!plain(contribution) || !contribution.agentCode || !contribution.agentVersion || !contribution.requestId || !contribution.providerAdapter) throw new Error('Invalid BuildPlan agent provenance');
   }
   if (bytes(value) > AUTOMAT_BOUNDS.MAX_PLAN_BYTES) throw new Error('AutomatBuildPlan exceeds size limit');
-  const limits = [['businessAreas', AUTOMAT_BOUNDS.MAX_BUSINESS_AREAS], ['domainObjects', AUTOMAT_BOUNDS.MAX_DOMAIN_OBJECTS], ['processes', AUTOMAT_BOUNDS.MAX_PROCESSES], ['capabilities', AUTOMAT_BOUNDS.MAX_CAPABILITIES], ['proposedEntityTypes', AUTOMAT_BOUNDS.MAX_ENTITY_TYPES], ['proposedModules', AUTOMAT_BOUNDS.MAX_MODULES], ['proposedRelationships', AUTOMAT_BOUNDS.MAX_RELATIONSHIPS], ['proposedWorksets', AUTOMAT_BOUNDS.MAX_WORKSETS], ['proposedWidgets', AUTOMAT_BOUNDS.MAX_WIDGETS], ['proposedReports', AUTOMAT_BOUNDS.MAX_REPORTS], ['warnings', AUTOMAT_BOUNDS.MAX_WARNINGS], ['unresolvedQuestions', AUTOMAT_BOUNDS.MAX_QUESTIONS]];
+  const limits = [['businessAreas', AUTOMAT_BOUNDS.MAX_BUSINESS_AREAS], ['domainObjects', AUTOMAT_BOUNDS.MAX_DOMAIN_OBJECTS], ['processes', AUTOMAT_BOUNDS.MAX_PROCESSES], ['capabilities', AUTOMAT_BOUNDS.MAX_CAPABILITIES], ['proposedEntityTypes', AUTOMAT_BOUNDS.MAX_ENTITY_TYPES], ['proposedModules', AUTOMAT_BOUNDS.MAX_MODULES], ['proposedRelationships', AUTOMAT_BOUNDS.MAX_RELATIONSHIPS], ['proposedWorksets', AUTOMAT_BOUNDS.MAX_WORKSETS], ['proposedWidgets', AUTOMAT_BOUNDS.MAX_WIDGETS], ['proposedReports', AUTOMAT_BOUNDS.MAX_REPORTS], ['architectDecisions', AUTOMAT_BOUNDS.MAX_ARCHITECT_DECISIONS], ['warnings', AUTOMAT_BOUNDS.MAX_WARNINGS], ['unresolvedQuestions', AUTOMAT_BOUNDS.MAX_QUESTIONS]];
   for (const [key, limit] of limits) bounded(array(value[key] || [], key), limit, key);
   return Object.freeze(structuredClone(value));
 }

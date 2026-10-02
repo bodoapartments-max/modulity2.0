@@ -101,6 +101,10 @@ Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, 
 
 An Entity exists once. Modules reference it. Example: Room 214 is referenced by Reservation, Housekeeping, Maintenance and Damage Report modules.
 
+### Workspace evolution planning (Step 10.1)
+
+`WorkspaceSemanticModel` and `WorkspaceEvolutionPlan` are bounded in-memory planning representations, not canonical data stores. They summarize Entity Type and Module configuration, references, Worksets, Widgets, and Reports; they exclude operational Entities and Records. Only the compiled AutomatBuildPlan may enter the existing reviewed/persisted/trusted apply lifecycle. Architect decision rationale is planning provenance, not business master data.
+
 ### Generic Entity Management (Step 10.0)
 
 The Entity Type registry is administrative schema metadata. The operational flow is `Entities → Entity Type → bounded Entity List → Entity Detail/Create/Edit`. Lists are scoped to one explicit `entityTypeId`, ordered by `displayName` plus document ID, paginated in pages of at most 100, and optionally prefix-search/status-filtered. Columns derive from the first four schema fields with lifecycle status; EntityReference values resolve to display names without changing canonical storage. Core definitions are read-only contracts, while Core and Domain Entity instances share the same lifecycle-safe CRUD service.

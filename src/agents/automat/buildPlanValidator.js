@@ -37,16 +37,18 @@ function validateSafeData(value, path, issues, depth = 0) {
 
 function classify(plan, snapshot) {
   const classifications = [];
+  const normalizeEntityRefs = (fields = []) => fields.map((field) => { const existingType = field.type === 'entity-reference' ? snapshot.entityTypes.find((item) => item.typeId === field.entityTypeId || `entityType:${item.code}` === field.entityTypeId) : null; return existingType ? { ...field, entityTypeId: `entityType:${existingType.code}` } : field; });
   for (const proposed of plan.proposedEntityTypes || []) {
     const existing = snapshot.entityTypes.find((item) => item.code === proposed.code);
-    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(existing.fields, proposed.fields) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
+    const proposedFields = (proposed.fields || []).map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: classifications.find((item) => item.ref === field.entityTypeId && item.operation === PLAN_OPERATION_CLASSIFICATIONS.REUSE)?.existingResourceId || snapshot.entityTypes.find((item) => `entityType:${item.code}` === field.entityTypeId)?.typeId || field.entityTypeId } : field);
+    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(normalizeEntityRefs(existing.fields), normalizeEntityRefs(proposedFields)) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
     classifications.push({ ref: proposed.ref, resourceType: 'ENTITY_TYPE', operation, existingResourceId: existing?.typeId || null });
   }
   const resolveEntityTypeId = (value) => classifications.find((item) => item.ref === value && item.operation === PLAN_OPERATION_CLASSIFICATIONS.REUSE)?.existingResourceId || value;
   for (const proposed of plan.proposedModules || []) {
     const existing = snapshot.modules.find((item) => item.moduleCode === proposed.moduleCode);
     const proposedFields = proposed.formSchema?.fields?.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: resolveEntityTypeId(field.entityTypeId) } : field);
-    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(existing.formSchema?.fields, proposedFields) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
+    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(normalizeEntityRefs(existing.formSchema?.fields), normalizeEntityRefs(proposedFields)) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
     classifications.push({ ref: proposed.ref, resourceType: 'MODULE', operation, existingResourceId: existing?.moduleId || null });
   }
   const resolvedId = (ref) => classifications.find((item) => item.ref === ref && item.operation === PLAN_OPERATION_CLASSIFICATIONS.REUSE)?.existingResourceId || null;

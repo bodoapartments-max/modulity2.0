@@ -18,6 +18,16 @@ describe('Automat planning application boundary', () => {
     expect(result).not.toHaveProperty('apply');
   });
 
+  it('guards Workspace evolution with the same no-mutation snapshot boundary', async () => {
+    const snapshot = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1' });
+    const snapshotService = { load: vi.fn().mockResolvedValue(snapshot), assertUnchanged: vi.fn().mockReturnValue(true) };
+    const result = await createAutomatPlanningService({ snapshotService }).evolve({ requestId: 'request-evolution', workspace, userId: 'user-1', businessRequest: 'We need storage.' });
+    expect(snapshotService.load).toHaveBeenCalledTimes(2);
+    expect(snapshotService.assertUnchanged).toHaveBeenCalledWith(snapshot, snapshot);
+    expect(result.workspaceUnchanged).toBe(true);
+    expect(result.requiresClarification).toBe(true);
+  });
+
   it('rejects arbitrary Workspace IDs before snapshot reads', async () => {
     const snapshotService = { load: vi.fn(), assertUnchanged: vi.fn() };
     await expect(createAutomatPlanningService({ snapshotService }).plan({ requestId: 'request-1', workspace, userId: 'user-1', organizationInput: { ...organizationInput, workspaceId: 'other' } })).rejects.toThrow('Current authenticated Workspace');

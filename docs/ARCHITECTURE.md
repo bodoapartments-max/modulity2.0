@@ -363,6 +363,12 @@ Step 9.2 persists/revalidates the reviewed plan through `automatPlan`, binds exp
 
 Automat-created Modules enter the same generic runtime as manual Modules: Module card → schema-driven paginated Record List → canonical Record Detail. Record queries normalize Firestore directions to lowercase, use deterministic document-ID tie-breaking and deployed composite indexes, and never download the Workspace for filtering. See `docs/AUTOMAT_ARCHITECTURE.md` and ADR-0002.
 
+## Step 10.1 — Automat Workspace Architect
+
+The Workspace Architect analyzes bounded canonical configuration before proposing evolution. `WorkspaceSemanticModel` is in-memory planning data, never a second source of truth. A provider-neutral `WORKSPACE_ARCHITECT` Agent produces a structured Evolution Plan with REUSE/CREATE/CONNECT/CONFLICT/UNSUPPORTED decisions and concise rationale. That plan compiles into the existing AutomatBuildPlan; deterministic classification, fingerprints, review, approval, and the Step 9.2 trusted apply engine remain authoritative.
+
+The Architect prefers Core vocabulary and separates persistent things from processes. It never generates Entity instances, Records, executable code, destructive operations, schema replacement, Calendar copies, or RelationshipDefinition. Ambiguous requests and bounded-context truncation stop before approval. See ADR-0003 and `AUTOMAT_ARCHITECTURE.md`.
+
 ## Step 10.0 — Generic Entity Management
 
 ```text
