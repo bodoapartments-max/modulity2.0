@@ -187,6 +187,10 @@ Entity Type schemas use the documented `ENTITY_FIELD_TYPES` subset. Earlier blue
 
 Views are projections of canonical Record data. They do not own data.
 
+### Implemented generic Module Record List
+
+`displayConfig.primaryField` and `displayConfig.listFields[]` declaratively select Form Schema fields for the generic Module Record table. When absent, the runtime safely uses the first four Form fields, followed by Status and Created. EntityReference cells resolve canonical Entity IDs to bounded human-readable labels without changing Record storage. Module cards open this list by default; each accessible row navigates by canonical Record ID to the shared Record Detail renderer.
+
 ### ListView Definition
 
 ```json

@@ -15,7 +15,7 @@ const RESOURCE_GROUPS = [
 ];
 const RESOURCE_KEYS = Object.freeze({
   proposedEntityTypes: new Set(['ref', 'code', 'name', 'description', 'fields']),
-  proposedModules: new Set(['ref', 'moduleCode', 'name', 'description', 'category', 'businessAreaRef', 'processRef', 'recordType', 'capabilities', 'formSchema', 'primaryEntityTypeRef', 'lifecycle', 'ledgerRequirements', 'rationale']),
+  proposedModules: new Set(['ref', 'moduleCode', 'name', 'description', 'category', 'businessAreaRef', 'processRef', 'recordType', 'capabilities', 'formSchema', 'displayConfig', 'primaryEntityTypeRef', 'lifecycle', 'ledgerRequirements', 'rationale']),
   proposedRelationships: new Set(['ref', 'sourceRef', 'targetRef', 'relationshipType', 'rationale']),
   proposedWorksets: new Set(['ref', 'name', 'description', 'moduleRefs', 'rationale']),
   proposedWidgets: new Set(['ref', 'name', 'moduleRefs', 'definition', 'rationale']),
@@ -42,18 +42,15 @@ function classify(plan, snapshot) {
     const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(existing.fields, proposed.fields) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
     classifications.push({ ref: proposed.ref, resourceType: 'ENTITY_TYPE', operation, existingResourceId: existing?.typeId || null });
   }
+  const resolveEntityTypeId = (value) => classifications.find((item) => item.ref === value && item.operation === PLAN_OPERATION_CLASSIFICATIONS.REUSE)?.existingResourceId || value;
   for (const proposed of plan.proposedModules || []) {
     const existing = snapshot.modules.find((item) => item.moduleCode === proposed.moduleCode);
-    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(existing.formSchema?.fields, proposed.formSchema?.fields) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
+    const proposedFields = proposed.formSchema?.fields?.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: resolveEntityTypeId(field.entityTypeId) } : field);
+    const operation = !existing ? PLAN_OPERATION_CLASSIFICATIONS.CREATE : sameFields(existing.formSchema?.fields, proposedFields) ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CONFLICT;
     classifications.push({ ref: proposed.ref, resourceType: 'MODULE', operation, existingResourceId: existing?.moduleId || null });
   }
   const resolvedId = (ref) => classifications.find((item) => item.ref === ref && item.operation === PLAN_OPERATION_CLASSIFICATIONS.REUSE)?.existingResourceId || null;
-  for (const proposed of plan.proposedRelationships || []) {
-    const source = resolvedId(proposed.sourceRef);
-    const target = resolvedId(proposed.targetRef);
-    const existing = snapshot.relationships.find((item) => item.relationshipType === proposed.relationshipType && item.source === source && item.target === target);
-    classifications.push({ ref: proposed.ref, resourceType: 'RELATIONSHIP', operation: existing ? PLAN_OPERATION_CLASSIFICATIONS.REUSE : PLAN_OPERATION_CLASSIFICATIONS.CREATE, existingResourceId: existing?.relationshipId || null });
-  }
+  for (const proposed of plan.proposedRelationships || []) classifications.push({ ref: proposed.ref, resourceType: 'RELATIONSHIP', operation: PLAN_OPERATION_CLASSIFICATIONS.UNSUPPORTED, existingResourceId: null });
   for (const proposed of plan.proposedWorksets || []) {
     const existing = snapshot.worksets.find((item) => item.name === proposed.name);
     const moduleIds = (proposed.moduleRefs || []).map(resolvedId).filter(Boolean);
@@ -133,6 +130,7 @@ export function validateAutomatBuildPlan(value, snapshot) {
   for (const [index, relationship] of (plan.proposedRelationships || []).entries()) for (const key of ['sourceRef', 'targetRef']) if (!refs.has(relationship[key])) issues.push(issue('BROKEN_REFERENCE', `proposedRelationships[${index}].${key}`, `Unknown plan reference: ${relationship[key]}`, relationship[key]));
   const classifications = snapshot ? classify(plan, snapshot) : [];
   for (const item of classifications.filter((entry) => entry.operation === PLAN_OPERATION_CLASSIFICATIONS.CONFLICT)) issues.push(issue('RESOURCE_CONFLICT', '$', `Existing resource conflicts with ${item.ref}`, item.ref));
+  for (const item of classifications.filter((entry) => entry.operation === PLAN_OPERATION_CLASSIFICATIONS.UNSUPPORTED)) issues.push(issue('OPTIONAL_UNSUPPORTED', '$', `Type-level relationship recommendation is review-only and will not be applied: ${item.ref}`, item.ref, BUILD_PLAN_ISSUE_SEVERITIES.WARNING));
   const hasErrors = issues.some((item) => item.severity === BUILD_PLAN_ISSUE_SEVERITIES.ERROR);
   const hasWarnings = issues.some((item) => item.severity === BUILD_PLAN_ISSUE_SEVERITIES.WARNING);
   return { status: hasErrors ? BUILD_PLAN_VALIDATION_STATUSES.INVALID : hasWarnings ? BUILD_PLAN_VALIDATION_STATUSES.VALID_WITH_WARNINGS : BUILD_PLAN_VALIDATION_STATUSES.VALID, issues, classifications };

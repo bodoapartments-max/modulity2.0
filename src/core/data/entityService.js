@@ -160,5 +160,6 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     listEntities,
     resolveEntityReference,
     resolveEntityReferences,
+    getEntitiesByIds: entityRepo.getManyByIds,
   };
 }

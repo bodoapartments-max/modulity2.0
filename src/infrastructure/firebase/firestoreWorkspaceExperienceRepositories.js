@@ -46,6 +46,10 @@ export function createFirestoreWidgetRepository(db) {
       return widget;
     },
     async getById(workspaceId, id) { return mapSnapshot(await getDoc(ref(workspaceId, id)), 'widgetId'); },
+    async listByWorkspace(workspaceId) {
+      const snapshot = await getDocs(query(col(workspaceId), where('status', '==', 'ACTIVE'), limit(100)));
+      return snapshot.docs.map((item) => mapSnapshot(item, 'widgetId'));
+    },
     async listForUser(workspaceId, userId) {
       const snapshot = await getDocs(query(col(workspaceId), where('ownerUserId', '==', userId), where('status', '==', 'ACTIVE'), limit(50)));
       return snapshot.docs.map((item) => mapSnapshot(item, 'widgetId'));

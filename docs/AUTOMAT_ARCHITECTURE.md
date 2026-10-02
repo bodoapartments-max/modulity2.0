@@ -16,7 +16,7 @@ User Intent
 
 Agents propose. Core validates. A human reviews. A future deterministic application service may execute an approved plan in Step 9.2 through existing canonical services.
 
-Step 9.0 established contracts without organization reasoning. Step 9.1 now generates and reviews plans through deterministic specialist Agents, but still does not apply plans, write Firestore, create canonical resources, generate React/JSX, invoke external AI, or require provider secrets.
+Step 9.0 established contracts and Step 9.1 generates/reviews plans through deterministic specialist Agents. Step 9.2 adds a separate trusted deterministic apply boundary; Agents still cannot write Firestore, generate React/JSX, invoke external AI during apply, or receive canonical authority.
 
 ## Agent infrastructure
 
@@ -187,12 +187,46 @@ Authenticated browser verification on `modulity-2-dev` used the clean disposable
 
 ## Explicit deferrals
 
-### Step 9.2 not implemented
+## Step 9.2 — Trusted BuildPlan Application
 
-- BuildPlan approval persistence
-- Apply/application service
-- Canonical Entity Type, Module, Relationship, Workset, Widget, or Report writes
-- Plan-reference-to-resource-ID mapping
-- Apply idempotency, migrations, rollback, or audit
+```text
+reviewed in-memory plan
+→ automatPlan callable persists and revalidates
+→ immutable SHA-256 plan/configuration fingerprints
+→ OWNER/Personal-owner approval
+→ automatApplyPlan callable
+→ current snapshot/fingerprint verification
+→ Workspace apply lock and idempotent operation journal
+→ Entity Types → Modules/version snapshots → Worksets → Widgets → Reports
+→ post-apply verification
+→ Audit + one completion Notification
+```
 
-Also deferred: automation rules, triggers/actions, webhooks, API tokens/service identities, external-agent execution, persisted execution history, cancellation signals, provider retries, and multi-agent workflows.
+Plans persist at `workspaces/{workspaceId}/automatPlans/{planId}`. Browser clients may read through Workspace access but cannot create or mutate plans. The trusted callable owns READY_FOR_REVIEW → APPROVED → APPLYING → APPLIED/FAILED transitions. Approval binds planId, planVersion, plan fingerprint, Workspace, approver, and planning configuration fingerprint.
+
+Operations persist at Admin-only `automatApplyOperations/{operationId}`. The Workspace lock is `workspaceAutomatOperations/{workspaceId}` and uses a ten-minute renewable lease. Minimal external evidence persists at `automatApplyAudits/{operationId}`. The operation stores resource-level classifications/actions/statuses and PlanReference→canonical ID mapping, never operational payload copies.
+
+CREATE rechecks canonical code/name identity. REUSE verifies compatibility through the current BuildPlan classification. SAFE_UPDATE is disabled for every resource type; incompatible changes remain CONFLICT and require a future migration policy. REPLACE_DELETE does not exist.
+
+Application is phase-based, not globally atomic. Successful resources remain canonical after partial failure. The operation records PARTIAL_FAILED and the current configuration fingerprint. Retry with the same operation ID resumes, reclassifies successful resources as REUSE, and never destructively rolls back.
+
+Type-level relationship proposals do not match the canonical instance Relationship model. They are optional UNSUPPORTED review recommendations, omitted from apply, and do not block an otherwise coherent plan. EntityReference fields remain the supported Record→Entity mechanism. No RelationshipDefinition model or fake Entity instances are introduced.
+
+Automat-created Modules are ACTIVE with immutable Version 1 snapshots, permanent code reservations, and declarative `displayConfig` list fields. The generic Module Record List renders those fields with a Form Schema fallback, resolves EntityReference labels, and opens canonical Record Detail by recordId. System application creates no Records, Entity instances, Ledger Books, Ledger Entries, or sequence allocations.
+
+The server entitlement integration point currently grants `automat.system_builder` only in the `modulity-2-dev` project or Emulator after independent authority verification. Subscription-backed server entitlement resolution remains required before production availability.
+
+Workspace Reset deletes Workspace-scoped plans and canonical generated configuration, clears non-historical Workspace apply lock state, and preserves top-level apply operation/audit evidence.
+
+Deployment verification on `modulity-2-dev` passed with Node.js 22 v2 callables `automatPlan` and `automatApplyPlan` in `europe-west1`. `Reset Test Hotel` completed trusted CREATE apply (14 resources), canonical Room Entity and Reservation Record creation, generic two-Record Module list/detail navigation, and an equivalent second plan with CREATE 0 / REUSE 14 and no duplicate counts. OWNER approval, fingerprints, audit, notification, cache refresh, Dashboard/Widgets/Reports, desktop, 768px, and 375px flows passed. Emulator coverage proves MEMBER/cross-Workspace denial, Personal owner, stale plan, conflict, partial failure/resume, and concurrent/idempotent operation behavior.
+
+The browser smoke exposed and fixed uppercase Firestore sort directions reaching `orderBy()`, which caused Firebase's internal assertion and misleading index errors. Record directions are normalized to lowercase, ascending/descending composite indexes are canonical and deployed, and Module Record tables now use declarative/fallback Form columns with batched EntityReference labels and accessible canonical Record navigation.
+
+## Remaining deferrals
+
+- Subscription-backed server entitlement resolution
+- Any SAFE_UPDATE policy
+- RelationshipDefinition architecture
+- Destructive migration/rollback
+- Production background jobs for plans beyond current bounds
+- Automation rules, triggers/actions, webhooks, API tokens/service identities, external-agent execution, cancellation signals, provider retries, and multi-agent workflows

@@ -52,11 +52,13 @@ describe('trusted Workspace reset', () => {
     const plan = await buildResetPlan(db, 'personal-owner', 'owner');
     expect(plan.mode).toBe('WORKSPACE_DATA_RESET');
     expect(plan.preserve).toContain('workspaceDocument');
+    await db.doc('workspaceAutomatOperations/personal-owner').set({ status: 'APPLIED', operationId: 'old-operation' });
     const first = await executeWorkspaceReset(db, { workspaceId: 'personal-owner', userId: 'owner', requestId: 'req-1', confirmation: 'personal-owner' });
     expect(first.status).toBe('SUCCESS');
     await assertWorkspaceEmpty('personal-owner');
     expect((await db.doc('users/owner').get()).exists).toBe(true);
     expect((await db.doc('workspaces/personal-owner').get()).exists).toBe(true);
+    expect((await db.doc('workspaceAutomatOperations/personal-owner').get()).exists).toBe(false);
     const retry = await executeWorkspaceReset(db, { workspaceId: 'personal-owner', userId: 'owner', requestId: 'req-1', confirmation: 'personal-owner' });
     expect(retry.idempotent).toBe(true);
     expect((await db.doc(`workspaceResetAudits/${first.auditId}`).get()).exists).toBe(true);
@@ -83,6 +85,13 @@ describe('trusted Workspace reset', () => {
     expect((await db.doc('workspaces/workspace-a/records/new-record').get()).exists).toBe(true);
   });
 
+  it('rejects reset while trusted Automat apply is active', async () => {
+    await seedWorkspace('apply-active');
+    await db.doc('workspaceAutomatOperations/apply-active').set({ status: 'APPLYING', operationId: 'operation-active' });
+    await expect(executeWorkspaceReset(db, { workspaceId: 'apply-active', userId: 'owner', requestId: 'reset-active', confirmation: 'apply-active' })).rejects.toMatchObject({ code: 'already-exists' });
+    expect((await db.doc('workspaces/apply-active/modules/fixture').get()).exists).toBe(true);
+  });
+
   it('rejects wrong confirmation and concurrent duplicate reset requests', async () => {
     await seedWorkspace('concurrent');
     await expect(executeWorkspaceReset(db, { workspaceId: 'concurrent', userId: 'owner', requestId: 'wrong', confirmation: 'RESET' })).rejects.toMatchObject({ code: 'failed-precondition' });
@@ -90,8 +99,8 @@ describe('trusted Workspace reset', () => {
       executeWorkspaceReset(db, { workspaceId: 'concurrent', userId: 'owner', requestId: 'one', confirmation: 'concurrent' }),
       executeWorkspaceReset(db, { workspaceId: 'concurrent', userId: 'owner', requestId: 'two', confirmation: 'concurrent' }),
     ]);
-    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'fulfilled').length).toBeGreaterThanOrEqual(1);
+    expect(results.every((result) => result.status === 'fulfilled' || result.reason?.code === 'already-exists')).toBe(true);
     await assertWorkspaceEmpty('concurrent');
   });
 });

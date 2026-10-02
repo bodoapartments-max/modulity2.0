@@ -100,7 +100,7 @@ export function createRecordQuery({
     createdFrom: createdFrom || null,
     createdTo: createdTo || null,
     sortField: sortField || SORT_FIELDS.CREATED_AT,
-    sortDirection: sortDirection || SORT_DIRECTIONS.DESC,
+    sortDirection: (sortDirection || SORT_DIRECTIONS.DESC).toLowerCase(),
     startAfter,
     limit: clampedLimit,
   });

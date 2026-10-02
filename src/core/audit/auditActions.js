@@ -51,6 +51,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   ENTITY_CREATED: 'entity.created',
   ENTITY_UPDATED: 'entity.updated',
   ENTITY_ARCHIVED: 'entity.archived',
+
+  AUTOMAT_PLAN_APPLIED: 'automat.plan.applied',
 });
 
 /** All valid action strings for validation. */
@@ -77,6 +79,7 @@ export const AUDIT_RESOURCE_TYPES = Object.freeze({
   MODULE: 'MODULE',
   ENTITY: 'ENTITY',
   ENTITY_TYPE: 'ENTITY_TYPE',
+  AUTOMAT_PLAN: 'AUTOMAT_PLAN',
 });
 
 /**

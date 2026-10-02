@@ -159,6 +159,15 @@ service cloud.firestore {
         );
       }
 
+      function canManageWorkspace() {
+        return isAuthenticated() && (
+          (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+            && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+          || (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+            && isAdminOrOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+        );
+      }
+
       function userCanAccessWorkspace(userId) {
         return (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
             && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == userId)
@@ -788,7 +797,7 @@ service cloud.firestore {
       // ─── Widget Definitions ────────────────────────────────
       match /widgetDefinitions/{widgetId} {
         allow read: if canAccessWorkspace()
-          && resource.data.ownerUserId == request.auth.uid;
+          && (resource.data.ownerUserId == request.auth.uid || canManageWorkspace());
         allow create: if canAccessWorkspace()
           && request.resource.data.workspaceId == workspaceId
           && request.resource.data.widgetId == widgetId
@@ -820,6 +829,11 @@ service cloud.firestore {
           && request.resource.data.status in ['ACTIVE', 'ARCHIVED']
           && isBoundedAnalyticsDefinition(request.resource.data, workspaceId);
         allow delete: if false;
+      }
+
+      match /automatPlans/{planId} {
+        allow read: if canAccessWorkspace();
+        allow create, update, delete: if false;
       }
 
       // ─── Notifications ─────────────────────────────────────

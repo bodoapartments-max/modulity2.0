@@ -1,3 +1,4 @@
+import { fingerprintValue } from '../agents/automat/planIntegrity.js';
 import { createSystemPlanningOrchestrator } from '../agents/planning/systemPlanningOrchestrator.js';
 import { createWorkspaceSnapshotService } from '../agents/planning/workspaceSnapshotService.js';
 import { repositories } from './repositories.js';
@@ -12,7 +13,7 @@ export function createAutomatPlanningService({ snapshotService = createWorkspace
       const result = await planner.plan({ requestId, workspaceId: workspace.workspaceId, requestedBy: userId, organizationInput, snapshot: before, onStage });
       const after = await snapshotService.load(workspace.workspaceId, userId);
       snapshotService.assertUnchanged(before, after);
-      return Object.freeze({ ...result, snapshot: before, workspaceUnchanged: true, providerStrategy: 'DETERMINISTIC_TEST' });
+      return Object.freeze({ ...result, snapshot: before, configurationFingerprint: await fingerprintValue(before), workspaceUnchanged: true, providerStrategy: 'DETERMINISTIC_TEST' });
     },
   };
 }

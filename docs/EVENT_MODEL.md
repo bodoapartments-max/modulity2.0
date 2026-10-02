@@ -264,6 +264,12 @@ Each durable audit action has exactly **one owner** — either a business servic
 
 **Ledger events are intentionally excluded from AuditBridge** to prevent duplicate AuditEntries.
 
+## Automat application (Step 9.2)
+
+A successful trusted application writes one append-only `automat.plan.applied` AuditEntry and one recipient-scoped `AUTOMAT_PLAN_APPLIED` Notification. Resource-level results remain in the apply operation journal rather than producing event/notification spam for every Module. Agent provenance, plan lifecycle, operation journal, durable Audit, and Notification remain distinct.
+
+The trusted Function does not reuse the in-memory browser Event Bus. A future distributed event dispatcher may emit `automat.plan.applied`; Step 9.2 does not claim durable Event Bus delivery. Unlike best-effort runtime audit bridges, completion of this privileged administrative operation requires its AuditEntry and external audit metadata; failure leaves the operation resumable rather than reporting APPLIED.
+
 ## Safety
 - Audit persistence errors are caught and logged, never thrown into the Event Bus path or the LedgerService caller
 - This prevents audit failures from breaking primary business operations

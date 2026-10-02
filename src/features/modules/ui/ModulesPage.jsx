@@ -80,7 +80,7 @@ export default function ModulesPage() {
           {modules.map((mod) => (
             <Link
               key={mod.moduleId}
-              to={`/app/modules/${mod.moduleId}`}
+              to={`/app/modules/${mod.moduleId}/records`}
               className="block p-4 bg-white border border-neutral-200 rounded-lg hover:border-primary-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between">

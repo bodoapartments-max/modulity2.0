@@ -55,6 +55,8 @@ async function deleteResource(db, workspaceId, resource) {
 
 export async function executeWorkspaceReset(db, { workspaceId, userId, requestId, confirmation }) {
   if (!requestId || typeof requestId !== 'string' || requestId.length > 128) throw new HttpsError('invalid-argument', 'A valid requestId is required.');
+  const automatOperation = await db.doc(`workspaceAutomatOperations/${workspaceId}`).get();
+  if (automatOperation.exists && automatOperation.data().status === 'APPLYING') throw new HttpsError('already-exists', 'An Automat plan is currently applying to this Workspace.');
   const plan = await buildResetPlan(db, workspaceId, userId);
   if (confirmation !== plan.workspaceName) throw new HttpsError('failed-precondition', 'Workspace name confirmation does not match.');
   const operationRef = db.doc(`workspaceResetOperations/${workspaceId}`);
@@ -78,6 +80,7 @@ export async function executeWorkspaceReset(db, { workspaceId, userId, requestId
       await operationRef.update({ currentResource: resource.resource, updatedAt: FieldValue.serverTimestamp() });
     }
     await db.doc(`workspaces/${workspaceId}`).update({ dataGeneration: FieldValue.increment(1), lastResetAt: FieldValue.serverTimestamp(), lastResetBy: userId });
+    await db.doc(`workspaceAutomatOperations/${workspaceId}`).delete();
     await db.doc(`workspaceResetAudits/${auditId}`).set({ workspaceId, workspaceType: plan.workspaceType, requestedBy: userId, executedAt: FieldValue.serverTimestamp(), mode: plan.mode, result: 'SUCCESS', deletedCounts });
     await operationRef.set({ ...plan, requestId, auditId, status: 'SUCCESS', requestedBy: userId, deletedCounts, completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     return { status: 'SUCCESS', idempotent: false, auditId, workspaceId, deletedCounts };

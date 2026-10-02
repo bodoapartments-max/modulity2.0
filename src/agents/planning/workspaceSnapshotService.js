@@ -21,7 +21,7 @@ export function createWorkspaceSnapshotService({ repositories }) {
         repositories.modules.listByWorkspace(workspaceId, max),
         repositories.relationships.listByWorkspace(workspaceId, max),
         repositories.worksets.listByWorkspace(workspaceId),
-        repositories.widgets.listForUser(workspaceId, userId),
+        repositories.widgets.listByWorkspace(workspaceId),
         repositories.reports.listByWorkspace(workspaceId),
       ]);
       return createWorkspaceConfigurationSnapshot({ workspaceId, entityTypes, modules, relationships, worksets, widgets, reports });

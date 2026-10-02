@@ -31,7 +31,7 @@ describe('Step 9.1 System Planning Orchestrator', () => {
 
   it('produces theatre-specific operations without hotel concepts', async () => {
     const result = await plan('I operate a theatre producing live shows with actors, rehearsals, performances, costumes, props, lighting and sound.');
-    expect(result.validation.status).toBe('VALID');
+    expect(result.validation.status).toBe('VALID_WITH_WARNINGS');
     expect(codes(result.plan.businessAreas, 'code')).toEqual(expect.arrayContaining(['PRODUCTIONS', 'REHEARSALS', 'PERFORMANCES', 'STAGE']));
     expect(codes(result.plan.proposedModules, 'moduleCode')).toEqual(expect.arrayContaining(['REHEARSAL_REPORT', 'SHOW_REPORT', 'COSTUME_PROP_CHECK', 'TECHNICAL_CHECK']));
     expect(codes(result.plan.proposedModules, 'moduleCode')).not.toContain('RESERVATION');
@@ -40,7 +40,7 @@ describe('Step 9.1 System Planning Orchestrator', () => {
 
   it('produces school-specific domain and process planning', async () => {
     const result = await plan('I manage a private school with 300 students, 35 teachers, 20 classrooms and shared equipment.');
-    expect(result.validation.status).toBe('VALID');
+    expect(result.validation.status).toBe('VALID_WITH_WARNINGS');
     expect(codes(result.plan.domainObjects, 'code')).toEqual(expect.arrayContaining(['STUDENT', 'TEACHER', 'CLASS', 'COURSE', 'EQUIPMENT']));
     expect(codes(result.plan.proposedModules, 'moduleCode')).toEqual(expect.arrayContaining(['ATTENDANCE', 'STUDENT_INCIDENT', 'EQUIPMENT_CHECK']));
     expect(result.plan.domainObjects.find((item) => item.code === 'TEACHER')).toMatchObject({ classification: 'CORE_REUSE', coreEntityCode: 'EMPLOYEE' });
@@ -60,7 +60,8 @@ describe('Step 9.1 System Planning Orchestrator', () => {
     const first = await plan(description);
     const room = first.plan.proposedEntityTypes.find((item) => item.code === 'ROOM');
     const reservation = first.plan.proposedModules.find((item) => item.moduleCode === 'RESERVATION');
-    const compatible = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', entityTypes: [{ typeId: 'room-id', code: 'ROOM', fields: room.fields }], modules: [{ moduleId: 'reservation-id', moduleCode: 'RESERVATION', formSchema: reservation.formSchema }] });
+    const compatibleFormSchema = { ...reservation.formSchema, fields: reservation.formSchema.fields.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: 'room-id' } : field) };
+    const compatible = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', entityTypes: [{ typeId: 'room-id', code: 'ROOM', fields: room.fields }], modules: [{ moduleId: 'reservation-id', moduleCode: 'RESERVATION', formSchema: compatibleFormSchema }] });
     const reused = await plan(description, { requestId: 'request-reuse', snapshot: compatible });
     expect(reused.validation.classifications).toEqual(expect.arrayContaining([expect.objectContaining({ ref: 'entityType:ROOM', operation: 'REUSE' }), expect.objectContaining({ ref: 'module:RESERVATION', operation: 'REUSE' })]));
     const conflicting = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', entityTypes: compatible.entityTypes, modules: [{ ...compatible.modules[0], formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'different', label: 'Different', type: 'text', required: true }] } }] });

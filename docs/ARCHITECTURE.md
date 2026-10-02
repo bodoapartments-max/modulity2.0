@@ -357,7 +357,11 @@ User Intent
 
 The Agent layer is React-independent and has no repository or canonical mutation dependency. Step 9.0 remains domain-only: no execution/plan persistence, external AI provider, canonical apply service, or generated UI code. WorkspaceConfigurationSnapshot contains bounded configuration summaries only and excludes operational datasets.
 
-Step 9.1 composes six registered specialists through the same Orchestrator and deterministic provider boundary. Structured operating-domain knowledge produces review-only hotel, theatre, and school plans; Core validation remains industry-neutral. The lazy `/app/automat` client reads the current authenticated Workspace, performs bounded parallel configuration reads before and after planning, verifies no mutation, and renders the in-memory plan. See `docs/AUTOMAT_ARCHITECTURE.md`.
+Step 9.1 composes six registered specialists through the same Orchestrator and deterministic provider boundary. Structured operating-domain knowledge produces review-only hotel, theatre, and school plans; Core validation remains industry-neutral. The lazy `/app/automat` client reads the current authenticated Workspace, performs bounded parallel configuration reads before and after planning, verifies no mutation, and renders the plan.
+
+Step 9.2 persists/revalidates the reviewed plan through `automatPlan`, binds explicit approval to plan/configuration fingerprints, and applies only through `automatApplyPlan`. The Admin engine uses copied-at-build canonical pure validators, dependency phases, a Workspace lease lock, idempotent operation journal, deterministic IDs/code reservations, Module Version 1 snapshots, reference mapping, audit, and verification. It does not call Agents or AI.
+
+Automat-created Modules enter the same generic runtime as manual Modules: Module card → schema-driven paginated Record List → canonical Record Detail. Record queries normalize Firestore directions to lowercase, use deterministic document-ID tie-breaking and deployed composite indexes, and never download the Workspace for filtering. See `docs/AUTOMAT_ARCHITECTURE.md` and ADR-0002.
 
 ## Step 8.1 — Trusted Workspace Reset
 

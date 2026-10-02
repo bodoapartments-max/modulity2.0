@@ -23,6 +23,8 @@ describe('Automat contracts', () => {
     const snapshot = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', modules: [{ moduleId: 'one', records: [{ recordId: 'must-not-copy' }] }] });
     expect(snapshot).not.toHaveProperty('records');
     expect(snapshot.modules[0]).not.toHaveProperty('records');
+    const ordered = createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', modules: [{ moduleId: 'z' }, { moduleId: 'a' }] });
+    expect(ordered.modules.map((item) => item.moduleId)).toEqual(['a', 'z']);
     expect(snapshot).not.toHaveProperty('entities');
     expect(() => createWorkspaceConfigurationSnapshot({ workspaceId: 'workspace-1', modules: Array.from({ length: AUTOMAT_BOUNDS.MAX_SNAPSHOT_ITEMS_PER_TYPE + 1 }, (_, index) => ({ moduleId: String(index) })) })).toThrow('exceeds limit');
   });

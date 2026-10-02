@@ -1,0 +1,22 @@
+import { cp, mkdir, rm } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const functionsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = resolve(functionsRoot, '..');
+const outputRoot = resolve(functionsRoot, 'src/generated');
+const files = [
+  'src/agents/automat/automatContracts.js', 'src/agents/automat/buildPlanValidator.js', 'src/agents/automat/planIntegrity.js', 'src/agents/automat/automatApplyContract.js',
+  'src/core/data/entityType.js', 'src/core/data/entity.js', 'src/core/data/actorRef.js',
+  'src/core/audit/auditActions.js', 'src/core/audit/auditEntry.js',
+  'src/core/analytics/analyticsDefinition.js', 'src/core/analytics/reportDefinition.js',
+  'src/core/workspace/widgetDefinition.js', 'src/core/workspace/workset.js', 'src/core/workspace/notification.js',
+  'src/modules/module.js', 'src/modules/forms/formSchemaValidator.js',
+];
+
+await rm(outputRoot, { recursive: true, force: true });
+for (const file of files) {
+  const target = resolve(outputRoot, file);
+  await mkdir(dirname(target), { recursive: true });
+  await cp(resolve(projectRoot, file), target);
+}

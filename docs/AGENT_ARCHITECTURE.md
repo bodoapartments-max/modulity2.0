@@ -188,7 +188,9 @@ The earlier OpenAI/model names in this document are illustrative only. Domain co
 
 AgentExecutionResult and AutomatBuildPlan remain domain-only through Step 9.1. No Agent or provider has a repository, Firestore, Module, Record, Ledger, Membership, permission, or apply path.
 
-Step 9.1 registers six specialists: ORGANIZATION_ANALYZER, DOMAIN_MODEL_PLANNER, PROCESS_PLANNER, MODULE_PLANNER, WORKSPACE_EXPERIENCE_PLANNER, and SYSTEM_REVIEWER. Structured outputs flow through the common Orchestrator and deterministic validators into a review-only BuildPlan. The shipped provider is deterministic structured knowledge; live AI providers remain optional and unimplemented. See `AUTOMAT_ARCHITECTURE.md`.
+Step 9.1 registers six specialists: ORGANIZATION_ANALYZER, DOMAIN_MODEL_PLANNER, PROCESS_PLANNER, MODULE_PLANNER, WORKSPACE_EXPERIENCE_PLANNER, and SYSTEM_REVIEWER. Structured outputs flow through the common Orchestrator and deterministic validators into a review-only BuildPlan. The shipped provider is deterministic structured knowledge; live AI providers remain optional and unimplemented.
+
+Step 9.2 does not grant these Agents persistence authority. A separate Firebase callable persists/revalidates the exact plan, records human approval, verifies fingerprints/authority/entitlement, and invokes a deterministic Admin apply engine. No Agent or provider executes during apply. See `AUTOMAT_ARCHITECTURE.md`.
 
 ## 10. Future Extensions
 

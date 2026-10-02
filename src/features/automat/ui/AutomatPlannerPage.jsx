@@ -9,7 +9,9 @@ import Label from '../../../design-system/components/Label/Label.jsx';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
 import { automatPlanningService } from '../../../infrastructure/automatPlanning.js';
+import { automatApplyClient } from '../../../infrastructure/firebase/automatApplyClient.js';
 import { AUTOMAT_UI_STATES, createOrganizationInput, planningStateForStage } from '../model.js';
+import AutomatApplyPanel from './AutomatApplyPanel.jsx';
 import AutomatPlanReview from './AutomatPlanReview.jsx';
 
 export default function AutomatPlannerPage() {
@@ -21,6 +23,7 @@ export default function AutomatPlannerPage() {
   const [employeeCount, setEmployeeCount] = useState('');
   const [state, setState] = useState(AUTOMAT_UI_STATES.IDLE);
   const [result, setResult] = useState(null);
+  const [persistedPlan, setPersistedPlan] = useState(null);
   const [error, setError] = useState(null);
 
   const running = [AUTOMAT_UI_STATES.ANALYZING, AUTOMAT_UI_STATES.PLANNING, AUTOMAT_UI_STATES.VALIDATING].includes(state);
@@ -28,11 +31,14 @@ export default function AutomatPlannerPage() {
     event.preventDefault();
     setError(null);
     setResult(null);
+    setPersistedPlan(null);
     try {
       const organizationInput = createOrganizationInput({ workspace: currentWorkspace, description, industry, country, employeeCount });
       setState(AUTOMAT_UI_STATES.ANALYZING);
       const next = await automatPlanningService.plan({ requestId: crypto.randomUUID(), workspace: currentWorkspace, userId: user.userId, organizationInput, onStage: (stage) => setState(planningStateForStage(stage)) });
+      const persisted = await automatApplyClient.persist({ workspaceId: currentWorkspace.workspaceId, plan: next.plan, planningFingerprint: next.configurationFingerprint });
       setResult(next);
+      setPersistedPlan(persisted);
       setState(AUTOMAT_UI_STATES.READY);
     } catch (planningError) {
       setError(planningError.message || 'System planning failed.');
@@ -52,6 +58,7 @@ export default function AutomatPlannerPage() {
       </form></Card>
       {error && <Alert variant="error">{error}</Alert>}
       {state === AUTOMAT_UI_STATES.READY && result && <AutomatPlanReview result={result} />}
+      {state === AUTOMAT_UI_STATES.READY && persistedPlan && <AutomatApplyPanel workspace={currentWorkspace} persistedPlan={persistedPlan} />}
     </div>
   </PageContainer>;
 }

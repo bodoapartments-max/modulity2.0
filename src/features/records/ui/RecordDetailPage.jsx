@@ -9,11 +9,12 @@
  * Entity References are resolved to display names.
  */
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
 import RecordHistory from './RecordHistory.jsx';
 import services from '../../../infrastructure/services.js';
+import { getRecordBackNavigation } from '../model.js';
 
 const STATUS_COLORS = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
@@ -26,6 +27,7 @@ const STATUS_COLORS = {
 
 export default function RecordDetailPage() {
   const { recordId } = useParams();
+  const [searchParams] = useSearchParams();
   const { currentWorkspace } = useWorkspace();
   const [record, setRecord] = useState(null);
   const [mod, setMod] = useState(null);
@@ -116,14 +118,11 @@ export default function RecordDetailPage() {
   const historicalSchema = versionSchema?.formSchema || mod?.formSchema;
   const fields = historicalSchema?.fields || [];
   const schemaSource = versionSchema ? 'historical' : (mod ? 'current' : 'none');
+  const backNavigation = getRecordBackNavigation(searchParams.get('fromModule'), mod);
 
   return (
     <div className="p-6 max-w-3xl">
-      {mod && (
-        <Link to={`/app/modules/${mod.moduleId}`} className="text-sm text-primary-600 hover:underline mb-4 inline-block">
-          &larr; Back to {mod.name}
-        </Link>
-      )}
+      <Link to={backNavigation.to} className="text-sm text-primary-600 hover:underline mb-4 inline-block">&larr; {backNavigation.label}</Link>
 
       {error && (
         <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>

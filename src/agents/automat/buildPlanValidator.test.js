@@ -5,14 +5,15 @@ import { createEmptyHotelPlan, createEmptyHotelSnapshot, createExistingHotelSnap
 describe('deterministic AutomatBuildPlan Validator', () => {
   it('represents a hotel generically and validates without industry-specific branches', () => {
     const result = validateAutomatBuildPlan(createEmptyHotelPlan(), createEmptyHotelSnapshot());
-    expect(result.status).toBe('VALID');
-    expect(result.classifications.filter((item) => item.operation === 'CREATE')).toHaveLength(12);
+    expect(result.status).toBe('VALID_WITH_WARNINGS');
+    expect(result.classifications.filter((item) => item.operation === 'CREATE')).toHaveLength(11);
+    expect(result.classifications).toContainEqual(expect.objectContaining({ ref: 'relationship:ROOM_STAY', operation: 'UNSUPPORTED' }));
     expect(createEmptyHotelPlan().proposedModules.map((item) => item.moduleCode)).toEqual(['RESERVATION', 'CHECK_IN', 'HOUSEKEEPING', 'MAINTENANCE']);
   });
 
   it('classifies compatible existing Entity Type and Module as REUSE rather than duplicate creation', () => {
     const result = validateAutomatBuildPlan(createEmptyHotelPlan(), createExistingHotelSnapshot());
-    expect(result.status).toBe('VALID');
+    expect(result.status).toBe('VALID_WITH_WARNINGS');
     expect(result.classifications).toEqual(expect.arrayContaining([
       expect.objectContaining({ ref: 'entityType:ROOM', operation: 'REUSE', existingResourceId: 'type-room' }),
       expect.objectContaining({ ref: 'module:RESERVATION', operation: 'REUSE', existingResourceId: 'module-reservation' }),
@@ -22,7 +23,7 @@ describe('deterministic AutomatBuildPlan Validator', () => {
 
   it('classifies incompatible existing resources as CONFLICT without replacement deletion', () => {
     const snapshot = structuredClone(createExistingHotelSnapshot());
-    snapshot.modules[0].formSchema.fields[0].type = 'text';
+    snapshot.modules.find((item) => item.moduleCode === 'RESERVATION').formSchema.fields[0].type = 'text';
     const result = validateAutomatBuildPlan(createEmptyHotelPlan(), snapshot);
     expect(result.status).toBe('INVALID');
     expect(result.classifications).toContainEqual(expect.objectContaining({ ref: 'module:RESERVATION', operation: 'CONFLICT' }));

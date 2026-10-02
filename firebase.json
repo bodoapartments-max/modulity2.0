@@ -4,7 +4,8 @@
     "indexes": "firestore.indexes.json"
   },
   "functions": {
-    "source": "functions"
+    "source": "functions",
+    "predeploy": "npm --prefix functions run build:shared"
   },
   "emulators": {
     "auth": {

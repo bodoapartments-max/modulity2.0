@@ -444,7 +444,17 @@ All new workspace-scoped collections enforce:
 - Step 9.1 accepts only the current authenticated Workspace from application context, then Firestore Rules authorize six bounded configuration reads. Workspace IDs from arbitrary form input are rejected.
 - Before/after snapshot fingerprints verify that planning did not alter canonical configuration. The planner has no mutation method.
 - Deterministic structured knowledge runs behind the provider adapter; malformed, oversized, unknown-property, timeout, and provider failures settle without canonical effects.
-- Authorization, server timestamps, plan lifecycle persistence, trusted approval, idempotent apply, and audit are Step 9.2 decisions.
+### Step 9.2 trusted application
+
+- `automatPlan` and `automatApplyPlan` are narrow Auth-required callables in `europe-west1`; no generic Admin endpoint exists.
+- Personal owner or active Organization OWNER is verified server-side for persistence, approval, apply, and status. MEMBER/cross-Workspace callers are denied.
+- The development entitlement grant is server-side and project-bound to `modulity-2-dev`/Emulator; production subscription resolution remains required.
+- Browser clients can read Workspace plans but all plan/lifecycle writes are denied. Top-level operations, locks, and audits are denied by default.
+- SHA-256 plan/configuration fingerprints bind approval and reject modified/stale plans.
+- CONFLICT and SAFE_UPDATE block apply. Optional type-level relationships are explicit UNSUPPORTED omissions. REPLACE_DELETE is absent.
+- The ten-minute renewable server lease prevents concurrent Workspace apply and permits explicit stale-operation recovery.
+- Partial success is journaled and resumed non-destructively. No operational data, Ledger sequence, permission, Membership, or Entity instance is created.
+- Shared canonical validators are copied into the Functions package by an allowlisted predeploy build; generated copies are not a second authored contract.
 
 ## Step 8.1 — Workspace Reset Security
 

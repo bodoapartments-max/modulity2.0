@@ -4,10 +4,11 @@
  * Same List Engine as Global List, but with moduleId filter applied.
  * Route: /app/modules/:moduleId/records
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
+import { buildModuleRecordColumns } from '../../../core/data/recordListPresentation.js';
 import services from '../../../infrastructure/services.js';
 import RecordTable from './RecordTable.jsx';
 
@@ -21,6 +22,7 @@ export default function ModuleRecordListPage() {
 
   const [mod, setMod] = useState(null);
   const [records, setRecords] = useState([]);
+  const [entityLabels, setEntityLabels] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -28,6 +30,7 @@ export default function ModuleRecordListPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
+  const columns = useMemo(() => buildModuleRecordColumns(mod), [mod]);
 
   useEffect(() => {
     if (!workspaceId || !moduleId) return;
@@ -52,6 +55,9 @@ export default function ModuleRecordListPage() {
         limit: 25,
       });
       if (result) {
+        const entityIds = result.items.flatMap((record) => (record.entityReferences || []).map((ref) => ref.entityId));
+        const entities = entityIds.length && services?.entity?.getEntitiesByIds ? await services.entity.getEntitiesByIds(workspaceId, entityIds) : [];
+        setEntityLabels((current) => ({ ...current, ...Object.fromEntries(entities.map((entity) => [entity.entityId, entity.displayName])) }));
         setRecords(cursor ? (prev) => [...prev, ...result.items] : result.items);
         setHasMore(result.hasMore);
         setNextCursor(result.nextCursor);
@@ -115,14 +121,10 @@ export default function ModuleRecordListPage() {
             Records created through this module
           </p>
         </div>
-        {mod?.status === 'ACTIVE' && (
-          <Link
-            to={`/app/modules/${moduleId}/form`}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
-          >
-            New Record
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {mod?.status === 'ACTIVE' && <Link to={`/app/modules/${moduleId}/form`} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">New Record</Link>}
+          <Link to={`/app/modules/${moduleId}`} className="px-4 py-2 border border-neutral-300 text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-colors">Module Details</Link>
+        </div>
       </div>
 
       {error && (
@@ -141,6 +143,9 @@ export default function ModuleRecordListPage() {
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
         onToggleStar={handleToggleStar}
+        columns={columns}
+        entityLabels={entityLabels}
+        moduleId={moduleId}
       />
 
       {hasMore && !loading && (
@@ -160,14 +165,10 @@ export default function ModuleRecordListPage() {
           <p className="text-sm text-neutral-500 mb-4">
             Submit forms through this module to create records.
           </p>
-          {mod?.status === 'ACTIVE' && (
-            <Link
-              to={`/app/modules/${moduleId}/form`}
-              className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-            >
-              Create Record
-            </Link>
-          )}
+          <div className="flex flex-wrap justify-center gap-2">
+            {mod?.status === 'ACTIVE' && <Link to={`/app/modules/${moduleId}/form`} className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Create Record</Link>}
+            <Link to={`/app/modules/${moduleId}`} className="inline-block px-4 py-2 border border-neutral-300 text-neutral-700 rounded-lg text-sm font-medium hover:bg-white">Module Details</Link>
+          </div>
         </div>
       )}
     </div>

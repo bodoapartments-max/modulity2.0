@@ -58,7 +58,7 @@ export function createWorkspaceConfigurationSnapshot({ workspaceId, entityTypes 
     array(values, key);
     bounded(values, AUTOMAT_BOUNDS.MAX_SNAPSHOT_ITEMS_PER_TYPE, key);
   }
-  const summaries = Object.fromEntries(Object.entries(collections).map(([key, values]) => [key, values.map((item) => Object.fromEntries(SNAPSHOT_KEYS[key].filter((field) => item[field] !== undefined).map((field) => [field, structuredClone(item[field])])))]));
+  const summaries = Object.fromEntries(Object.entries(collections).map(([key, values]) => [key, values.map((item) => Object.fromEntries(SNAPSHOT_KEYS[key].filter((field) => item[field] !== undefined).map((field) => [field, structuredClone(item[field])]))).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))]));
   return Object.freeze({ snapshotVersion: '1.0.0', workspaceId, ...summaries, bounds: Object.freeze({ maxItemsPerType: AUTOMAT_BOUNDS.MAX_SNAPSHOT_ITEMS_PER_TYPE }) });
 }
 

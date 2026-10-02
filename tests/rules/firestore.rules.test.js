@@ -24,8 +24,11 @@ import {
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -3480,6 +3483,14 @@ describe('Step 7 workspace experience rules', () => {
     await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'widgetDefinitions', 'wi1')));
   });
 
+  it('allows Organization OWNER configuration snapshot query but denies ordinary MEMBER all-widget query', async () => {
+    await setupWorkspace('ws-widget-org', { type: 'ORGANIZATION', organizationId: 'org-widget' });
+    await setupOrg('org-widget', { createdByUserId: 'owner-widget' }, [{ userId: 'owner-widget', roles: ['OWNER'] }, { userId: 'member-widget', roles: ['MEMBER'] }]);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-widget-org', 'widgetDefinitions', 'other-widget'), { widgetId: 'other-widget', workspaceId: 'ws-widget-org', ownerUserId: 'another-user', name: 'Shared configuration', type: 'KPI', source: 'RECORDS', status: 'ACTIVE', filters: [], columns: [], display: { limit: 10 }, createdBy: { actorType: 'USER', actorId: 'another-user' } }));
+    await assertSucceeds(getDocs(query(collection(authedDb('owner-widget'), 'workspaces', 'ws-widget-org', 'widgetDefinitions'))));
+    await assertFails(getDocs(query(collection(authedDb('member-widget'), 'workspaces', 'ws-widget-org', 'widgetDefinitions'))));
+  });
+
   it('denies unsafe or unbounded Widget configuration', async () => {
     const db = authedDb('user1');
     const base = { widgetId: 'unsafe-widget', workspaceId: 'ws-step7', ownerUserId: 'user1', name: 'Unsafe', type: 'KPI', source: 'SECRET', status: 'ACTIVE', filters: [], columns: [], display: { limit: 10 }, createdBy: { actorType: 'USER', actorId: 'user1' } };
@@ -3593,6 +3604,35 @@ describe('Workspace reset trusted boundary rules', () => {
     await assertFails(getDoc(doc(db, 'workspaceResetOperations', 'ws1')));
     await assertFails(setDoc(doc(db, 'workspaceResetAudits', 'audit1'), { workspaceId: 'ws1', result: 'SUCCESS' }));
     await assertFails(getDoc(doc(db, 'workspaceResetAudits', 'audit1')));
+  });
+});
+
+describe('workspaces/{wsId}/automatPlans/{planId}', () => {
+  async function seedPlan() {
+    await setupWorkspace('ws-automat', { type: 'PERSONAL', ownerUserId: 'owner1', name: 'Automat' });
+    await testEnv.withSecurityRulesDisabled(async (context) => setDoc(doc(context.firestore(), 'workspaces', 'ws-automat', 'automatPlans', 'plan1'), { planId: 'plan1', workspaceId: 'ws-automat', status: 'READY_FOR_REVIEW' }));
+  }
+
+  it('Workspace owner can read trusted plan', async () => {
+    await seedPlan();
+    await assertSucceeds(getDoc(doc(authedDb('owner1'), 'workspaces', 'ws-automat', 'automatPlans', 'plan1')));
+  });
+
+  it('other user and unauthenticated caller cannot read plan', async () => {
+    await seedPlan();
+    await assertFails(getDoc(doc(authedDb('other'), 'workspaces', 'ws-automat', 'automatPlans', 'plan1')));
+    await assertFails(getDoc(doc(unauthedDb(), 'workspaces', 'ws-automat', 'automatPlans', 'plan1')));
+  });
+
+  it('browser cannot create, forge lifecycle, delete, or access trusted operations/audits', async () => {
+    await seedPlan();
+    const ref = doc(authedDb('owner1'), 'workspaces', 'ws-automat', 'automatPlans', 'plan1');
+    await assertFails(setDoc(doc(authedDb('owner1'), 'workspaces', 'ws-automat', 'automatPlans', 'plan2'), { planId: 'plan2', workspaceId: 'ws-automat', status: 'APPLIED' }));
+    await assertFails(updateDoc(ref, { status: 'APPLIED', approvedBy: 'owner1' }));
+    await assertFails(deleteDoc(ref));
+    await assertFails(getDoc(doc(authedDb('owner1'), 'workspaceAutomatOperations', 'ws-automat')));
+    await assertFails(getDoc(doc(authedDb('owner1'), 'automatApplyOperations', 'operation1')));
+    await assertFails(getDoc(doc(authedDb('owner1'), 'automatApplyAudits', 'operation1')));
   });
 });
 

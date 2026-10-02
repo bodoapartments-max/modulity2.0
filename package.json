@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "firebase emulators:exec --only firestore \"npx vitest run --config vitest.rules.config.js\"",
+    "test:rules": "npm --prefix functions run build:shared && firebase emulators:exec --only firestore \"npx vitest run --config vitest.rules.config.js\"",
     "test:e2e": "playwright test"
   },
   "dependencies": {

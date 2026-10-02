@@ -57,7 +57,7 @@ describe('recordQuery', () => {
     expect(q.priority).toBe('HIGH');
     expect(q.recordType).toBe('invoice');
     expect(q.sortField).toBe('updatedAt');
-    expect(q.sortDirection).toBe('ASC');
+    expect(q.sortDirection).toBe('asc');
     expect(q.startAfter).toBe('cursor-token');
     expect(q.limit).toBe(10);
   });

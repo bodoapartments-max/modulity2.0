@@ -206,15 +206,20 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Lazy responsive `/app/automat` planning/review UI with no Apply action
 - Deferred: live/remote AI providers and all Step 9.2 application behavior
 
-### Step 9.2 — Deterministic BuildPlan Application
+### Step 9.2 — Trusted BuildPlan Application
 
-**Status:** Not started
+**Status:** CLOSED — DEPLOYMENT VERIFIED
 
-- Human approval boundary
-- Trusted authorization/entitlement checks
-- Idempotent Plan Reference → canonical resource mapping
-- Application through existing Entity Type, Module, Relationship, Workset, Widget, and Report services
-- Apply audit, conflict handling, retries, and migration policy
+- Trusted plan persistence/revalidation and explicit OWNER/Personal-owner approval
+- SHA-256 plan/configuration integrity and stale-plan rejection
+- Narrow Node.js 22 callables with project-bound entitlement integration
+- Idempotent PlanReference→canonical ID mapping and Workspace lease lock
+- Dependency-ordered Entity Type, Module/version, Workset, Widget, and Report application
+- CREATE/REUSE; SAFE_UPDATE disabled; CONFLICT blocks; no REPLACE_DELETE
+- Partial-failure journal and non-destructive resume
+- Durable Audit/provenance, one completion Notification, and post-apply verification
+- Type-level Relationship recommendations remain optional UNSUPPORTED planning output
+- Workspace Reset compatibility for plans, generated configuration, and lock state
 
 ### Later automation/integration milestones
 

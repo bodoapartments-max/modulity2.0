@@ -41,8 +41,8 @@ export function createExistingHotelSnapshot() {
     workspaceId,
     entityTypes: [{ typeId: 'type-room', code: 'ROOM', fields: plan.proposedEntityTypes[0].fields }],
     modules: [
-      { moduleId: 'module-reservation', moduleCode: 'RESERVATION', formSchema: plan.proposedModules[0].formSchema },
-      { moduleId: 'module-check-in', moduleCode: 'CHECK_IN', formSchema: plan.proposedModules[1].formSchema },
+      { moduleId: 'module-reservation', moduleCode: 'RESERVATION', formSchema: { ...plan.proposedModules[0].formSchema, fields: plan.proposedModules[0].formSchema.fields.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: 'type-room' } : field) } },
+      { moduleId: 'module-check-in', moduleCode: 'CHECK_IN', formSchema: { ...plan.proposedModules[1].formSchema, fields: plan.proposedModules[1].formSchema.fields.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: 'type-room' } : field) } },
     ],
     worksets: [{ worksetId: 'workset-front-desk', name: 'Front Desk', moduleIds: ['module-reservation', 'module-check-in'] }],
   });

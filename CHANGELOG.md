@@ -2,6 +2,24 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 9.2 — Trusted Automat BuildPlan Application
+
+### Added
+- Trusted `automatPlan` persistence/approval and `automatApplyPlan` apply/status callables for Node.js 22 in `europe-west1`
+- Server Auth, Personal-owner/Organization-OWNER authorization, development-project entitlement boundary, immutable plan/configuration SHA-256 fingerprints, and stale-plan rejection
+- Workspace-scoped immutable reviewed plans plus Admin-only Workspace lease lock, apply operation journal, PlanReference mapping, resource results, and external audit metadata
+- Dependency-ordered canonical Entity Type, ACTIVE Module + immutable Version 1/code reservation, Workset, WidgetDefinition, and ReportDefinition application
+- CREATE/REUSE semantics, all SAFE_UPDATE disabled, CONFLICT blocking, no REPLACE_DELETE, optional UNSUPPORTED type-level relationship recommendations
+- Partial-failure journaling, safe resume/retry, post-apply verification, durable AuditEntry, and one completion Notification
+- Approval/final-confirmation/progress/result UI with Workspace-scoped cache invalidation
+- Firestore plan-read/trusted-write Rules, negative tests, reset/apply mutual exclusion, and reset cleanup compatibility
+- ADR-0002 documenting the trusted boundary and deferred RelationshipDefinition architecture
+- Post-apply Record integration hardening: lowercase Firestore sort directions, complete ascending/descending Record indexes, generic schema-driven Module Record columns, batched EntityReference labels, accessible canonical row navigation, and context-aware back navigation
+- Deployment/browser verification on `modulity-2-dev`: CREATE 14 hotel resources, canonical Room/Reservation Record flow, equivalent CREATE 0 / REUSE 14 apply, no duplicates, and desktop/768px/375px pass
+
+### Limitations
+- Subscription-backed server entitlement resolution, SAFE_UPDATE policies, type-level RelationshipDefinition, destructive migration/rollback, and production background jobs remain deferred
+
 ## Step 9.1 — Organization Analyzer & System Planner
 
 ### Added

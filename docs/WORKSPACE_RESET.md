@@ -47,6 +47,7 @@ Reset resources:
 - Ledger Books and nested Blocks
 - Ledger Entries and code reservations
 - Workspace AuditEntries
+- Workspace-scoped Automat plans
 
 No persisted ReportResult/WidgetResult collections exist.
 
@@ -87,6 +88,8 @@ Trusted reset deletion is an explicit destructive administrative operation. It d
 ## Surviving audit
 
 Minimal metadata is stored outside the reset dataset at `workspaceResetAudits/{auditId}`: Workspace identity/type, requester, execution time, mode, result, error code where relevant, and deleted top-level counts. Deleted business payloads are never copied into this audit.
+
+Step 9.2 compatibility: reset removes Workspace-scoped Automat plans and all generated canonical configuration through the existing allowlist, clears `workspaceAutomatOperations/{workspaceId}` working lock state, and preserves top-level `automatApplyOperations`/`automatApplyAudits` as historical administrative evidence. Reset and apply mutually reject while the other operation is active.
 
 ## Cache/session behavior
 

@@ -509,7 +509,9 @@ Step 9.0 introduces non-persisted domain contracts:
 - `WorkspaceConfigurationSnapshot` — bounded summaries of Entity Types, Modules, Relationships/configuration, Worksets, Widgets, and Reports
 - `OrganizationAnalysisInput` / `OrganizationAnalysisOutput` — Step 9.1 contract only
 
-These have no Firestore paths through Step 9.1. They do not copy Records, Entity instances, Ledger history, Messages, Notifications, or Audit history. Step 9.1 fills the contracts with structured OrganizationProfile, BusinessArea, DomainObject classification, Process, Capability, proposed configuration, assumptions, questions, reviewer diagnostics, validation, and classifications. Plans remain in memory; persistence and canonical BuildPlan application remain deferred.
+These have no Firestore paths through Step 9.1. They do not copy Records, Entity instances, Ledger history, Messages, Notifications, or Audit history. Step 9.1 fills the contracts with structured OrganizationProfile, BusinessArea, DomainObject classification, Process, Capability, proposed configuration, assumptions, questions, reviewer diagnostics, validation, and classifications.
+
+Step 9.2 persists the exact validated planning artifact at `workspaces/{workspaceId}/automatPlans/{planId}` with immutable plan/configuration fingerprints, trusted lifecycle fields, requester/approver, summary, timestamps, and operation reference. Admin-only `automatApplyOperations/{operationId}` stores phase/status, PlanReference mapping, resource results, fingerprints, bounded warnings/errors, provenance, lease, and timestamps. `workspaceAutomatOperations/{workspaceId}` is the active lock. `automatApplyAudits/{operationId}` is minimal external administrative evidence. None contains Records, Entity instances, Ledger history, Messages, Files, or provider credentials.
 
 ## Workspace Reset Metadata (Step 8.1)
 
