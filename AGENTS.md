@@ -2,6 +2,12 @@
 
 This file contains practical guidance for anyone (human or coding agent) working on Modulity 2.0.
 
+## Mandatory Governance
+
+Before planning or modifying Modulity 2.0, read [`DEVELOPMENT_RULES.md`](DEVELOPMENT_RULES.md) and the authoritative architecture documents relevant to the task.
+
+`DEVELOPMENT_RULES.md` contains mandatory cross-cutting engineering guardrails. If a requested implementation conflicts with those rules, report the conflict instead of silently violating the architecture.
+
 ## Project Type
 
 React + Vite + Tailwind CSS application. JavaScript/JSX. Design tokens live in `src/design-system/tokens.js`.
