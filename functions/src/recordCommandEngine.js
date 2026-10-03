@@ -8,8 +8,13 @@ import {
 } from './generated/src/core/recordCommands/recordCommandContract.js';
 import {
   validateCreateRecordCommand,
+  validateUpdateDraftCommand,
+  validateSubmitRecordCommand,
   buildCanonicalRecordFromCommand,
+  buildRecordMutationPatch,
 } from './generated/src/core/recordCommands/recordCommandEngine.js';
+import { evaluateRecordAction } from './generated/src/core/recordCommands/recordActionPolicy.js';
+import { evaluateRecordTransition } from './generated/src/core/recordCommands/recordLifecycle.js';
 import { createAuditEntry } from './generated/src/core/audit/auditEntry.js';
 import {
   AUDIT_ACTIONS,
@@ -17,7 +22,6 @@ import {
   AUDIT_SOURCES,
 } from './generated/src/core/audit/auditActions.js';
 import { NOTIFICATION_STATUSES, createNotification } from './generated/src/core/workspace/notification.js';
-import { generateId } from './generated/src/core/utils/generateId.js';
 
 const OPERATION_STATUS = Object.freeze({
   PROCESSING: 'PROCESSING',
@@ -52,15 +56,7 @@ function stableJson(value) {
 
 function computeCommandFingerprint(userId, command) {
   const { commandType, payload } = command;
-  const { workspaceId, moduleId, values, isDraft } = payload;
-  const normalized = stableJson({
-    userId,
-    commandType,
-    workspaceId,
-    moduleId,
-    values,
-    isDraft: isDraft ?? false,
-  });
+  const normalized = stableJson({ userId, commandType, payload });
   return createHash('sha256').update(normalized).digest('hex');
 }
 
@@ -175,10 +171,35 @@ export async function executeRecordCommand(db, { userId, command }) {
     fail(envelope.code || RECORD_COMMAND_ERROR_CODES.OPERATION_INVALID, envelope.errors.join('; '));
   }
 
-  if (command.commandType !== RECORD_COMMAND_TYPES.CREATE_RECORD) {
-    fail(RECORD_COMMAND_ERROR_CODES.UNSUPPORTED_COMMAND, `Command ${command.commandType} is not implemented in this version.`);
+  if (command.commandType === RECORD_COMMAND_TYPES.CREATE_RECORD) {
+    return executeCreateRecordCommand(db, { userId, command });
+  }
+  if (RECORD_MUTATION_COMMANDS.has(command.commandType)) {
+    return executeRecordMutationCommand(db, { userId, command });
   }
 
+  fail(RECORD_COMMAND_ERROR_CODES.UNSUPPORTED_COMMAND, `Command ${command.commandType} is not implemented in this version.`);
+}
+
+const RECORD_MUTATION_COMMANDS = new Set([
+  RECORD_COMMAND_TYPES.UPDATE_DRAFT,
+  RECORD_COMMAND_TYPES.SUBMIT_RECORD,
+  RECORD_COMMAND_TYPES.SET_PRIORITY,
+  RECORD_COMMAND_TYPES.ARCHIVE_RECORD,
+  RECORD_COMMAND_TYPES.RESTORE_RECORD,
+  RECORD_COMMAND_TYPES.CANCEL_RECORD,
+]);
+
+const MUTATION_AUDIT_ACTIONS = {
+  [RECORD_COMMAND_TYPES.UPDATE_DRAFT]: AUDIT_ACTIONS.RECORD_DRAFT_UPDATED,
+  [RECORD_COMMAND_TYPES.SUBMIT_RECORD]: AUDIT_ACTIONS.RECORD_SUBMITTED,
+  [RECORD_COMMAND_TYPES.SET_PRIORITY]: AUDIT_ACTIONS.RECORD_PRIORITY_CHANGED,
+  [RECORD_COMMAND_TYPES.ARCHIVE_RECORD]: AUDIT_ACTIONS.RECORD_ARCHIVED,
+  [RECORD_COMMAND_TYPES.RESTORE_RECORD]: AUDIT_ACTIONS.RECORD_UNARCHIVED,
+  [RECORD_COMMAND_TYPES.CANCEL_RECORD]: AUDIT_ACTIONS.RECORD_CANCELLED,
+};
+
+async function executeCreateRecordCommand(db, { userId, command }) {
   const { workspaceId, moduleId, values, isDraft = false } = command.payload;
   const fingerprint = computeCommandFingerprint(userId, command);
 
@@ -306,11 +327,11 @@ export async function executeRecordCommand(db, { userId, command }) {
     fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
   }
 
-  // Best-effort durable audit (outside transaction)
+  // Best-effort durable audit (outside transaction, deduplicated by operation identity)
   try {
     const actor = { actorType: 'USER', actorId: userId };
     const auditEntry = createAuditEntry({
-      auditEntryId: generateId(),
+      auditEntryId: `op_${command.operationId}`,
       workspaceId,
       actor,
       action: isDraft ? AUDIT_ACTIONS.RECORD_CREATED : AUDIT_ACTIONS.RECORD_SUBMITTED,
@@ -321,7 +342,7 @@ export async function executeRecordCommand(db, { userId, command }) {
       source: AUDIT_SOURCES.WEB,
       correlationId: `op:${command.operationId}`,
     });
-    await db.collection(`workspaces/${workspaceId}/auditEntries`).add({
+    await db.doc(`workspaces/${workspaceId}/auditEntries/op_${command.operationId}`).set({
       ...auditEntry,
       _createdAt: FieldValue.serverTimestamp(),
     });
@@ -333,7 +354,7 @@ export async function executeRecordCommand(db, { userId, command }) {
   try {
     const actor = { actorType: 'USER', actorId: userId };
     const notification = createNotification({
-      notificationId: generateId(),
+      notificationId: `op_${command.operationId}`,
       workspaceId,
       recipientUserId: userId,
       type: isDraft ? 'RECORD_DRAFT_SAVED' : 'RECORD_CREATED',
@@ -345,12 +366,216 @@ export async function executeRecordCommand(db, { userId, command }) {
       createdBy: actor,
       status: NOTIFICATION_STATUSES.UNREAD,
     });
-    await db.collection(`workspaces/${workspaceId}/notifications`).add({
+    await db.doc(`workspaces/${workspaceId}/notifications/op_${command.operationId}`).set({
       ...notification,
       _createdAt: FieldValue.serverTimestamp(),
     });
   } catch {
     // Notification is best-effort.
+  }
+
+  return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };
+}
+
+/**
+ * Trusted mutation path for UPDATE_DRAFT, SUBMIT_RECORD, SET_PRIORITY,
+ * ARCHIVE_RECORD, RESTORE_RECORD and CANCEL_RECORD.
+ *
+ * The operation journal entry and the Record mutation are committed in ONE
+ * Firestore transaction, so a crash cannot produce "journal COMPLETED but
+ * mutation missing" or a duplicated transition. Retry with the same
+ * operationId replays the recorded journal result. A fresh operationId
+ * re-evaluates the lifecycle against CURRENT Record state, so a redundant
+ * SUBMIT on an already-submitted Record is rejected.
+ */
+async function executeRecordMutationCommand(db, { userId, command }) {
+  const commandType = command.commandType;
+  const { workspaceId, recordId } = command.payload;
+  const fingerprint = computeCommandFingerprint(userId, command);
+
+  // Authorization and workspace isolation
+  const authz = await authorizeWorkspace(db, workspaceId, userId);
+
+  // Journal replay: a COMPLETED operation with matching identity and
+  // fingerprint returns the recorded operation result. This runs BEFORE the
+  // lifecycle policy so that a retried SUBMIT on an already-submitted Record
+  // replays the legitimate earlier operation instead of failing.
+  const opRef = operationDoc(db, workspaceId, command.operationId);
+  const opSnapPre = await opRef.get();
+  if (opSnapPre.exists) {
+    const op = opSnapPre.data();
+    if (op.userId !== userId || op.workspaceId !== workspaceId) {
+      fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation identity mismatch.');
+    }
+    if (op.fingerprint !== fingerprint) {
+      fail(RECORD_COMMAND_ERROR_CODES.OPERATION_MISMATCH, 'Operation command mismatch.');
+    }
+    if (op.status === OPERATION_STATUS.COMPLETED) {
+      const replaySnap = await recordDoc(db, workspaceId, op.recordId || recordId).get();
+      if (replaySnap.exists) {
+        return { record: mapFromFirestoreRecord(replaySnap), operationId: command.operationId, idempotent: true };
+      }
+      fail(RECORD_COMMAND_ERROR_CODES.OPERATION_FAILED, 'Operation is completed but has no Record reference.');
+    }
+    if (op.status === OPERATION_STATUS.FAILED) {
+      fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation exists with terminal or failed status.');
+    }
+  }
+
+  const recSnap = await recordDoc(db, workspaceId, recordId).get();
+  if (!recSnap.exists) fail(RECORD_COMMAND_ERROR_CODES.RECORD_NOT_FOUND, 'Record not found.');
+  const record = mapFromFirestoreRecord(recSnap);
+
+  // Module + historical version schema for Module-bound Records
+  let module = null;
+  if (record.moduleId) {
+    const moduleData = await loadModule(db, workspaceId, record.moduleId);
+    if (moduleData) {
+      const versionSnap = record.moduleVersion
+        ? await loadVersionSnapshot(db, workspaceId, record.moduleId, record.moduleVersion)
+        : null;
+      module = {
+        ...moduleData,
+        formSchema: versionSnap?.formSchema || moduleData.formSchema,
+        recordConfig: versionSnap?.recordConfig || moduleData.recordConfig,
+      };
+    }
+  }
+
+  const policy = evaluateRecordAction({
+    actorContext: { authenticated: true, workspaceAccess: authz.authority },
+    record,
+    module,
+    action: commandType,
+  });
+  if (!policy.allowed) {
+    fail(policy.reasonCode || RECORD_COMMAND_ERROR_CODES.ACTION_NOT_ALLOWED, `Action ${commandType} is not allowed for this Record.`);
+  }
+
+  const fields = module?.formSchema?.fields || [];
+
+  if (commandType === RECORD_COMMAND_TYPES.UPDATE_DRAFT) {
+    const validation = validateUpdateDraftCommand(command, module);
+    if (!validation.valid) {
+      fail(validation.code || RECORD_COMMAND_ERROR_CODES.RECORD_INVALID, validation.errors.join('; '));
+    }
+    const values = command.payload.values || {};
+    const entityRefsWithFieldKey = (validation.entityRefs || []).map((ref) => {
+      const field = fields.find((f) => f.type === 'entity-reference' && values[f.key]?.entityId === ref.entityId);
+      return { ...ref, _fieldKey: field?.key };
+    });
+    await resolveEntityReferences(db, workspaceId, entityRefsWithFieldKey, fields);
+  }
+
+  const now = new Date().toISOString();
+  const recRef = recordDoc(db, workspaceId, recordId);
+
+  const result = await db.runTransaction(async (transaction) => {
+    const opSnap = await transaction.get(opRef);
+    const recSnapTx = await transaction.get(recRef);
+    if (!recSnapTx.exists) fail(RECORD_COMMAND_ERROR_CODES.RECORD_NOT_FOUND, 'Record not found.');
+    const current = mapFromFirestoreRecord(recSnapTx);
+
+    if (opSnap.exists) {
+      const op = opSnap.data();
+
+      if (op.userId !== userId || op.workspaceId !== workspaceId) {
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation identity mismatch.');
+      }
+      if (op.fingerprint !== fingerprint) {
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_MISMATCH, 'Operation command mismatch.');
+      }
+
+      if (op.status === OPERATION_STATUS.COMPLETED) {
+        return { status: OPERATION_STATUS.COMPLETED, record: current, idempotent: true };
+      }
+
+      if (op.status === OPERATION_STATUS.PROCESSING) {
+        const leaseExpired = !op.leaseExpiresAt || op.leaseExpiresAt.toMillis() <= Timestamp.now().toMillis();
+        if (!leaseExpired) {
+          return { status: OPERATION_STATUS.PROCESSING, record: null, idempotent: false };
+        }
+        const attemptCount = (op.attemptCount || 1) + 1;
+        if (attemptCount > MAX_RECOVERY_ATTEMPTS) {
+          fail(RECORD_COMMAND_ERROR_CODES.OPERATION_FAILED, 'Operation recovery limit exceeded.');
+        }
+        transaction.update(opRef, {
+          status: OPERATION_STATUS.PROCESSING,
+          attemptCount,
+          leaseExpiresAt: Timestamp.fromMillis(Timestamp.now().toMillis() + OPERATION_LEASE_MS),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (op.status === OPERATION_STATUS.FAILED) {
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation exists with terminal or failed status.');
+      }
+    } else {
+      transaction.set(opRef, buildOperationDocument({
+        command, userId, fingerprint, status: OPERATION_STATUS.PROCESSING, recordId,
+      }));
+    }
+
+    // Lifecycle transition re-evaluated inside the transaction against the
+    // CURRENT canonical state — not the pre-transaction snapshot.
+    const transition = evaluateRecordTransition(current, commandType);
+    if (!transition.allowed) {
+      fail(transition.reasonCode || RECORD_COMMAND_ERROR_CODES.INVALID_RECORD_STATE, `Transition ${commandType} is not valid for a ${current.status} Record.`);
+    }
+
+    // SUBMIT validates the CURRENT stored data inside the transaction as well.
+    if (commandType === RECORD_COMMAND_TYPES.SUBMIT_RECORD) {
+      const validation = validateSubmitRecordCommand(command, current, module);
+      if (!validation.valid) {
+        fail(validation.code || RECORD_COMMAND_ERROR_CODES.RECORD_INVALID, validation.errors.join('; '));
+      }
+    }
+
+    const patch = buildRecordMutationPatch({
+      commandType, command, record: current, fields, actorId: userId, now,
+    });
+
+    transaction.update(recRef, { ...patch, _updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(opRef, {
+      status: OPERATION_STATUS.COMPLETED,
+      recordId,
+      completedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return { status: OPERATION_STATUS.COMPLETED, record: { ...current, ...patch }, idempotent: false };
+  });
+
+  if (result.status === OPERATION_STATUS.PROCESSING) {
+    fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
+  }
+
+  // Durable audit, deduplicated by operation identity (overwrite-on-retry)
+  try {
+    const actor = { actorType: 'USER', actorId: userId };
+    const auditEntry = createAuditEntry({
+      auditEntryId: `op_${command.operationId}`,
+      workspaceId,
+      actor,
+      action: MUTATION_AUDIT_ACTIONS[commandType],
+      resourceType: AUDIT_RESOURCE_TYPES.RECORD,
+      resourceId: recordId,
+      timestamp: now,
+      metadata: {
+        operationId: command.operationId,
+        moduleId: record.moduleId ?? null,
+        moduleVersion: record.moduleVersion ?? null,
+        fromStatus: record.status,
+        toStatus: result.record?.status ?? record.status,
+        idempotent: result.idempotent,
+      },
+      source: AUDIT_SOURCES.WEB,
+      correlationId: `op:${command.operationId}`,
+    });
+    await db.doc(`workspaces/${workspaceId}/auditEntries/op_${command.operationId}`).set({
+      ...auditEntry,
+      _createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch {
+    // Audit is best-effort; the canonical Record is the authority.
   }
 
   return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };
