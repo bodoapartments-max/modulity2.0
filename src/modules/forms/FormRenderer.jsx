@@ -10,7 +10,7 @@
  * @module modules/forms/FormRenderer
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { getFieldComponent } from './fieldRegistry.js';
 import { validateFormValues } from './formSchemaValidator.js';
 import { FormFieldServicesProvider } from './FormFieldServicesContext.jsx';
@@ -21,6 +21,8 @@ import { FormFieldServicesProvider } from './FormFieldServicesContext.jsx';
  * @param {Object} [props.initialValues] — pre-filled values (for editing drafts)
  * @param {function} props.onSubmit — called with validated values
  * @param {function} [props.onSaveDraft] — called with current values (no validation required)
+ * @param {function} [props.onValuesChange] — called with current values on every change (no validation)
+ * @param {boolean} [props.validateOnSubmit=true] — when false, submit skips schema validation (draft editing)
  * @param {string} props.workspaceId — current workspace for entity queries
  * @param {boolean} [props.disabled] — disable all fields
  * @param {string} [props.submitLabel] — label for submit button
@@ -31,6 +33,8 @@ export function FormRenderer({
   initialValues = {},
   onSubmit,
   onSaveDraft,
+  onValuesChange,
+  validateOnSubmit = true,
   workspaceId,
   disabled = false,
   submitLabel = 'Submit',
@@ -58,6 +62,17 @@ export function FormRenderer({
     });
   }, []);
 
+  // Notify listeners (e.g. draft autosave) after values actually commit.
+  const notifyRef = useRef(onValuesChange);
+  notifyRef.current = onValuesChange;
+  const lastNotified = useRef(values);
+  useEffect(() => {
+    if (lastNotified.current !== values) {
+      lastNotified.current = values;
+      notifyRef.current?.(values);
+    }
+  }, [values]);
+
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
 
@@ -69,7 +84,9 @@ export function FormRenderer({
       }
     }
 
-    const validation = validateFormValues(cleanValues, fields);
+    const validation = validateOnSubmit
+      ? validateFormValues(cleanValues, fields)
+      : { valid: true, errors: {} };
     if (!validation.valid) {
       setErrors(validation.errors);
       // Focus first errored field
@@ -83,7 +100,7 @@ export function FormRenderer({
 
     setErrors({});
     onSubmit(cleanValues);
-  }, [values, fields, onSubmit]);
+  }, [values, fields, onSubmit, validateOnSubmit]);
 
   const handleSaveDraft = useCallback(() => {
     if (onSaveDraft) {
