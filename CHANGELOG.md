@@ -2,6 +2,28 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 13 — Design-System Primitives
+
+### Added
+- Canonical design-system primitives under `src/design-system/components/`:
+  - `Select`, `Textarea`, `Table` + table subcomponents, `DataGrid`, `Pagination`, `Toast` + `ToastProvider`, `FileUpload`, `Tabs`
+- Public design-system barrel export at `src/design-system/index.js`
+- Focused unit tests for each new primitive (rendering, callbacks, keyboard/accessibility, disabled/error/empty/loading states)
+- `docs/DESIGN_SYSTEM.md` documenting primitive inventory, layer boundary, conventions, accessibility, and FileUpload limitation
+
+### Changed
+- `EntityListPage` now uses `Select`, `DataGrid`, and `Pagination`
+- `EntityFormPage` lifecycle status now uses `Select`
+- `ModuleDesigner` description field now uses `Textarea`
+- `ModuleCapabilitiesPanel` capability field mapping now uses `Select`
+- `WorkspaceResetPanel` success state now uses `Toast` via global `ToastProvider`
+- `AppRouter` wraps the application in `ToastProvider` so any feature can show transient feedback
+- `vite.config.js` excludes `tests/e2e/**` from Vitest discovery so Playwright specs are not collected by the unit runner
+
+### Security / Architecture
+- Design-system primitives remain presentation-only: no Firebase imports, no business authorization, no feature state ownership
+- Verified dependency direction: features → design-system; no design-system → feature or backend imports
+
 ## Step 12.1 — Record Command Recovery, Module Policy & Real Browser Verification
 
 ### Added

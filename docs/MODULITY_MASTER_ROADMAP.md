@@ -29,7 +29,7 @@ Step 11.0 identified three categories of work:
 |---|---|---|---|---|---|---|
 | Core Data (Entity, Record, Module, FormSchema) | EXISTS | CORE | `src/core/data/`, `src/modules/` | Trusted submission still client-side for normal Records | Cloud Functions authority | Step 12 — Trusted Record Submission |
 | Module Versioning & Provenance | EXISTS | CORE | `moduleVersion.js`, `moduleService.js`, `record.js` | None major | — | Maintain |
-| Form Renderer & Field Registry | EXISTS | MODULE | `src/modules/forms/` | Missing Select/Textarea/Table/Toast design primitives | design-system | Step 11.1 + Step 13 |
+| Form Renderer & Field Registry | EXISTS | MODULE | `src/modules/forms/` | Select/Textarea/Table/Toast design primitives now exist; Checkbox/Radio not yet extracted | design-system | Step 11.1 + Step 13 |
 | Entity Management | EXISTS | FEATURE | `src/features/entities/` | Logic lives in pages; no `model.js` | — | Step 11.1 refactor |
 | Record List / Detail / History | EXISTS | FEATURE | `src/features/records/` | No bulk actions, saved views, print/PDF | design-system | Step 14 |
 | Record Lifecycle / Actions | PARTIAL | CORE+FEATURE | `record.js` statuses; `recordOperationService` archive/cancel/priority | No generic action command model; no approve/reject/assign/complete actions | Lifecycle engine | Step 15 |
@@ -45,7 +45,7 @@ Step 11.0 identified three categories of work:
 | Workspace Architect / Automat Planning | EXISTS | AGENT | `src/agents/planning/` | Keyword classification only; no live AI | Agent provider adapters | Step 21 |
 | Automat Trusted Apply | EXISTS | INFRASTRUCTURE | `functions/src/automatApplyEngine.js` | Dev-only entitlement grant hardcoded for `modulity-2-dev` | billing/entitlement | Step 22 |
 | Workspace Reset | EXISTS | INFRASTRUCTURE | `functions/src/workspaceReset.js` | Binary Storage cleanup deferred | File storage adapter | Step 23 |
-| Design System | PARTIAL | DESIGN_SYSTEM | `src/design-system/` primitives | Missing Select, Checkbox, Textarea, Table, DataGrid, Pagination, Toast, FileUpload, Tabs | — | Step 13 |
+| Design System | EXISTS | DESIGN_SYSTEM | `src/design-system/` primitives | Checkbox/Radio not yet extracted; other primitives added | — | Step 13 |
 | Infrastructure Wiring | EXISTS | INFRASTRUCTURE | `src/infrastructure/services.js`, `repositories.js` | `services.js` has import-time bridge side effects; `automatPlanning.js` violates layer direction | — | Step 11.1 |
 | Form Import / Digitization | MISSING | AGENT+FEATURE | Contracts only in docs | No OCR, document understanding, or import UI | Module Designer | Step 24 |
 | Approval Engine | MISSING | CAPABILITY | Architecture only in docs | Needs Record action model + permissions | Step 15 | Step 25 |
@@ -92,7 +92,7 @@ Step 11.0 identified three categories of work:
 | PD-007 | No Scheduling/Booking conflict/availability engine | MEDIUM | Calendar, `datetime-range` | Step 28 |
 | PD-008 | No Inventory projection | MEDIUM | Record actions | Step 29 |
 | PD-009 | No Document/PDF generation | MEDIUM | Attachments | Step 30 |
-| PD-010 | Missing design-system primitives: Select, Textarea, Table, DataGrid, Pagination, Toast, FileUpload, Tabs, Checkbox, Radio | MEDIUM | — | Step 13 |
+| PD-010 | Missing design-system primitives: Checkbox, Radio | MEDIUM | — | Step 13 |
 | PD-011 | Chat cannot create conversations or select members | MEDIUM | — | Step 18 |
 | PD-012 | No global/workspace search | MEDIUM | Indexing | Step 33 |
 | PD-013 | No print/PDF/export for Records | LOW | Document engine | Step 30 |
