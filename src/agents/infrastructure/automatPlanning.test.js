@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWorkspaceConfigurationSnapshot } from '../agents/automat/automatContracts.js';
+import { createWorkspaceConfigurationSnapshot } from '../automat/automatContracts.js';
 import { createAutomatPlanningService } from './automatPlanning.js';
 
 const workspace = { workspaceId: 'workspace-1', name: 'Test Hotel' };

@@ -1,7 +1,7 @@
-import { fingerprintValue } from '../agents/automat/planIntegrity.js';
-import { createSystemPlanningOrchestrator } from '../agents/planning/systemPlanningOrchestrator.js';
-import { createWorkspaceSnapshotService } from '../agents/planning/workspaceSnapshotService.js';
-import { repositories } from './repositories.js';
+import { fingerprintValue } from '../automat/planIntegrity.js';
+import { createSystemPlanningOrchestrator } from '../planning/systemPlanningOrchestrator.js';
+import { createWorkspaceSnapshotService } from '../planning/workspaceSnapshotService.js';
+import { repositories } from '../../infrastructure/repositories.js';
 
 const developmentCapabilityResolver = async (capability, context) => Boolean(context.workspaceId && context.requestedBy && ['automat.organization_analysis', 'automat.system_builder'].includes(capability));
 

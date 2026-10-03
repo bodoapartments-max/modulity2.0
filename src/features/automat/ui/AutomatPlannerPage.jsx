@@ -7,7 +7,7 @@ import Card from '../../../design-system/components/Card/Card.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
-import { automatPlanningService } from '../../../infrastructure/automatPlanning.js';
+import { automatPlanningService } from '../../../agents/infrastructure/automatPlanning.js';
 import { automatApplyClient } from '../../../infrastructure/firebase/automatApplyClient.js';
 import { AUTOMAT_UI_STATES, planningStateForStage } from '../model.js';
 import AutomatApplyPanel from './AutomatApplyPanel.jsx';

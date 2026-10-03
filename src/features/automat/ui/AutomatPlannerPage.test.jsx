@@ -9,7 +9,7 @@ import { createSystemPlanningOrchestrator } from '../../../agents/planning/syste
 import AutomatPlannerPage from './AutomatPlannerPage.jsx';
 
 const mocks = vi.hoisted(() => ({ evolve: vi.fn(), persist: vi.fn(), approve: vi.fn(), apply: vi.fn(), status: vi.fn() }));
-vi.mock('../../../infrastructure/automatPlanning.js', () => ({ automatPlanningService: { evolve: mocks.evolve } }));
+vi.mock('../../../agents/infrastructure/automatPlanning.js', () => ({ automatPlanningService: { evolve: mocks.evolve } }));
 vi.mock('../../../infrastructure/firebase/automatApplyClient.js', () => ({ automatApplyClient: { persist: mocks.persist, approve: mocks.approve, apply: mocks.apply, status: mocks.status } }));
 
 const workspace = { workspaceId: 'workspace:test-hotel', name: 'Reset Test Hotel', type: 'ORGANIZATION' };
