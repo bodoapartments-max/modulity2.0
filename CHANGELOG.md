@@ -2,6 +2,33 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 14 — Record UX Hardening
+
+### Added
+- Deterministic Record display labels: `getRecordDisplayLabel` (`displayConfig.primaryField` → first text-like schema value → Module name + short ID)
+- Shared `useRecordWithSchema` hook: loads Record + Module + historical Module Version schema + Entity display names for detail/edit views
+- Record Detail actions: Edit draft (DRAFT only), Create copy (prefilled Module form), Print, Export JSON
+- `RecordEditPage` (`/app/records/:recordId/edit`): DRAFT-only editing through the existing client-authoritative draft UPDATE path, with debounced autosave (Unsaved/Saving/Saved/Save failed) that always updates the same Draft Record
+- `FormRenderer` now supports `onValuesChange` (autosave hook) and `validateOnSubmit={false}` (partial draft saves)
+- `buildRecordCopyValues` / `buildRecordExport` helpers: copy only schema values (no identity/provenance), export a sanitized single-Record JSON (actor labels, no internal index fields)
+- Print stylesheet (`@media print`): app shell chrome, navigation links and action rows hidden via `no-print`
+- Playwright `tests/e2e/step14.e2e.spec.js`: detail assertions, trusted copy flow (new Record, different ID, original unchanged), draft edit + autosave, global list search/filter, `recordCommand` vs direct-CREATE network verification
+- `docs/RECORD_UX.md`: canonical Record UX architecture, trust boundaries, deferred items
+
+### Changed
+- Record List rebuilt on the design-system `DataGrid` with bucket `Tabs`, canonical `Select` filters (status/priority/module/sort whitelist + created-date window), page-scoped search with explicit no-match state, and cursor-stack `Pagination` on both Global and Module lists
+- Record Detail header now shows display label, status/priority `Badge`s, linked Module, Workspace, actor labels, and schema-source indicator
+- Entity references on Record Detail link to Entity Detail when resolvable and degrade to an explicit "unavailable" marker otherwise
+- Bulk-archive on the Global list now resets the pagination cursor stack before reloading
+
+### Security / Trust boundaries
+- Canonical Record CREATE stays server-authoritative via `recordCommand`; browser E2E confirms zero direct browser Record CREATEs during detail/copy/draft flows
+- Draft autosave reuses the existing DRAFT-only UPDATE boundary (Rules allow `data`/`entityReferences` mutations while a Record is DRAFT and freeze them afterwards); no new mutation authority was added
+- Finding: DRAFT→SUBMITTED from the client is blocked by Rules (`submittedBy` immutable) — the trusted submit transition is deferred to Step 15
+
+### Deferred
+- Attachments, Signature, Send/Share UI, Comments, bulk lifecycle actions, saved views, Global Search, generated PDF (Document Engine)
+
 ## Step 13 — Design-System Primitives
 
 ### Added

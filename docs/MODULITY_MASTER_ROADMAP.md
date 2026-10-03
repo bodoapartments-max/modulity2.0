@@ -31,7 +31,7 @@ Step 11.0 identified three categories of work:
 | Module Versioning & Provenance | EXISTS | CORE | `moduleVersion.js`, `moduleService.js`, `record.js` | None major | — | Maintain |
 | Form Renderer & Field Registry | EXISTS | MODULE | `src/modules/forms/` | Select/Textarea/Table/Toast design primitives now exist; Checkbox/Radio not yet extracted | design-system | Step 11.1 + Step 13 |
 | Entity Management | EXISTS | FEATURE | `src/features/entities/` | Logic lives in pages; no `model.js` | — | Step 11.1 refactor |
-| Record List / Detail / History | EXISTS | FEATURE | `src/features/records/` | No bulk actions, saved views, print/PDF | design-system | Step 14 |
+| Record List / Detail / History | EXISTS | FEATURE | `src/features/records/` | Saved views, bulk lifecycle ops, generated PDF still deferred | design-system | Step 14 (done) — see `docs/RECORD_UX.md` |
 | Record Lifecycle / Actions | PARTIAL | CORE+FEATURE | `record.js` statuses; `recordOperationService` archive/cancel/priority | No generic action command model; no approve/reject/assign/complete actions | Lifecycle engine | Step 15 |
 | Ledger & Audit | EXISTS | CORE | `src/core/ledger/`, `src/core/audit/` | Audit best-effort; no Cloud Function trusted backend | trusted backend | Step 16 |
 | Reports & Widgets | EXISTS | CORE+FEATURE | `src/core/analytics/`, `src/features/reports/`, `src/features/widgets/` | `WidgetCard` cross-feature import; inline widget definition logic | package cleanup | Step 11.1 |
@@ -95,8 +95,8 @@ Step 11.0 identified three categories of work:
 | PD-010 | Missing design-system primitives: Checkbox, Radio | MEDIUM | — | Step 13 |
 | PD-011 | Chat cannot create conversations or select members | MEDIUM | — | Step 18 |
 | PD-012 | No global/workspace search | MEDIUM | Indexing | Step 33 |
-| PD-013 | No print/PDF/export for Records | LOW | Document engine | Step 30 |
-| PD-014 | No saved views / filters for Record lists | LOW | Record UI | Step 14 |
+| PD-013 | No generated PDF for Records (browser print + single-Record JSON export landed in Step 14; deterministic PDF still missing) | LOW | Document engine | Step 30 |
+| PD-014 | No saved views / filters for Record lists (toolbar filters exist from Step 14, but no persisted view definitions) | LOW | Record UI | Step 14 follow-up / later |
 | PD-015 | Native date/datetime picker locale behavior inconsistent with Monday-first calendar grids | LOW | design-system pickers | Step 13 (optional custom pickers) |
 | PD-016 | No explicit responsive verification at 768px/375px for new features | LOW | QA process | Per-feature acceptance |
 
@@ -140,7 +140,7 @@ Independent streams:
 | 12 | Trusted Record Submission Function | Move normal Record creation behind a Cloud Function to close the trusted-submission gap | Step 11.1 | INFRASTRUCTURE | Required before approval/workflow can be authoritative |
 | 12.1 | Record Command Recovery, Module Policy & Browser Verification | Stabilize Step 12: recover stale operations, enforce ACTIVE-only module submission, verify real browser path | Step 12 | INFRASTRUCTURE+QA | Closes Step 12 before design-system work |
 | 13 | Design-System Primitives | Add Select, Textarea, Table, DataGrid, Pagination, Toast, FileUpload, Tabs | Step 11.1 | DESIGN_SYSTEM | Required for Attachments, Sharing, Chat, etc. |
-| 14 | Record UX Hardening | Bulk actions, saved views, print/export hooks, breadcrumbs, recent items | Step 13 | FEATURE | Makes Records actually usable at scale |
+| 14 | Record UX Hardening | Hardened list (DataGrid, filters, safe sort, cursor pagination, page-scoped search), detail (header/metadata/actions), draft edit + autosave, copy via trusted create, print/JSON export. Deferred: saved views, bulk lifecycle, generated PDF | Step 13 | FEATURE | COMPLETE — see `docs/RECORD_UX.md` |
 | 15 | Generic Record Actions / Lifecycle | Formalize `submit`, `approve`, `reject`, `assign`, `complete`, `cancel`, `archive` as trusted commands with audit | Steps 12, 13 | CORE+FEATURE | Foundation for Approval/Workflow |
 | 16 | Trusted Ledger/Audit Backend | Move sequence allocation and audit writes to Cloud Functions | Step 12 | INFRASTRUCTURE | Removes client-trust limitations |
 | 17 | Generic Notification Capability | Replace ad-hoc window event with event-bus-driven notification dispatch | Step 15 (actions produce events) | CAPABILITY | Needed for Approval/Workflow alerts |

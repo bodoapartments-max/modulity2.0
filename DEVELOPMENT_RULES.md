@@ -143,6 +143,8 @@ Completed inspection = Record
 
 A single canonical Record may power ListView, Table View, Dashboard, Widget, Report, Notification reference, Ledger reference, Search, and Audit history. Never create per-view Record copies.
 
+Print output, single-Record exports, and Calendar projections are also views over the same canonical Record. They must read the Record the user is authorized to see and must not store or mutate presentation-derived copies.
+
 Records preserve the exact Module version/schema context under which they were created. Updating a Module must not silently reinterpret historical Records.
 
 ## 9. Entity ownership and extensibility
