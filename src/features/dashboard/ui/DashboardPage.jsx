@@ -23,6 +23,27 @@ function DashboardSection({ state, loadingMessage, emptyTitle, emptyDescription,
   return children(state.items);
 }
 
+function DashboardWidgetCard({ widget }) {
+  const loader = useCallback(() => services.widgetExecution.execute(widget), [widget]);
+  const { data: result, error, initialLoading, refreshing, refresh } = useWorkspaceQuery({
+    workspaceId: widget.workspaceId,
+    resource: 'widgetResult',
+    params: { widgetId: widget.widgetId, updatedAt: widget.updatedAt },
+    loader,
+    ttlMs: 15000,
+  });
+  return (
+    <WidgetCard
+      widget={widget}
+      result={result}
+      error={error}
+      loading={initialLoading}
+      refreshing={refreshing}
+      onRefresh={refresh}
+    />
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { currentWorkspace, activeWorkset, loading: workspaceLoading, error: workspaceError } = useWorkspace();
@@ -47,6 +68,6 @@ export default function DashboardPage() {
     <section className="mb-8"><h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">Quick actions</h2><div className="flex flex-wrap gap-2">{QUICK_ACTIONS.map(([label, to]) => <Link key={label} to={to} className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:border-primary-300">{label}</Link>)}</div></section>
     <div className="grid gap-6 lg:grid-cols-2"><section><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">{activeWorkset ? activeWorkset.name : 'Modules'}</h2><Link className="text-sm text-primary-700" to="/app/worksets">Worksets</Link></div><DashboardSection state={moduleState} loadingMessage="Loading Modules..." emptyTitle="No Modules" emptyDescription="Create your first Module or add Modules to this Workset.">{(items) => <div className="grid gap-3 sm:grid-cols-2">{items.slice(0, 4).map((module) => <Link key={module.moduleId} to={`/app/modules/${module.moduleId}`}><Card className="p-4 hover:border-primary-300"><h3 className="font-semibold">{module.name}</h3><p className="mt-1 text-sm text-neutral-600">{module.description}</p></Card></Link>)}</div>}</DashboardSection></section>
       <section><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">Recent Records</h2><Link className="text-sm text-primary-700" to="/app/records">View all</Link></div><DashboardSection state={records} loadingMessage="Loading recent Records..." emptyTitle="No records yet" emptyDescription="Create Records using a Module to see recent activity.">{(items) => <div className="space-y-2">{items.map((record) => <Link key={record.recordId} to={`/app/records/${record.recordId}`}><Card className="mb-2 p-3"><span className="font-medium">{record.recordType}</span><span className="float-right text-xs text-neutral-500">{record.status}</span></Card></Link>)}</div>}</DashboardSection></section></div>
-    <section className="mt-8"><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">My Widgets</h2><Link className="text-sm text-primary-700" to="/app/widgets">Manage</Link></div><DashboardSection state={widgets} loadingMessage="Loading Widgets..." emptyTitle="No dashboard widgets" emptyDescription="Create a widget to monitor workspace activity.">{(items) => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.slice(0, 6).map((widget) => <WidgetCard key={widget.widgetId} widget={widget} />)}</div>}</DashboardSection></section>
+    <section className="mt-8"><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">My Widgets</h2><Link className="text-sm text-primary-700" to="/app/widgets">Manage</Link></div><DashboardSection state={widgets} loadingMessage="Loading Widgets..." emptyTitle="No dashboard widgets" emptyDescription="Create a widget to monitor workspace activity.">{(items) => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.slice(0, 6).map((widget) => <DashboardWidgetCard key={widget.widgetId} widget={widget} />)}</div>}</DashboardSection></section>
   </PageContainer>;
 }
