@@ -1,17 +1,20 @@
 import { FieldWrapper } from './FieldWrapper.jsx';
 
-function toInputValue(raw) {
-  if (!raw) return '';
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().slice(0, 16);
+const HAS_TIMEZONE = /Z|[+-]\d{2}:\d{2}$/;
+
+function toInputValue(value) {
+  if (!value) return '';
+  if (HAS_TIMEZONE.test(value)) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 16);
+  }
+  return value.slice(0, 16);
 }
 
 function toCanonical(raw) {
   if (!raw) return '';
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString();
+  return `${raw}:00`;
 }
 
 export function DateTimeRangeField({ field, value, onChange, error, disabled }) {
