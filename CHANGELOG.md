@@ -2,6 +2,24 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 11.1 — Physical Architecture Package Reorganization
+
+### Changed
+- Moved generic capability infrastructure from `src/core/capabilities/` to `src/capabilities/`: contracts, registry, definition domain, and runtime factory
+- Moved Calendar engine runtime, validation, and domain model to `src/engines/calendar/` with a public `index.js` API
+- Removed hardcoded calendar branch in `capabilityRuntime`; added `registerEngineFactory` seam and wired calendar validator/factory in `services.js`
+- Moved `automatPlanning.js` from `src/infrastructure/` to `src/agents/infrastructure/` to fix infrastructure→agents layer direction
+- Extracted presentation helpers (`entityPresentation.js`, `recordListPresentation.js`) to `src/shared/presentation/`
+- Extracted `WidgetCard` to `src/shared/ui/WidgetCard.jsx` and made it presentational; dashboard feature now owns widget execution query state
+- Added design-system `WorksetSelector` primitive and replaced inline selects in `Header` and `Sidebar`
+- Extracted authenticated route table from `AppShell.jsx` into `src/app/routes.jsx`
+- Removed import-time Audit/Notification bridge side effects from `services.js`; added explicit `bootstrapServices()` called in `main.jsx`
+- Injected field services (`loadEntities`) into `FormRenderer` via `FormFieldServicesContext`, removing the `src/modules/`→`src/infrastructure/` direct import from `EntityReferenceField`
+- Updated `functions/scripts/build-shared.mjs` copy list for new capability contract path
+
+### Fixed
+- Layer-direction violations: capabilities no longer import engines; shared/ui no longer imports infrastructure; modules no longer imports infrastructure from a field component
+
 ## Step 10.4 — Calendar & Scheduling Engine Foundation
 
 ### Added
