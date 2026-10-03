@@ -42,7 +42,7 @@ describe('Automat Workspace Architect', () => {
     expect(result.plan.proposedEntityTypes.map((item) => item.code)).not.toContain('RESTAURANT_EMPLOYEE');
     expect(result.plan.proposedEntityTypes.map((item) => item.code)).not.toContain('FOOD_SUPPLIER');
     expect(result.plan.proposedRelationships).toEqual([]);
-    expect(result.plan.capabilityRequirements).toEqual([expect.objectContaining({ engineId: 'calendar', availability: 'ARCHITECTURE_ONLY', operational: false })]);
+    expect(result.plan.capabilityRequirements).toEqual([expect.objectContaining({ engineId: 'calendar', availability: 'AVAILABLE', operational: true })]);
     expect(result.validation.status).toBe('VALID');
     expect(result.plan.architectDecisions.every((item) => item.reason.length > 10)).toBe(true);
   });

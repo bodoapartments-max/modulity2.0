@@ -47,6 +47,8 @@ const ReportsPage = lazy(() => import('../../features/reports/ui/ReportsPage.jsx
 const ReportBuilderPage = lazy(() => import('../../features/reports/ui/ReportBuilderPage.jsx'));
 const ReportDetailPage = lazy(() => import('../../features/reports/ui/ReportDetailPage.jsx'));
 const AutomatPlannerPage = lazy(() => import('../../features/automat/ui/AutomatPlannerPage.jsx'));
+const CalendarPage = lazy(() => import('../../features/calendar/ui/CalendarPage.jsx'));
+const ManageCalendarsPage = lazy(() => import('../../features/calendar/ui/ManageCalendarsPage.jsx'));
 
 function PageLoader() {
   return (
@@ -102,6 +104,8 @@ function AppShell() {
               <Route path="reports/:reportId" element={<ReportDetailPage />} />
               <Route path="reports/:reportId/edit" element={<ReportBuilderPage />} />
               <Route path="automat" element={<AutomatPlannerPage />} />
+              <Route path="calendar" element={<CalendarPage />} />
+              <Route path="calendars/manage" element={<ManageCalendarsPage />} />
               <Route path="ledger" element={<LedgerListPage />} />
               <Route path="ledger/new" element={<CreateLedgerBookPage />} />
               <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />

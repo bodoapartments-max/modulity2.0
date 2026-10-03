@@ -2,7 +2,7 @@
 
 ## Status
 
-Step 10.2 architecture foundation. This document defines contracts and invariants; it does not claim that Calendar, Workflow, Approval, Scheduling, Inventory, Task, Integration, Document, or generic Notification Engines are operational.
+Step 10.2/10.4 architecture and first operational runtime. Calendar is now `AVAILABLE` and uses the generic persistence, security, and runtime architecture described here. Workflow, Approval, Scheduling, Inventory, Task, Integration, Document, and generic Notification Engines remain architecture-only or deferred.
 
 ## Existing architecture audit
 
@@ -21,7 +21,9 @@ Step 10.2 architecture foundation. This document defines contracts and invariant
 | Agent Registry / provider adapters | EXISTING | Optional planning intelligence boundary, not capability execution |
 | Workspace Architect / BuildPlan | EXISTING | Can consume safe catalog metadata and recommend architecture-only requirements |
 | Generic Capability contracts/Registry | ADDED IN STEP 10.2 | Versioned extension architecture and validation seam |
-| Calendar Definition contract | ADDED IN STEP 10.2 | Contract proof only; no runtime, query, event store, or UI |
+| Calendar Definition contract | ADDED IN STEP 10.2 | Declarative date/event mapping; persisted in Step 10.4 |
+|| CapabilityDefinition persistence | ADDED IN STEP 10.4 | Generic workspace-scoped storage, rules, reset, and service |
+|| Calendar Engine / View | OPERATIONAL IN STEP 10.4 | Reads canonical Records, projects events, Month/Week/Day UI |
 | Workflow, Approval, Task, Scheduling, Inventory runtime | DEFERRED | Future trusted capability milestones |
 | External plugin installation/marketplace | DEFERRED | Future versioned API/event/command boundary only |
 | CapabilityDefinition persistence/migrations | DEFERRED | Add with the first real engine, not before a consumer exists |
@@ -85,7 +87,7 @@ Stable engine identifiers are lowercase machine identities such as `calendar`, `
 - `DISABLED`: implementation exists but is administratively unavailable.
 - `UNAVAILABLE`: unsupported in this deployment.
 
-Availability is technical state, not commercial entitlement. Step 10.2 built-ins are `ARCHITECTURE_ONLY`; Automat must never describe them as operational.
+Availability is technical state, not commercial entitlement. Step 10.2 built-ins were `ARCHITECTURE_ONLY`. As of Step 10.4, `calendar` is `AVAILABLE`; all other built-in engines remain architecture-only or deferred. Automat must not describe a capability as operational unless the catalog reports `AVAILABLE`.
 
 ## Loose coupling decision
 
@@ -118,9 +120,9 @@ Generic validation requires:
 
 Definition configuration is never authorization. Execution must separately enforce authenticated identity, Workspace access, permission, entitlement, canonical service rules, and audit.
 
-## Calendar contract proof
+## Calendar operational contract
 
-`CalendarDefinitionV1` maps one Module schema:
+`CalendarDefinitionV1` maps one Module schema into derived Calendar projections. It is the first operational Capability Engine and is persisted through the generic `CapabilityDefinition` architecture.
 
 ```json
 {
@@ -141,9 +143,7 @@ Definition configuration is never authorization. Execution must separately enfor
 
 The validator checks field existence and semantic field types. `startField`/`endField` must be date/datetime; `resourceField` must be EntityReference. Reservation, Holiday Request, and Meeting fixtures pass.
 
-There is no Calendar runtime, query service, event persistence, UI, drag/drop, or navigation in Step 10.2.
-
-Future intended flow:
+Operational flow in Step 10.4:
 
 ```text
 canonical Record query
@@ -239,7 +239,9 @@ WorkspaceSemanticModel includes a code-free deterministic catalog containing des
 
 ## Persistence decision
 
-CapabilityDefinitions are not persisted in Step 10.2. There is no consumer/runtime requiring canonical Definition lifecycle yet. No Firestore collection, Rules, index, reset path, cache, or second source of truth is added. Persistence, migration, and trusted management are deferred to the first real Capability Engine milestone.
+CapabilityDefinitions are persisted generically as of Step 10.4 because Calendar is the first real consumer. The collection is `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}`. Each document contains identity, engine/version, typed source ref, bounded declarative configuration, lifecycle status, and provenance. No projected events or business data are stored there.
+
+Security Rules enforce Workspace scope, trusted actor identity, immutable identity/provenance, lifecycle transitions, and rejection of executable configuration. Workspace Reset removes CapabilityDefinitions. Definitions are cached/quered only through workspace-scoped, bounded services.
 
 ## Failure isolation
 
@@ -247,8 +249,8 @@ A Calendar projection failure cannot invalidate a Reservation Record. A future n
 
 ## Verification
 
-Contract tests pass for Registry/version/availability/dependencies, safe sources, Workspace isolation, executable-configuration rejection, Calendar Reservation/Holiday/Meeting mappings, composition, stable catalog ordering, and Architect integration. Full unit, build, Rules/Emulator, trusted apply, Workspace Reset, Step 10.0 Entity Management, and Step 10.1 evolution regressions pass. Authenticated Reset Test Hotel review shows Calendar as `ARCHITECTURE_ONLY`, non-operational and non-applied; existing Employee, Room, Reservation, and restaurant reuse behavior remains healthy.
+Contract tests pass for Registry/version/availability/dependencies, safe sources, Workspace isolation, executable-configuration rejection, Calendar Reservation/Holiday/Meeting mappings, composition, stable catalog ordering, and Architect integration. Full unit, build, Rules/Emulator, trusted apply, Workspace Reset, Step 10.0 Entity Management, Step 10.1 evolution, and Step 10.3 Module Designer regressions pass. Reset Test Hotel browser review shows operational Calendar Month/Week/Day views, canonical Record Detail navigation, and no duplicated event documents.
 
 ## Deferred scope
 
-Calendar runtime/UI/querying/event persistence, Workflow, Approval, Inventory, Task, Scheduling, Notification redesign, external plugins, marketplace, background framework, billing, Definition migrations, RelationshipDefinition, and destructive migration remain deferred.
+Drag/drop rescheduling that mutates Records, full scheduling/optimization, recurring-event engine, external calendar sync (Google/Outlook/CalDAV), automated shift planning, conflict resolution, Workflow, Approval, Inventory, Task, Scheduling redesign, Notification redesign, external plugins, marketplace, background framework, billing, Definition migrations, RelationshipDefinition, and destructive migration remain deferred.

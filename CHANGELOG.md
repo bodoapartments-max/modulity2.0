@@ -2,6 +2,30 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 10.4 — Calendar & Scheduling Engine Foundation
+
+### Added
+- Generic CapabilityDefinition persistence: model, repository contract, Firestore repository, and service with Workspace authorization and lifecycle management
+- CapabilityDefinitions stored in `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}` with bounded, executable-free declarative configuration
+- Firestore Security Rules for CapabilityDefinitions: workspace scope, manager-only writes, immutable identity/provenance, safe configuration rejection, and lifecycle enforcement
+- Negative Rules/Emulator tests for unauthenticated access, cross-Workspace, MEMBER writes, spoofed workspaceId, unsafe config, and delete behavior
+- Calendar Engine runtime: loads CalendarDefinitions, resolves Module sources, queries canonical Records in bounded windows, maps to rebuildable `CalendarEventProjection`s, resolves EntityReference labels, and isolates invalid definitions
+- Calendar View components: Month, Week, and Day with responsive navigation, filter chips, and event click navigation to canonical Record Detail
+- Manage Calendars page for creating and activating/deactivating CalendarDefinitions with constrained field selection
+- Module Designer "Capabilities" seam now shows Calendar as operational and allows CalendarDefinition creation without embedding config in FormSchema
+- Workspace Architect capability catalog reflects Calendar as `AVAILABLE`; trusted Automat apply for CapabilityDefinitions remains deferred
+- Calendar capability added to App Shell routes and Sidebar
+- Workspace Reset integration removes CapabilityDefinitions while preserving identity, memberships, core entity types, and audit evidence
+- Unit tests for CapabilityDefinition domain model, Calendar Engine projections, and Calendar View rendering
+- `CALENDAR_ENGINE.md` documenting architecture, date semantics, bounded queries, authorization, views, and limitations
+
+### Changed
+- `builtInCapabilityCatalog.js`: Calendar availability moved from `ARCHITECTURE_ONLY` to `AVAILABLE`
+- `workspaceArchitect.js`: capabilityRequirements now use the catalog's actual `operational` flag for Calendar
+
+### Persistence
+- One new workspace-scoped collection: `capabilityDefinitions`. No projected event or business-data collections were added.
+
 ## Step 10.3 — Generic Module & Form Designer Foundation
 
 ### Added

@@ -42,6 +42,8 @@ import { createConversationService } from '../core/workspace/conversationService
 import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
 import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';
 import { createReportService } from '../core/analytics/reportService.js';
+import { createCapabilityDefinitionService } from '../core/capabilities/capabilityDefinitionService.js';
+import { createCapabilityRuntime } from '../core/capabilities/capabilityRuntime.js';
 
 function createServices() {
   if (!repositories) {
@@ -183,6 +185,16 @@ function createServices() {
     analyticsExecution: analyticsExecutionSvc,
     notification: notificationSvc,
     conversation: createConversationService({ conversationRepo: repositories.conversations }),
+    capabilityDefinition: createCapabilityDefinitionService({
+      capabilityDefinitionRepo: repositories.capabilityDefinitions,
+      moduleRepo: repositories.modules,
+      entityTypeRepo: repositories.entityTypes,
+    }),
+    capabilityRuntime: createCapabilityRuntime({
+      recordRepo: repositories.records,
+      moduleRepo: repositories.modules,
+      entityRepo: repositories.entities,
+    }),
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,
       worksetRepo: repositories.worksets,

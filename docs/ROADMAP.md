@@ -240,15 +240,24 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 
 - Versioned CapabilityEngineDescriptor, CapabilityDefinition, CapabilityBinding, typed sources, lifecycle and availability contracts
 - Deterministic trusted built-in Capability Engine Registry with cycle detection and engine-specific validator seam
-- CalendarDefinitionV1 contract/validation proof only; no Calendar runtime, querying, persistence, or UI
-- Code-free capability catalog exposed to Workspace Architect with `ARCHITECTURE_ONLY` truthfulness
+- CalendarDefinitionV1 contract/validation proof only; Calendar runtime/persistence/UI deferred to Step 10.4
+- Code-free capability catalog exposed to Workspace Architect with truthful availability reporting
 - Loose coupling: independent Definitions reference canonical Module/Entity Type/Workset sources
 - No CapabilityDefinition persistence until the first real Engine milestone
 - Mandatory security, Workspace isolation, bounded configuration, derived-state, failure-isolation, and action-engine trust invariants
 
-### Future candidate — Calendar & Scheduling Foundation
+## Step 10.4 — Calendar & Scheduling Engine Foundation
 
-Not implemented. Must define the first real Capability Engine runtime, trusted persistence/lifecycle, bounded canonical Record projection, and view behavior without Calendar event copies.
+**Status:** CURRENT — BROWSER VERIFICATION IN PROGRESS
+
+- Generic CapabilityDefinition persistence and lifecycle
+- First operational Capability Engine: Calendar
+- Bounded canonical Record projection into rebuildable CalendarEventProjections
+- Month / Week / Day Calendar View with navigation and event → Record Detail
+- Multiple CalendarDefinitions per Workspace and combined display
+- Module Designer Capabilities seam without embedding Calendar in FormSchema
+- Firestore Rules, Reset integration, and MEMBER denial for CapabilityDefinitions
+- No Calendar-owned business-data collection; no duplicated Reservation/Holiday/Meeting events
 
 ## Step 10.1 — Automat Workspace Architect / Evolution Engine
 

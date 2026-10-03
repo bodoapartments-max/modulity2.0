@@ -369,13 +369,15 @@ The Designer is the human authoring surface for the existing ModuleDefinition/Fo
 
 DRAFT edits remain draft; first activation creates immutable Version 1; ACTIVE publication creates the next immutable Module Version. Historical Records retain `moduleId + moduleVersion` and render through immutable snapshots. Manual, Automat, and future import/API authors converge into the same schema and ModuleService. Preview never creates Records. Capability configuration remains independent CapabilityDefinitions. See `MODULE_FORM_DESIGNER.md`.
 
-## Step 10.2 — Composable Capability Engine Architecture
+## Step 10.2/10.4 — Composable Capability Engine Architecture
 
-Modulity now has a versioned contract/registry layer for optional reusable platform capabilities. Capability Engine, Capability Definition, Capability Binding, Capability View, and canonical business data are distinct. Independent declarative Definitions reference typed Workspace-scoped Modules, Entity Types, or Worksets; they never embed executable code or arbitrary database paths.
+Modulity has a versioned contract/registry layer for optional reusable platform capabilities. Capability Engine, Capability Definition, Capability Binding, Capability View, and canonical business data are distinct. Independent declarative Definitions reference typed Workspace-scoped Modules, Entity Types, or Worksets; they never embed executable code or arbitrary database paths.
 
-The built-in catalog is architecture metadata only. CalendarDefinitionV1 proves deterministic Module-field mapping, but no Calendar runtime, query engine, UI, event persistence, or Definition persistence exists. Workspace Architect can see code-free availability metadata and may recommend `ARCHITECTURE_ONLY` requirements without claiming they are operational or sending them to trusted apply.
+Step 10.2 added the registry and CalendarDefinitionV1 contract proof. Step 10.4 adds generic CapabilityDefinition persistence and makes Calendar the first operational engine. CalendarDefinitions are stored in `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}` and consumed by a bounded Calendar Engine that projects canonical Records into Month/Week/Day views. No Calendar event store or duplicated business-data collection exists.
 
-Canonical rule: Core data → declarative Capability Definition → Capability Engine → derived View or trusted action. Optional failure must not invalidate canonical data. Future action engines require trusted authorization, idempotency, journal, and Audit boundaries. See `CAPABILITY_ENGINE_ARCHITECTURE.md` and ADR-0004.
+Workspace Architect sees the code-free catalog with truthful `AVAILABLE`/`ARCHITECTURE_ONLY` availability. Calendar requirements may now be proposed as operational, but trusted Automat apply for CapabilityDefinitions remains deferred.
+
+Canonical rule: Core data → declarative Capability Definition → Capability Engine → derived View or trusted action. Optional failure must not invalidate canonical data. Future action engines require trusted authorization, idempotency, journal, and Audit boundaries. See `CAPABILITY_ENGINE_ARCHITECTURE.md`, `CALENDAR_ENGINE.md`, and ADR-0004/ADR-0005.
 
 ## Step 10.1 — Automat Workspace Architect
 

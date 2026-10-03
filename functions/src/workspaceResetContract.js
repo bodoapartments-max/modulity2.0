@@ -24,6 +24,7 @@ export const WORKSPACE_RESET_RESOURCES = Object.freeze([
   { resource: 'ledgerCodes', collection: 'ledgerCodes', strategy: 'RECURSIVE_DELETE' },
   { resource: 'auditEntries', collection: 'auditEntries', strategy: 'RECURSIVE_DELETE' },
   { resource: 'automatPlans', collection: 'automatPlans', strategy: 'RECURSIVE_DELETE' },
+  { resource: 'capabilityDefinitions', collection: 'capabilityDefinitions', strategy: 'RECURSIVE_DELETE' },
 ]);
 
 export const PRESERVED_RESOURCES = Object.freeze(['authenticatedUser', 'userProfile', 'workspaceDocument', 'workspaceIdentity', 'organizationDocument', 'memberships', 'ownerAccess', 'coreEntityTypes']);

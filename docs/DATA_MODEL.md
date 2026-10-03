@@ -428,6 +428,31 @@ Path: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}`
 | `createdBy` | ActorRef | Who activated/versioned this snapshot. |
 | `createdAt` | string | When this version snapshot was created. |
 
+## CapabilityDefinition (Step 10.4)
+
+Path: `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}`
+
+A generic, workspace-scoped declarative configuration for a Capability Engine. Calendar is the first consumer.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `definitionId` | string | Immutable. Internal identifier. |
+| `definitionVersion` | string | Immutable. Definition-model version (e.g. `1.0.0`). |
+| `workspaceId` | string | Immutable. Workspace ownership. |
+| `engineId` | string | Immutable. Registered engine identifier (e.g. `calendar`). |
+| `contractVersion` | string | Immutable. Engine contract version. |
+| `name` | string | Human-readable name. |
+| `description` | string | Optional. |
+| `source` | object | Typed canonical source ref: `{ kind, ref, workspaceId }`. |
+| `configuration` | object | Engine-specific bounded declarative config. No executable content. |
+| `status` | string | `DRAFT` / `ACTIVE` / `INACTIVE` / `ARCHIVED`. |
+| `createdBy` | ActorRef | Immutable. |
+| `updatedBy` | ActorRef? | Last modifier. |
+| `createdAt` | string | Immutable. |
+| `updatedAt` | string | Auto-updated. |
+
+No projected events or business data are stored in this collection.
+
 ## Module Code Reservation (Step 4.1)
 
 Path: `workspaces/{workspaceId}/moduleCodes/{normalizedCode}`

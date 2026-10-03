@@ -70,6 +70,40 @@ service cloud.firestore {
               && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/modules/$(sources[index].moduleId)))));
     }
 
+    function isBoundedCapabilityConfiguration(data) {
+      return data.configuration is map
+        && !('collectionPath' in data.configuration)
+        && !('firestorePath' in data.configuration)
+        && !('rawQuery' in data.configuration)
+        && !('script' in data.configuration)
+        && !('scriptUrl' in data.configuration)
+        && !('moduleUrl' in data.configuration)
+        && !('executable' in data.configuration)
+        && !('expression' in data.configuration)
+        && !('eval' in data.configuration)
+        && !('function' in data.configuration)
+        && !('componentCode' in data.configuration)
+        && !('jsx' in data.configuration);
+    }
+
+    function isValidCapabilityDefinition(data, workspaceId) {
+      return data.workspaceId == workspaceId
+        && data.definitionId is string
+        && data.definitionVersion == '1.0.0'
+        && data.engineId is string
+        && data.engineId in ['calendar']
+        && data.contractVersion == '1.0.0'
+        && data.status in ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED']
+        && data.source is map
+        && data.source.kind in ['MODULE', 'ENTITY_TYPE', 'WORKSET']
+        && data.source.ref is string
+        && (data.source.kind == 'MODULE' ? data.source.ref.matches('module:.*') : true)
+        && (data.source.kind == 'ENTITY_TYPE' ? data.source.ref.matches('entityType:.*') : true)
+        && (data.source.kind == 'WORKSET' ? data.source.ref.matches('workset:.*') : true)
+        && data.source.workspaceId == workspaceId
+        && isBoundedCapabilityConfiguration(data);
+    }
+
     function isBoundedAnalyticsDefinition(data, workspaceId) {
       return data.dataSources is list && data.dataSources.size() >= 1 && data.dataSources.size() <= 5
         && isValidAnalyticsSourceAt(data.dataSources, 0, workspaceId)
@@ -836,6 +870,31 @@ service cloud.firestore {
       match /automatPlans/{planId} {
         allow read: if canAccessWorkspace();
         allow create, update, delete: if false;
+      }
+
+      // ─── Capability Definitions ─────────────────────────────
+      // Path: workspaces/{workspaceId}/capabilityDefinitions/{definitionId}
+      // Declarative engine configuration. No business data, no executable config.
+
+      match /capabilityDefinitions/{definitionId} {
+        allow read: if canAccessWorkspace();
+        allow create: if canManageWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.definitionId == definitionId
+          && isValidClientActor(request.resource.data.createdBy)
+          && isValidCapabilityDefinition(request.resource.data, workspaceId);
+        allow update: if canManageWorkspace()
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('definitionId')
+          && fieldUnchanged('engineId')
+          && fieldUnchanged('contractVersion')
+          && fieldUnchanged('definitionVersion')
+          && fieldUnchanged('createdBy')
+          && fieldUnchanged('_createdAt')
+          && request.resource.data.source.workspaceId == workspaceId
+          && request.resource.data.status in ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED']
+          && isBoundedCapabilityConfiguration(request.resource.data);
+        allow delete: if canManageWorkspace();
       }
 
       // ─── Notifications ─────────────────────────────────────

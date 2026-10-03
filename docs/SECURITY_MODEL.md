@@ -439,17 +439,19 @@ All new workspace-scoped collections enforce:
 - Designer validation rejects unsupported types/properties, unsafe executable/path keys, duplicate fields/options, invalid listFields, size/bounds violations, and unknown/cross-Workspace Entity Types.
 - ModuleService independently resolves EntityReference target types through the current Workspace Entity Type repository before create/update/activation.
 - Preview uses FormRenderer-local state and never invokes Record creation.
-- No Designer collection, localStorage canonical state, generated JSX, scripts, remote modules, permission grant, or CapabilityDefinition persistence exists.
+- No Designer collection, localStorage canonical state, generated JSX, scripts, remote modules, or permission grant exists. CapabilityDefinition persistence is handled by the separate Step 10.4 generic capability layer, not the Designer.
 
-## Step 10.2 — Capability Engine Security
+## Step 10.2/10.4 — Capability Engine Security
 
 - Capability Definitions are configuration, never authority, permission, entitlement, credentials, or arbitrary database access.
 - Sources are typed canonical refs with explicit Workspace identity; resolver validation rejects unknown, mismatched, and cross-Workspace sources.
 - Configuration rejects Firestore paths/raw queries, executable values, scripts, expressions, remote module URLs, JSX/component code, `eval`, and functions.
 - Engine-specific validators are trusted built-in code registered locally, not downloaded plugins or provider output.
-- `ARCHITECTURE_ONLY` Engines cannot validate ACTIVE Definitions as operational.
-- Read engines must use bounded canonical services. Future action engines require trusted command authorization, idempotency, journals, failure isolation, and Audit.
-- Step 10.2 adds no Firestore persistence, Rules, indexes, credentials, or runtime execution.
+- `ARCHITECTURE_ONLY` Engines cannot validate ACTIVE Definitions as operational. As of Step 10.4, `calendar` is `AVAILABLE`.
+- Read engines use bounded canonical services. Calendar projections are derived from canonical Records and rebuildable.
+- CapabilityDefinition persistence is workspace-scoped. Firestore Rules allow read for Workspace members and write/delete only for Personal owners or Organization OWNER/ADMIN; MEMBER is denied.
+- Immutable identity/provenance, allowed engine IDs/versions, typed source refs, lifecycle status, and bounded safe configuration are enforced by Rules and service validation.
+- Calendar projections never reveal Records the caller could not otherwise read. Event click navigates to canonical Record Detail, not a separate Calendar-owned detail.
 
 ## Step 10.1 — Workspace Architect Security
 

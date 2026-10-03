@@ -274,6 +274,23 @@
         { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "_updatedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "capabilityDefinitions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "engineId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "capabilityDefinitions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "engineId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

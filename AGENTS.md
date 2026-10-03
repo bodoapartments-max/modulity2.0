@@ -331,6 +331,20 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 - Automat may read the code-free catalog and propose non-operational requirements; it never becomes capability execution authority.
 - Step 10.2 adds no CapabilityDefinition persistence and no Calendar runtime/UI/querying/event store.
 
+## Step 10.4 — Calendar & Scheduling Engine Foundation
+
+- Calendar is the first operational Capability Engine. It is a derived read/projection over canonical Records.
+- CapabilityDefinitions are persisted generically in `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}`.
+- CalendarDefinitions map title, start, optional end, and optional resource fields from a Module's `FormSchema`. Field choices are constrained.
+- The Calendar Engine queries canonical Records within a bounded window, maps them to rebuildable `CalendarEventProjection`s, and resolves EntityReference labels through the canonical Entity service.
+- Calendar View supports Month, Week, and Day; event click opens canonical Record Detail.
+- Multiple CalendarDefinitions can coexist; combined views retain record/module/definition identity.
+- No Calendar-specific business-data collection is created (no `calendarEvents`, `reservationEvents`, etc.).
+- CapabilityDefinition management requires Personal Workspace owner or Organization OWNER/ADMIN; MEMBER is denied.
+- Firestore Rules enforce workspace scope, immutable identity/provenance, bounded safe configuration, and lifecycle transitions.
+- Workspace Reset removes CapabilityDefinitions; identity, membership, core entity types, and audit evidence are preserved.
+- Automat Workspace Architect sees Calendar as `AVAILABLE`; trusted apply for CapabilityDefinitions remains deferred to Designer handoff or a future approved write group.
+
 ## Step 10.1 — Automat Workspace Architect
 
 - Workspace evolution uses the existing Agent Registry, adapters, AutomatBuildPlan, deterministic validator, persistence, approval, fingerprint, and trusted apply pipeline.

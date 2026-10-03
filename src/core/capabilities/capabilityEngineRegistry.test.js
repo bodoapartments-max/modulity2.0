@@ -64,7 +64,9 @@ describe('Composable Capability Engine architecture', () => {
     expect((await registry.validateDefinition(calendar('module:RESERVATION', { titleField: 'missing', startField: 'arrivalDate' }), context())).issues.map((item) => item.code)).toContain('UNKNOWN_FIELD');
     expect((await registry.validateDefinition(calendar('module:RESERVATION', { titleField: 'guestName', startField: 'guestName', resourceField: 'guestName' }), context())).issues.map((item) => item.code)).toEqual(expect.arrayContaining(['WRONG_FIELD_TYPE']));
     const active = calendar('module:RESERVATION', { titleField: 'guestName', startField: 'arrivalDate' }, { status: 'ACTIVE' });
-    expect((await registry.validateDefinition(active, context())).issues.map((item) => item.code)).toContain('ENGINE_NOT_AVAILABLE');
+    expect((await registry.validateDefinition(active, context())).issues).toHaveLength(0);
+    const architectureOnly = createCapabilityDefinition({ definitionId: 'workflow:active', definitionVersion: '1.0.0', engineId: 'workflow', contractVersion: CAPABILITY_CONTRACT_VERSION, workspaceId, source: { kind: 'MODULE', ref: 'module:RESERVATION', workspaceId }, configuration: {}, status: 'ACTIVE' });
+    expect((await registry.validateDefinition(architectureOnly, context())).issues.map((item) => item.code)).toContain('ENGINE_NOT_AVAILABLE');
   });
 
   it('enforces resolver Workspace ownership for Personal and Organization compatible contracts', async () => {
@@ -95,10 +97,10 @@ describe('Composable Capability Engine architecture', () => {
   it('exposes a code-free deterministic catalog to Workspace Architect without claiming availability', () => {
     const catalog = createArchitectCapabilityCatalog();
     expect(catalog.map((item) => item.engineId)).toEqual([...catalog.map((item) => item.engineId)].sort());
-    expect(catalog.find((item) => item.engineId === 'calendar')).toEqual(expect.objectContaining({ availability: CAPABILITY_AVAILABILITY.ARCHITECTURE_ONLY, operational: false }));
+    expect(catalog.find((item) => item.engineId === 'calendar')).toEqual(expect.objectContaining({ availability: CAPABILITY_AVAILABILITY.AVAILABLE, operational: true }));
     expect(catalog.every((item) => !Object.values(item).some((value) => typeof value === 'function'))).toBe(true);
     const semanticModel = createWorkspaceSemanticModel(createWorkspaceConfigurationSnapshot({ workspaceId }));
-    expect(semanticModel.capabilityCatalog.find((item) => item.engineId === 'calendar').operational).toBe(false);
+    expect(semanticModel.capabilityCatalog.find((item) => item.engineId === 'calendar').operational).toBe(true);
   });
 
   it('keeps Engine, Definition, Binding and canonical data contracts distinct', () => {
