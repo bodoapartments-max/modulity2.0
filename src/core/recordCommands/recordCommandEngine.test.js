@@ -42,6 +42,20 @@ describe('recordCommandEngine', () => {
     expect(result.valid).toBe(false);
   });
 
+  it('allows incomplete values for draft creation (required enforced at SUBMIT)', () => {
+    const mod = makeModule();
+    const command = buildCreateRecordCommand({ operationId: 'op-1', workspaceId: 'ws-1', moduleId: 'mod-1', values: { name: 'Partial' }, isDraft: true });
+    const result = validateCreateRecordCommand(command, mod);
+    expect(result.valid).toBe(true);
+  });
+
+  it('still type-checks provided draft values', () => {
+    const mod = makeModule();
+    const command = buildCreateRecordCommand({ operationId: 'op-1', workspaceId: 'ws-1', moduleId: 'mod-1', values: { date: 'not-a-date' }, isDraft: true });
+    const result = validateCreateRecordCommand(command, mod);
+    expect(result.valid).toBe(false);
+  });
+
   it('rejects archived module', () => {
     const mod = makeModule({ status: MODULE_STATUSES.ARCHIVED });
     const command = buildCreateRecordCommand({ operationId: 'op-1', workspaceId: 'ws-1', moduleId: 'mod-1', values: { name: 'X', date: '2024-01-01' } });

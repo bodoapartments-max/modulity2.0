@@ -48,7 +48,12 @@ export function validateCreateRecordCommand(command, module) {
   }
 
   const payload = command.payload;
-  const validation = validateFormValues(payload.values, fields);
+  // Draft creation allows INCOMPLETE values by design: types are checked,
+  // required-field enforcement is deferred to SUBMIT_RECORD.
+  const validationFields = payload.isDraft
+    ? fields.map((field) => ({ ...field, required: false }))
+    : fields;
+  const validation = validateFormValues(payload.values, validationFields);
   if (!validation.valid) {
     return { valid: false, errors: Object.values(validation.errors), code: RECORD_COMMAND_ERROR_CODES.RECORD_INVALID };
   }
