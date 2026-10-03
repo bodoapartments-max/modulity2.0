@@ -432,6 +432,16 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 10.2 — Capability Engine Security
+
+- Capability Definitions are configuration, never authority, permission, entitlement, credentials, or arbitrary database access.
+- Sources are typed canonical refs with explicit Workspace identity; resolver validation rejects unknown, mismatched, and cross-Workspace sources.
+- Configuration rejects Firestore paths/raw queries, executable values, scripts, expressions, remote module URLs, JSX/component code, `eval`, and functions.
+- Engine-specific validators are trusted built-in code registered locally, not downloaded plugins or provider output.
+- `ARCHITECTURE_ONLY` Engines cannot validate ACTIVE Definitions as operational.
+- Read engines must use bounded canonical services. Future action engines require trusted command authorization, idempotency, journals, failure isolation, and Audit.
+- Step 10.2 adds no Firestore persistence, Rules, indexes, credentials, or runtime execution.
+
 ## Step 10.1 — Workspace Architect Security
 
 - The Architect reads only the authenticated current Workspace through the existing bounded snapshot repositories; model output cannot specify Firestore paths.

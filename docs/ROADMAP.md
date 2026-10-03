@@ -221,6 +221,22 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Type-level Relationship recommendations remain optional UNSUPPORTED planning output
 - Workspace Reset compatibility for plans, generated configuration, and lock state
 
+## Step 10.2 — Composable Capability Engine Architecture
+
+**Status:** CLOSED — ARCHITECTURE/DEPLOYMENT VERIFIED
+
+- Versioned CapabilityEngineDescriptor, CapabilityDefinition, CapabilityBinding, typed sources, lifecycle and availability contracts
+- Deterministic trusted built-in Capability Engine Registry with cycle detection and engine-specific validator seam
+- CalendarDefinitionV1 contract/validation proof only; no Calendar runtime, querying, persistence, or UI
+- Code-free capability catalog exposed to Workspace Architect with `ARCHITECTURE_ONLY` truthfulness
+- Loose coupling: independent Definitions reference canonical Module/Entity Type/Workset sources
+- No CapabilityDefinition persistence until the first real Engine milestone
+- Mandatory security, Workspace isolation, bounded configuration, derived-state, failure-isolation, and action-engine trust invariants
+
+### Future candidate: Step 10.3 — Calendar & Scheduling Foundation
+
+Not implemented. Must define the first real Capability Engine runtime, trusted persistence/lifecycle, bounded canonical Record projection, and view behavior without Calendar event copies.
+
 ## Step 10.1 — Automat Workspace Architect / Evolution Engine
 
 **Status:** CLOSED — DEPLOYMENT VERIFIED

@@ -363,6 +363,14 @@ Step 9.2 persists/revalidates the reviewed plan through `automatPlan`, binds exp
 
 Automat-created Modules enter the same generic runtime as manual Modules: Module card → schema-driven paginated Record List → canonical Record Detail. Record queries normalize Firestore directions to lowercase, use deterministic document-ID tie-breaking and deployed composite indexes, and never download the Workspace for filtering. See `docs/AUTOMAT_ARCHITECTURE.md` and ADR-0002.
 
+## Step 10.2 — Composable Capability Engine Architecture
+
+Modulity now has a versioned contract/registry layer for optional reusable platform capabilities. Capability Engine, Capability Definition, Capability Binding, Capability View, and canonical business data are distinct. Independent declarative Definitions reference typed Workspace-scoped Modules, Entity Types, or Worksets; they never embed executable code or arbitrary database paths.
+
+The built-in catalog is architecture metadata only. CalendarDefinitionV1 proves deterministic Module-field mapping, but no Calendar runtime, query engine, UI, event persistence, or Definition persistence exists. Workspace Architect can see code-free availability metadata and may recommend `ARCHITECTURE_ONLY` requirements without claiming they are operational or sending them to trusted apply.
+
+Canonical rule: Core data → declarative Capability Definition → Capability Engine → derived View or trusted action. Optional failure must not invalidate canonical data. Future action engines require trusted authorization, idempotency, journal, and Audit boundaries. See `CAPABILITY_ENGINE_ARCHITECTURE.md` and ADR-0004.
+
 ## Step 10.1 — Automat Workspace Architect
 
 The Workspace Architect analyzes bounded canonical configuration before proposing evolution. `WorkspaceSemanticModel` is in-memory planning data, never a second source of truth. A provider-neutral `WORKSPACE_ARCHITECT` Agent produces a structured Evolution Plan with REUSE/CREATE/CONNECT/CONFLICT/UNSUPPORTED decisions and concise rationale. That plan compiles into the existing AutomatBuildPlan; deterministic classification, fingerprints, review, approval, and the Step 9.2 trusted apply engine remain authoritative.

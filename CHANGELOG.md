@@ -2,6 +2,21 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 10.2 — Composable Capability Engine Architecture
+
+### Added
+- Versioned Capability Engine descriptor, Definition, Binding, source-reference, lifecycle, availability, mode, dependency, and bounds contracts
+- Deterministic trusted built-in Capability Engine Registry with duplicate/version validation, stable ordering, dependency-cycle detection, generic validation, and engine-specific validator seam
+- CalendarDefinitionV1 contract/validator proof for Reservation, Holiday Request, and Meeting schemas without Calendar runtime, query, UI, or persistence
+- Code-free capability catalog consumed by WorkspaceSemanticModel; Calendar and all reserved future engines remain truthfully `ARCHITECTURE_ONLY`
+- Planning-level non-operational `capabilityRequirements` for future-compatible Workspace Architect review; trusted apply writes no capability resources
+- Security tests for arbitrary paths, scripts, expressions, remote module URLs, functions, unknown sources, field/type mismatch, and cross-Workspace references
+- Authenticated Reset Test Hotel verification: Workspace Architect shows Calendar truthfully as `ARCHITECTURE_ONLY`, non-operational/non-applied, while restaurant evolution remains CREATE 0 / REUSE 20 and Employee/Room/Reservation flows remain healthy
+- Dedicated `CAPABILITY_ENGINE_ARCHITECTURE.md` and ADR-0004 selecting loosely coupled independent Definitions and deferred persistence
+
+### Persistence
+- No CapabilityDefinition collection, Rules, indexes, reset path, migration framework, or runtime state was added. Persistence is deferred to the first real Engine milestone.
+
 ## Step 10.1 — Automat Workspace Architect / Evolution Engine
 
 ### Added

@@ -301,6 +301,21 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 10.2 — Composable Capability Engines
+
+- Entity ≠ Module ≠ Record ≠ Capability Engine. Engine ≠ Definition ≠ Binding ≠ View.
+- Capability Engines compose around canonical data; never create capability-specific duplicate business stores.
+- Capability Definitions are versioned declarative configuration and cannot contain executable code, arbitrary expressions, raw queries, Firestore paths, remote scripts, JSX, `eval`, or functions.
+- Prefer independent Workspace-scoped Definitions referencing typed canonical sources over embedding whole engine configuration in ModuleDefinition.
+- No Engine may bypass canonical services, Workspace authorization, permission, entitlement, or Audit requirements.
+- Read/projection capability output is derived/rebuildable. Optional Engine failure must not corrupt canonical business state.
+- Future action engines require trusted command execution, authorization, idempotency, journaling, failure isolation, and Audit.
+- Availability and entitlement are separate. Never label `ARCHITECTURE_ONLY` as operational.
+- New Engines require stable IDs, versioned descriptors/Definitions, bounded configuration, deterministic generic + engine-specific validation, and dependency-cycle review.
+- No browser-loaded executable plugins or arbitrary remote code. External extensions use future versioned APIs/events/commands through trusted boundaries.
+- Automat may read the code-free catalog and propose non-operational requirements; it never becomes capability execution authority.
+- Step 10.2 adds no CapabilityDefinition persistence and no Calendar runtime/UI/querying/event store.
+
 ## Step 10.1 — Automat Workspace Architect
 
 - Workspace evolution uses the existing Agent Registry, adapters, AutomatBuildPlan, deterministic validator, persistence, approval, fingerprint, and trusted apply pipeline.
