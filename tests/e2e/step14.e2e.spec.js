@@ -1,4 +1,4 @@
-/* global process, URL */
+/* global process */
 import { test, expect } from '@playwright/test';
 
 const user2Email = process.env.E2E_USER2_EMAIL || 'user2@mail.com';
