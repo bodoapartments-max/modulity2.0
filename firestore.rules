@@ -367,18 +367,9 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Actor enforcement: client must claim USER + own uid.
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.createdBy != null
-          && isValidClientActor(request.resource.data.createdBy)
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
+        // Create: disallowed from browser clients. Canonical Record creation is
+        // server-authoritative via the trusted recordCommand callable.
+        allow create: if false;
 
         // Update: provenance + sourceRequestId always immutable.
         // SUBMITTED+ records: data/entityReferences/submittedBy also immutable.

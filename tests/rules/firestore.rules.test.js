@@ -1226,10 +1226,10 @@ describe('workspaces/{wsId}/entities/{entityId}', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('workspaces/{wsId}/records/{recordId}', () => {
-  it('authorized record creation succeeds', async () => {
+  it('direct client record creation is denied (trusted callable only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
       recordId: 'rec1', workspaceId: 'ws-p', recordType: 'ROOM_INSPECTION',
       status: 'DRAFT', createdBy: { actorType: 'USER', actorId: 'user1' },
     }));
@@ -1571,10 +1571,10 @@ describe('actor identity enforcement', () => {
     }));
   });
 
-  it('record creation with valid USER actor succeeds', async () => {
+  it('record creation with valid USER actor is still denied (trusted callable only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-valid'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-valid'), {
       recordId: 'rec-valid', workspaceId: 'ws-p', recordType: 'TEST',
       status: 'DRAFT',
       createdBy: { actorType: 'USER', actorId: 'user1' },

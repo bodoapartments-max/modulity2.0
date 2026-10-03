@@ -52,6 +52,9 @@ import { createCapabilityDefinitionService } from '../capabilities/definition/ca
 import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRuntime.js';
 import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
+import { recordCommandClient } from './firebase/recordCommandClient.js';
+import { buildCreateRecordCommand } from '../core/recordCommands/recordCommandContract.js';
+import { generateId } from '../core/utils/generateId.js';
 
 function createServices() {
   if (!repositories) {
@@ -131,6 +134,13 @@ function createServices() {
     moduleRepo: repositories.modules,
   });
 
+  const recordCommand = Object.freeze({
+    async submit({ workspaceId, moduleId, actor: _actor, values, isDraft = false, operationId = generateId() }) {
+      const command = buildCreateRecordCommand({ operationId, workspaceId, moduleId, values, isDraft });
+      return recordCommandClient.execute(command);
+    },
+  });
+
   return {
     workspace: createWorkspaceService({
       workspaceRepo: repositories.workspaces,
@@ -171,7 +181,9 @@ function createServices() {
       moduleRepo: repositories.modules,
       recordService: recordSvc,
       entityService: entitySvc,
+      recordCommand,
     }),
+    recordCommand,
     recordQuery: recordQuerySvc,
     recordOperation: recordOpSvc,
     delivery: deliverySvc,

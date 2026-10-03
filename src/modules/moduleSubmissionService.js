@@ -23,8 +23,9 @@ import { AppError } from '../core/errors/appError.js';
  * @param {import('./moduleRepository.js').ModuleRepository} deps.moduleRepo
  * @param {import('../core/data/recordService.js')} deps.recordService — the wired record service
  * @param {import('../core/data/entityService.js')} deps.entityService — for reference resolution
+ * @param {Object} [deps.recordCommand] — trusted command executor with submit({workspaceId, moduleId, actor, values, isDraft})
  */
-export function createModuleSubmissionService({ moduleRepo, recordService, entityService }) {
+export function createModuleSubmissionService({ moduleRepo, recordService, entityService, recordCommand = null }) {
   /**
    * Submits a Module record.
    *
@@ -46,6 +47,27 @@ export function createModuleSubmissionService({ moduleRepo, recordService, entit
    * @returns {Promise<Object>} — the created Record
    */
   async function submitModuleRecord({ workspaceId, moduleId, actor, values, isDraft = false }) {
+    // Trusted server-authoritative path (production)
+    if (recordCommand) {
+      const { record } = await recordCommand.submit({ workspaceId, moduleId, actor, values, isDraft });
+
+      const eventType = isDraft ? 'module.record_draft_saved' : 'module.record_submitted';
+      eventBus.emit(createEvent({
+        eventType,
+        workspaceId,
+        actor: { type: actor.actorType === 'USER' ? 'user' : 'service', id: actor.actorId },
+        payload: {
+          recordId: record.recordId,
+          moduleId: record.moduleId,
+          moduleCode: record.recordType,
+          moduleVersion: record.moduleVersion,
+        },
+      }));
+
+      return record;
+    }
+
+    // Direct local path (fallback for tests / interim development only)
     // 1. Load Module
     const mod = await moduleRepo.getById(workspaceId, moduleId);
     if (!mod) {

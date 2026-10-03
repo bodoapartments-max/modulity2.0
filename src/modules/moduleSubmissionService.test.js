@@ -251,4 +251,27 @@ describe('ModuleSubmissionService', () => {
       expect(record.moduleVersion).toBe(1);
     });
   });
+
+  describe('trusted command path', () => {
+    it('delegates to recordCommand when provided', async () => {
+      const submitted = [];
+      const trustedCommand = {
+        submit: async (params) => {
+          submitted.push(params);
+          return { record: { recordId: 'trusted-1', moduleId: params.moduleId, moduleVersion: 1, status: params.isDraft ? 'DRAFT' : 'SUBMITTED' }, operationId: 'op-1', idempotent: false };
+        },
+      };
+      const svc = createModuleSubmissionService({
+        moduleRepo: makeMockModuleRepo(mod),
+        recordService,
+        entityService: null,
+        recordCommand: trustedCommand,
+      });
+
+      const record = await svc.submitModuleRecord({ workspaceId: 'ws-1', moduleId: 'mod-1', actor: validActor, values: { name: 'Test', date: '2024-06-15' } });
+      expect(record.recordId).toBe('trusted-1');
+      expect(submitted).toHaveLength(1);
+      expect(submitted[0].workspaceId).toBe('ws-1');
+    });
+  });
 });
