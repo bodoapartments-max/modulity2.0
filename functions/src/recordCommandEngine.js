@@ -22,15 +22,14 @@ import {
   AUDIT_SOURCES,
 } from './generated/src/core/audit/auditActions.js';
 import { NOTIFICATION_STATUSES, createNotification } from './generated/src/core/workspace/notification.js';
-
-const OPERATION_STATUS = Object.freeze({
-  PROCESSING: 'PROCESSING',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED',
-});
-
-const OPERATION_LEASE_MS = 30_000;
-const MAX_RECOVERY_ATTEMPTS = 10;
+import {
+  OPERATION_STATUS,
+  OPERATION_LEASE_MS,
+  MAX_RECOVERY_ATTEMPTS,
+  computeOperationFingerprint as computeCommandFingerprint,
+  operationDoc,
+  buildOperationDocument,
+} from './operationJournal.js';
 
 const fail = (code, message, details = {}) => {
   const httpCode =
@@ -44,28 +43,15 @@ const fail = (code, message, details = {}) => {
 };
 
 function deriveRecordId(operationId) {
-  return `rec_${createHash('sha256').update(operationId).digest('hex').slice(0, 20)}`;
+  return `rec_${createHash256(operationId).slice(0, 20)}`;
 }
 
-function stableJson(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  const keys = Object.keys(value).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`).join(',')}}`;
-}
-
-function computeCommandFingerprint(userId, command) {
-  const { commandType, payload } = command;
-  const normalized = stableJson({ userId, commandType, payload });
-  return createHash('sha256').update(normalized).digest('hex');
+function createHash256(input) {
+  return createHash('sha256').update(input).digest('hex');
 }
 
 function recordDoc(db, workspaceId, recordId) {
   return db.doc(`workspaces/${workspaceId}/records/${recordId}`);
-}
-
-function operationDoc(db, workspaceId, operationId) {
-  return db.doc(`workspaces/${workspaceId}/recordOperations/${operationId}`);
 }
 
 async function loadWorkspace(db, workspaceId) {
@@ -146,21 +132,23 @@ function mapFromFirestoreRecord(snap) {
   };
 }
 
-function buildOperationDocument({ command, userId, fingerprint, status, recordId = null, attemptCount = 1, leaseMs = OPERATION_LEASE_MS }) {
-  const now = Timestamp.now();
-  return {
-    operationId: command.operationId,
-    workspaceId: command.payload.workspaceId,
-    commandType: command.commandType,
-    status,
-    fingerprint,
-    userId,
-    recordId,
-    attemptCount,
-    leaseExpiresAt: Timestamp.fromMillis(now.toMillis() + leaseMs),
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  };
+function writeAuditInTransaction(transaction, db, workspaceId, { operationId, action, resourceId, userId, metadata, timestamp }) {
+  const entry = createAuditEntry({
+    auditEntryId: `op_${operationId}_${action}`,
+    workspaceId,
+    actor: { actorType: 'USER', actorId: userId },
+    action,
+    resourceType: AUDIT_RESOURCE_TYPES.RECORD,
+    resourceId,
+    timestamp,
+    metadata: { ...(metadata || {}), operationId },
+    source: AUDIT_SOURCES.WEB,
+    correlationId: `op:${operationId}`,
+  });
+  transaction.set(db.doc(`workspaces/${workspaceId}/auditEntries/op_${operationId}_${action}`), {
+    ...entry,
+    _timestamp: FieldValue.serverTimestamp(),
+  });
 }
 
 export async function executeRecordCommand(db, { userId, command }) {
@@ -320,34 +308,22 @@ async function executeCreateRecordCommand(db, { userId, command }) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    // Authoritative Audit evidence in the SAME transaction as the Record —
+    // a trusted mutation cannot silently lose its history (Step 16).
+    writeAuditInTransaction(transaction, db, workspaceId, {
+      operationId: command.operationId,
+      action: isDraft ? AUDIT_ACTIONS.RECORD_CREATED : AUDIT_ACTIONS.RECORD_SUBMITTED,
+      resourceId: recordId,
+      userId,
+      metadata: { moduleId, moduleVersion: module.version },
+      timestamp: now,
+    });
+
     return { status: OPERATION_STATUS.COMPLETED, record, idempotent: false };
   });
 
   if (result.status === OPERATION_STATUS.PROCESSING) {
     fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
-  }
-
-  // Best-effort durable audit (outside transaction, deduplicated by operation identity)
-  try {
-    const actor = { actorType: 'USER', actorId: userId };
-    const auditEntry = createAuditEntry({
-      auditEntryId: `op_${command.operationId}`,
-      workspaceId,
-      actor,
-      action: isDraft ? AUDIT_ACTIONS.RECORD_CREATED : AUDIT_ACTIONS.RECORD_SUBMITTED,
-      resourceType: AUDIT_RESOURCE_TYPES.RECORD,
-      resourceId: recordId,
-      timestamp: now,
-      metadata: { moduleId, moduleVersion: module.version, operationId: command.operationId, idempotent: result.idempotent },
-      source: AUDIT_SOURCES.WEB,
-      correlationId: `op:${command.operationId}`,
-    });
-    await db.doc(`workspaces/${workspaceId}/auditEntries/op_${command.operationId}`).set({
-      ...auditEntry,
-      _createdAt: FieldValue.serverTimestamp(),
-    });
-  } catch {
-    // Audit is best-effort; the canonical Record is the authority.
   }
 
   // Best-effort notification mirroring the existing Event Bus notification bridge
@@ -541,41 +517,26 @@ async function executeRecordMutationCommand(db, { userId, command }) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    // Authoritative Audit evidence in the SAME transaction as the mutation
+    writeAuditInTransaction(transaction, db, workspaceId, {
+      operationId: command.operationId,
+      action: MUTATION_AUDIT_ACTIONS[commandType],
+      resourceId: recordId,
+      userId,
+      metadata: {
+        moduleId: current.moduleId ?? null,
+        moduleVersion: current.moduleVersion ?? null,
+        fromStatus: current.status,
+        toStatus: patch.status ?? current.status,
+      },
+      timestamp: now,
+    });
+
     return { status: OPERATION_STATUS.COMPLETED, record: { ...current, ...patch }, idempotent: false };
   });
 
   if (result.status === OPERATION_STATUS.PROCESSING) {
     fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
-  }
-
-  // Durable audit, deduplicated by operation identity (overwrite-on-retry)
-  try {
-    const actor = { actorType: 'USER', actorId: userId };
-    const auditEntry = createAuditEntry({
-      auditEntryId: `op_${command.operationId}`,
-      workspaceId,
-      actor,
-      action: MUTATION_AUDIT_ACTIONS[commandType],
-      resourceType: AUDIT_RESOURCE_TYPES.RECORD,
-      resourceId: recordId,
-      timestamp: now,
-      metadata: {
-        operationId: command.operationId,
-        moduleId: record.moduleId ?? null,
-        moduleVersion: record.moduleVersion ?? null,
-        fromStatus: record.status,
-        toStatus: result.record?.status ?? record.status,
-        idempotent: result.idempotent,
-      },
-      source: AUDIT_SOURCES.WEB,
-      correlationId: `op:${command.operationId}`,
-    });
-    await db.doc(`workspaces/${workspaceId}/auditEntries/op_${command.operationId}`).set({
-      ...auditEntry,
-      _createdAt: FieldValue.serverTimestamp(),
-    });
-  } catch {
-    // Audit is best-effort; the canonical Record is the authority.
   }
 
   return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };
