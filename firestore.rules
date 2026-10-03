@@ -411,6 +411,15 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ─── Record Command Operations ────────────────────────
+      // Path: workspaces/{workspaceId}/recordOperations/{operationId}
+      // Server-only operational journal for trusted Record commands.
+      // Clients must never write or tamper with operation state.
+
+      match /recordOperations/{operationId} {
+        allow read, create, update, delete: if false;
+      }
+
       // ─── Files ───────────────────────────────────────────
       // Path: workspaces/{workspaceId}/files/{fileId}
 

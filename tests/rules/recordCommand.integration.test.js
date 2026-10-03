@@ -146,4 +146,13 @@ describe('Trusted Record command integration', () => {
         .rejects.toThrow();
     });
   });
+
+  it('rejects DRAFT Module submission', async () => {
+    await withPrivilegedDb(async (db) => {
+      const { moduleService, moduleSubmission } = createTestServices(db);
+      await moduleService.updateModule(WS, 'module-1', { status: 'DRAFT' }, actor);
+      await expect(moduleSubmission.submitModuleRecord({ workspaceId: WS, moduleId: 'module-1', actor, values: { summary: 'X' } }))
+        .rejects.toThrow();
+    });
+  });
 });
