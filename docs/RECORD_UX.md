@@ -69,20 +69,20 @@ Version schema and Entity display names via `useRecordWithSchema`.
 `RecordEditPage` (`/app/records/:recordId/edit`) edits **DRAFT Records only**.
 
 - Non-DRAFT Records get a read-only explanation and cannot open the editor.
-- Saves go through the existing `RecordService.updateDraftRecord` path
-  (client-authoritative): only `data` and `entityReferences` are written;
-  provenance fields (`recordId`, `moduleId`, `moduleVersion`, `createdBy`, …)
-  are stripped by the service and protected by Firestore Rules. Record data is
-  frozen by Rules once the status leaves DRAFT.
-- **Autosave**: `FormRenderer.onValuesChange` → debounced (1.2 s) update of
-  the SAME Draft Record, with visible states `Unsaved changes… / Saving… /
-  All changes saved · <time> / Save failed — Retry`. Autosave never creates a
-  new Record and never fires on mount.
-- **Known limitation:** DRAFT → SUBMITTED from the client is currently
-  rejected by Firestore Rules because `submittedBy` is an always-immutable
-  field. That transition needs a trusted Record command and is **deferred to
-  Step 15** (Generic Record Actions/Lifecycle). The editor therefore offers
-  "Save changes" but no client-side submit.
+- All saves go through the **trusted `UPDATE_DRAFT` command**
+  (Step 15): server auth → workspace authorization → pure action policy
+  (DRAFT-only, ACTIVE Module) → historical Module Version schema validation
+  (partial, type-checked) → EntityReference validation → canonical mutation in
+  a transaction with the operation journal. Only `values` travel over the
+  wire; identity, lifecycle and timestamps are server-derived.
+- **Autosave**: `FormRenderer.onValuesChange` → debounced (1.2 s) trusted
+  update of the SAME Draft Record, with visible states `Unsaved changes… /
+  Saving… / All changes saved · <time> / Save failed — Retry`. Each save uses a
+  fresh `operationId`; retrying an unchanged failed payload replays the same
+  `operationId` (idempotent on the server).
+- **Submit**: "Submit record" flushes pending edits, then runs the trusted
+  `SUBMIT_RECORD` command. Full required-field validation happens server-side;
+  failures are shown inline and the Record stays DRAFT.
 
 ## 5. Create Copy
 
@@ -122,12 +122,15 @@ they cannot appear as FormSchema field keys.
   business data.
 - Record Detail → Ledger Book when registered.
 
-## 8. Security Boundaries (unchanged by Step 14)
+## 8. Security Boundaries (as of Step 15)
 
-- Canonical Record CREATE is server-authoritative via `recordCommand`;
-  browser `create` on `records/{id}` remains denied by Rules.
-- UI visibility is never authorization; every protected read/write relies on
-  the existing Rules boundary.
+- Canonical Record CREATE and ALL Record mutations are server-authoritative
+  via `recordCommand`; browser `create` is denied and browser updates to
+  business/lifecycle fields are denied by Rules. The only remaining client
+  update allowed is Ledger linkage set-once (interim, until Step 16).
+- UI visibility is never authorization; the UI discovers available actions via
+  the shared pure Record Action Policy, and the server re-evaluates policy on
+  every command.
 - No user-controlled configuration can specify Firestore paths, operators or
   executable rendering; `DataGrid` renderers are trusted build-time code.
 - Record values are rendered as text — no HTML injection.

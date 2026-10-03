@@ -32,7 +32,7 @@ Step 11.0 identified three categories of work:
 | Form Renderer & Field Registry | EXISTS | MODULE | `src/modules/forms/` | Select/Textarea/Table/Toast design primitives now exist; Checkbox/Radio not yet extracted | design-system | Step 11.1 + Step 13 |
 | Entity Management | EXISTS | FEATURE | `src/features/entities/` | Logic lives in pages; no `model.js` | — | Step 11.1 refactor |
 | Record List / Detail / History | EXISTS | FEATURE | `src/features/records/` | Saved views, bulk lifecycle ops, generated PDF still deferred | design-system | Step 14 (done) — see `docs/RECORD_UX.md` |
-| Record Lifecycle / Actions | PARTIAL | CORE+FEATURE | `record.js` statuses; `recordOperationService` archive/cancel/priority | No generic action command model; no approve/reject/assign/complete actions | Lifecycle engine | Step 15 |
+| Record Lifecycle / Actions | EXISTS (trusted foundation) | CORE+FEATURE | `recordCommand` contract 1.1.0 + policy + transition model; trusted UPDATE_DRAFT/SUBMIT/priority/archive/restore/cancel | Approve/reject/assign/complete reserved for later | Cloud Functions authority | Step 15 (done) — `docs/TRUSTED_RECORD_COMMANDS.md` |
 | Ledger & Audit | EXISTS | CORE | `src/core/ledger/`, `src/core/audit/` | Audit best-effort; no Cloud Function trusted backend | trusted backend | Step 16 |
 | Reports & Widgets | EXISTS | CORE+FEATURE | `src/core/analytics/`, `src/features/reports/`, `src/features/widgets/` | `WidgetCard` cross-feature import; inline widget definition logic | package cleanup | Step 11.1 |
 | Notifications | PARTIAL | CORE+FEATURE | `notification.js`, `NotificationsPage`, badge via `window` event | No generic policy/dispatch engine; uses ad-hoc window event | Event bus consumer | Step 17 |
@@ -86,7 +86,7 @@ Step 11.0 identified three categories of work:
 | PD-001 | No Form Import / Digitization UI or document-understanding seam | HIGH | Module Designer | Step 24 |
 | PD-002 | No Attachment/File upload UI | HIGH | design-system FileUpload | Step 20 |
 | PD-003 | No Sharing / Send / Folders / Favorites UI despite Core services | HIGH | design-system, Record actions | Step 19 |
-| PD-004 | No generic Record action model (approve/reject/assign/complete) | HIGH | Core lifecycle | Step 15 |
+| PD-004 | No workflow-style Record actions (approve/reject/assign/complete); generic trusted lifecycle foundation landed in Step 15 | HIGH | Core lifecycle | Step 25+ |
 | PD-005 | No Approval Engine | HIGH | PD-004, permissions | Step 25 |
 | PD-006 | No Workflow Engine | MEDIUM | PD-004, Task, Notification | Step 26 |
 | PD-007 | No Scheduling/Booking conflict/availability engine | MEDIUM | Calendar, `datetime-range` | Step 28 |
@@ -141,7 +141,7 @@ Independent streams:
 | 12.1 | Record Command Recovery, Module Policy & Browser Verification | Stabilize Step 12: recover stale operations, enforce ACTIVE-only module submission, verify real browser path | Step 12 | INFRASTRUCTURE+QA | Closes Step 12 before design-system work |
 | 13 | Design-System Primitives | Add Select, Textarea, Table, DataGrid, Pagination, Toast, FileUpload, Tabs | Step 11.1 | DESIGN_SYSTEM | Required for Attachments, Sharing, Chat, etc. |
 | 14 | Record UX Hardening | Hardened list (DataGrid, filters, safe sort, cursor pagination, page-scoped search), detail (header/metadata/actions), draft edit + autosave, copy via trusted create, print/JSON export. Deferred: saved views, bulk lifecycle, generated PDF | Step 13 | FEATURE | COMPLETE — see `docs/RECORD_UX.md` |
-| 15 | Generic Record Actions / Lifecycle | Formalize `submit`, `approve`, `reject`, `assign`, `complete`, `cancel`, `archive` as trusted commands with audit | Steps 12, 13 | CORE+FEATURE | Foundation for Approval/Workflow |
+| 15 | Generic Record Actions / Lifecycle | COMPLETE — trusted command boundary extended (UPDATE_DRAFT, SUBMIT_RECORD, SET_PRIORITY, ARCHIVE_RECORD, RESTORE_RECORD, CANCEL_RECORD), pure action policy + transition model, Rules deny client lifecycle/data mutations. Approve/reject/assign/complete stay reserved | Steps 12, 13 | CORE+FEATURE | Foundation for Approval/Workflow |
 | 16 | Trusted Ledger/Audit Backend | Move sequence allocation and audit writes to Cloud Functions | Step 12 | INFRASTRUCTURE | Removes client-trust limitations |
 | 17 | Generic Notification Capability | Replace ad-hoc window event with event-bus-driven notification dispatch | Step 15 (actions produce events) | CAPABILITY | Needed for Approval/Workflow alerts |
 | 18 | Chat Completion | Conversation creation, member selection, @mentions foundation | Step 13 | FEATURE | Closes collaboration loop |

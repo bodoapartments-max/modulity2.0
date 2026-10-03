@@ -2,6 +2,37 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 15 — Generic Record Actions & Lifecycle Foundation
+
+### Added
+- Trusted mutation commands on the existing `recordCommand` boundary (contract `1.1.0`, backward compatible with `1.0.0` CREATE clients):
+  - `UPDATE_DRAFT` — trusted DRAFT content update (historical Module Version schema, partial/type-checked values, server EntityReference validation)
+  - `SUBMIT_RECORD` — trusted DRAFT → SUBMITTED transition with server-derived actor, timestamps and full required-field validation
+  - `SET_PRIORITY`, `ARCHIVE_RECORD`, `RESTORE_RECORD`, `CANCEL_RECORD`
+- Pure Record Action Policy (`recordActionPolicy.js`) — `evaluateRecordAction({ actorContext, record, module, action })` with stable machine-readable reason codes
+- Pure lifecycle transition model (`recordLifecycle.js`) — the command implies the transition; clients never select a target status
+- `getAvailableRecordActions` UI action-discovery (Record Detail: Submit/Archive/Restore/Cancel with confirmation dialogs, plus existing Edit/Copy/Print/Export)
+- Rule: DRAFT creation now tolerates incomplete values (required fields enforced at SUBMIT_RECORD); draft saves stay trusted
+- `record.draft_updated` audit action
+- Functions executor tests: UPDATE_DRAFT/SUBMIT_RECORD idempotency, 10× concurrent duplicate safety, cross-workspace denial, impersonation rejection (24 tests)
+- Playwright `tests/e2e/step15.e2e.spec.js` — live trusted lifecycle: draft autosave → rejected submit (required field) → editor submit → SUBMITTED → Archive/Restore → History → zero direct browser Record mutations
+
+### Changed
+- RecordEditPage autosave migrated to trusted `UPDATE_DRAFT`; each save gets a fresh `operationId`, identical-payload retries replay the same one
+- `RecordEditPage` exposes "Submit record" (flushes pending saves first)
+- `moduleSubmission.submitDraft` delegates to trusted `SUBMIT_RECORD`
+- Global list bulk archive now issues one trusted `ARCHIVE_RECORD` per Record
+- Operation journal + Record mutation now commit in ONE transaction for mutations; journal replay precedes current-state policy
+- Audit/Notification side effects write deterministic `op_<operationId>` docs (recovery retries no longer duplicate)
+
+### Security
+- Firestore Rules deny browser updates to Record `data`, `entityReferences`, `status`, `priority`, archive/cancel provenance, `submittedAt`, `attachments` — every state
+- Emulator negative tests: draft data mutation, status transitions, priority change, archive field set, `submittedAt`/`submittedBy` impersonation all denied from browsers; legitimate reads preserved; Ledger linkage set-once interim exception documented until Step 16
+- ADR-0007: Trusted Record Actions and Lifecycle Boundary
+
+### Deferred
+- Approval/Workflow/Task/Scheduling/Inventory/Document engines; DRAFT→SUBMIT for FormRequest completion path (pre-existing client-transaction gap); Ledger backend server move (Step 16); notification fan-out for mutations (Step 17)
+
 ## Step 14 — Record UX Hardening
 
 ### Added

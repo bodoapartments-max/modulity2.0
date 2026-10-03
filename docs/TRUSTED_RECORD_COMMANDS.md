@@ -2,179 +2,195 @@
 
 ## Purpose
 
-This document describes the server-authoritative command boundary for canonical
-Record lifecycle operations introduced in Step 12.
+The trusted command boundary is the single place where clients create and
+mutate canonical Records. Step 12 established `CREATE_RECORD`; Step 15
+extended the same boundary to the generic Record lifecycle mutations.
 
-The trusted command boundary is the single place where user-facing clients can
-create canonical Records. It replaces the previous client-side direct Firestore
-Record creation path with a verified, validated, idempotent server path.
+A Record action is a trusted domain command, not a UI button:
+
+```
+USER INTENT → Generic Record Command → Trusted Server Authorization
+  → Load Canonical Record + Action Policy → Valid Transition
+  → Canonical Record Mutation → Audit → Result
+```
 
 ## Scope
 
-Step 12 implements only `CREATE_RECORD`. The contract envelope is designed to
-support future commands without changing the architecture:
+Implemented commands (contract version `1.1.0`):
 
-- `CREATE_RECORD` (implemented)
-- `UPDATE_RECORD` (future)
-- `SUBMIT_RECORD` (future)
-- `ASSIGN_RECORD` (future)
-- `APPROVE_RECORD` (future)
-- `REJECT_RECORD` (future)
-- `COMPLETE_RECORD` (future)
-- `CANCEL_RECORD` (future)
-- `ARCHIVE_RECORD` (future)
-- `RESTORE_RECORD` (future)
+| Command | Purpose | Payload (beyond workspaceId) |
+|---|---|---|
+| `CREATE_RECORD` | Trusted creation (draft or submitted) | `moduleId`, `values`, `isDraft` |
+| `UPDATE_DRAFT` | Trusted DRAFT content update | `recordId`, `values` |
+| `SUBMIT_RECORD` | Trusted DRAFT → SUBMITTED transition | `recordId` |
+| `SET_PRIORITY` | Trusted priority change | `recordId`, `priority \| null` |
+| `ARCHIVE_RECORD` | Trusted archive (writes `_previousStatus`, `archivedAt/By`) | `recordId` |
+| `RESTORE_RECORD` | Trusted unarchive (restores pre-archive status) | `recordId` |
+| `CANCEL_RECORD` | Trusted cancellation | `recordId` |
+
+Reserved but NOT implemented: `APPROVE_RECORD`, `REJECT_RECORD`,
+`ASSIGN_RECORD`, `COMPLETE_RECORD`, `UPDATE_RECORD`. Approval/Workflow engines
+compose on this substrate in later milestones; they do not exist yet.
+
+Contract versions accepted by the server: `1.0.0` (legacy CREATE clients) and
+`1.1.0`. Old clients sending `1.0.0` CREATE_RECORD commands keep working.
 
 ## Command contract
 
 ```js
 {
-  contractVersion: "1.0.0",
-  operationId: "<stable-idempotency-key>",
-  commandType: "CREATE_RECORD",
-  payload: {
-    workspaceId: "<workspace-id>",
-    moduleId: "<module-id>",
-    values: { /* FormSchema values */ },
-    isDraft: false,
-  }
+  contractVersion: "1.1.0",
+  operationId: "<stable=idempotency-key>",
+  commandType: "SUBMIT_RECORD",
+  payload: { workspaceId: "…", recordId: "…" }
 }
 ```
 
-- `contractVersion` is mandatory and must match `RECORD_COMMAND_CONTRACT_VERSION`.
-- `operationId` is a stable idempotency key provided by the caller.
-- `commandType` must be a known command type.
-- `payload.values` contains the user-entered business data validated against the
-  Module's FormSchema.
+Strictly rejected from payloads (server-authoritative facts):
+`actor`, `actorId`, `userId`, `createdBy`, `submittedBy`, `updatedBy`,
+`createdAt`, `updatedAt`, `submittedAt`, `status`, `statusTarget`.
 
-## Trust boundary
+The server derives the actor from `request.auth.uid`, loads the canonical
+Record, applies the Record Action Policy, validates the transition, and only
+then mutates.
 
-The following facts are resolved server-side from canonical Workspace data:
+## Record Action Policy
 
-- Authenticated Firebase Auth identity (`request.auth.uid`).
-- Workspace existence and caller authorization (Personal owner / active Organization member).
-- Module existence, workspace ownership, and status (`ACTIVE` only).
-- Canonical Module Version and historical FormSchema snapshot.
-- EntityReference existence, workspace match, and Entity Type match.
+Pure deterministic gate (`src/core/recordCommands/recordActionPolicy.js`):
 
-The server rejects or overrides client claims for:
+```
+evaluateRecordAction({ actorContext, record, module, action })
+  → { allowed, reasonCode }
+```
 
-- `createdBy`, `submittedBy`, `workspaceId`, `moduleId`, `moduleVersion`, `recordType`
-- `createdAt`, `updatedAt`, `recordId`
+- Firebase access is NOT in the policy; callers load state first.
+- Reason codes are stable machine-readable strings:
+  `UNAUTHENTICATED`, `WORKSPACE_FORBIDDEN`, `RECORD_NOT_FOUND`,
+  `MODULE_NOT_FOUND`, `MODULE_NOT_ACTIVE`, `INVALID_RECORD_STATE`,
+  `UNSUPPORTED_COMMAND`, `ACTION_NOT_ALLOWED`, `RECORD_INVALID`,
+  `OPERATION_MISMATCH`, `OPERATION_IN_PROGRESS`, …
+- UI uses the same pure function to decide which action buttons to **show**.
+  UI visibility is never authorization.
 
-## Idempotency
+## Lifecycle transition model
 
-Each command carries an `operationId`. The server maintains a lightweight
-operation journal at `workspaces/{workspaceId}/recordOperations/{operationId}`.
+`src/core/recordCommands/recordLifecycle.js` is the single transition table:
 
-- First call creates an operation entry, writes the canonical Record, and marks the
-  operation `COMPLETED` with the resulting `recordId`.
-- Retry with the same `operationId` and identical command fingerprint returns the
-  previously created Record.
-- Retry with the same `operationId` but a different command returns
-  `OPERATION_MISMATCH`.
-- A retry while a valid `PROCESSING` lease exists receives `OPERATION_IN_PROGRESS`.
-- A retry after a stale `PROCESSING` lease is recovered: if the Record exists the
-  operation is reconciled to `COMPLETED`; otherwise creation is safely retried.
-- Concurrent duplicate calls are serialized by Firestore transactions: exactly one
-  canonical Record is created.
+| Command | From | To |
+|---|---|---|
+| `UPDATE_DRAFT` | DRAFT | (status unchanged; data replaced) |
+| `SUBMIT_RECORD` | DRAFT | SUBMITTED |
+| `SET_PRIORITY` | DRAFT/SUBMITTED/ACTIVE/COMPLETED | (unchanged; priority set) |
+| `ARCHIVE_RECORD` | any | ARCHIVED (idempotent no-op if already archived) |
+| `RESTORE_RECORD` | ARCHIVED | `_previousStatus` (fallback ACTIVE) |
+| `CANCEL_RECORD` | DRAFT/SUBMITTED/ACTIVE/COMPLETED | CANCELLED |
 
-Two calls with different `operationId` values and identical business payloads are
-intentionally two distinct Records.
+The client never selects a target status; the command implies the transition.
+Unknown/reserved commands are rejected with `UNSUPPORTED_COMMAND`.
 
-## Transaction boundary
+## UPDATE_DRAFT semantics
 
-The critical path is one Firestore transaction:
+- Only DRAFT Records. Everything else is rejected with `INVALID_RECORD_STATE`.
+- Validation uses the Record's **historical Module Version** schema
+  (`record.moduleId` + `record.moduleVersion` snapshot), never just the
+  current Module schema.
+- Draft updates are intentionally partial: supplied values are type-checked;
+  required-field enforcement is deferred to `SUBMIT_RECORD`. Undeclared
+  fields are rejected.
+- EntityReferences extracted from values are structurally validated, then
+  resolved server-side (existence, workspace, Entity Type) before mutation.
+- Autosave UX (`RecordEditPage`) sends one `UPDATE_DRAFT` per save with a
+  fresh `operationId`; a retry of an identical failed payload reuses the
+  same `operationId`, so the server replays the operation idempotently.
 
-1. Validate the command envelope and compute the command fingerprint.
-2. Read/verify workspace authorization, module, module version snapshot, and entity
-   references.
-3. Read the operation journal entry and Record document.
-4. If not completed/in-progress with valid lease, create or recover the operation
-   entry (`PROCESSING` with bounded `leaseExpiresAt`), create the Record document
-   with a deterministic `recordId`, and update the operation entry to `COMPLETED`.
+## SUBMIT_RECORD semantics
 
-Audit and notification side effects run after the transaction and are best-effort.
-They do not roll back an otherwise valid Record.
+- Preconditions: authenticated user, workspace authorization, Record exists
+  and is DRAFT, source Module exists and is ACTIVE, stored `data` passes the
+  FULL historical FormSchema validation (required fields enforced), all stored
+  EntityReferences still resolve.
+- The server sets `status=SUBMITTED`, `submittedBy=<verified uid>`,
+  `submittedAt=<server ISO>`. None of these are accepted from the client.
+- Double-submit safety: the same `operationId` replays the journal result;
+  a fresh `operationId` against an already-submitted Record is rejected as
+  `INVALID_RECORD_STATE`. One Record, one transition.
+
+## Operation journal and recovery
+
+Shared journal: `workspaces/{workspaceId}/recordOperations/{operationId}`
+(remains server-only in Firestore Rules).
+
+- Fingerprint = SHA-256 of `stableJson({ userId, commandType, payload })`.
+  Same `operationId` + different command → `OPERATION_MISMATCH`.
+- Leases: `PROCESSING` entries expire (`leaseExpiresAt`); stale entries are
+  reacquired with bounded `attemptCount`; `OPERATION_IN_PROGRESS` while the
+  lease is valid; `FAILED` is terminal; `COMPLETED` replays.
+- **Mutation crash safety:** for mutations, the journal `COMPLETED` write and
+  the Record mutation commit in ONE Firestore transaction. There is no window
+  where the journal says done but the Record did not change.
+- Journal replay is evaluated BEFORE the current-state policy so a retried
+  legitimate operation is never misjudged as an invalid transition.
+
+## Audit / side effects
+
+- Every trusted mutation appends an Audit entry using the canonical
+  `createAuditEntry` model with the matching action (`record.submitted`,
+  `record.draft_updated`, `record.archived`, `record.unarchived`,
+  `record.priority_changed`, `record.cancelled`, `record.created`).
+- Audit (and the CREATE notification) write to a deterministic document id
+  `op_<operationId>` — recovery retries overwrite instead of duplicate.
+  Side effects are best-effort (post-transaction) and never roll back a
+  committed mutation.
+- Generic notification policy is Step 17; no new notification semantics were
+  added for mutations.
+
+## Firestore Rules (Step 15 tightening)
+
+Browser clients may no longer mutate any business/lifecycle Record field:
+`data`, `entityReferences`, `entityReferenceIds`, `status`, `priority`,
+`_previousStatus`, `archivedAt`, `archivedBy`, `submittedAt`, `attachments`,
+`createdEntityIds` are all immutable to clients regardless of Record status.
+
+Documented interim exception: Ledger linkage (`ledgerEntryId`, `ledgerBookId`,
+`referenceNumber`) remains set-once-from-null for the existing client Ledger
+registration flow. Step 16 moves the Ledger backend server-side; the exception
+is revisited then. Record reads and deletion-denial semantics are unchanged.
 
 ## Callable function
 
-- **Name:** `recordCommand`
-- **Region:** `europe-west1`
-- **Runtime:** Firebase Functions v2, 512 MiB, 60 s timeout
-- **Entry:** `functions/src/index.js`
+- **Name:** `recordCommand`, **Region:** `europe-west1`
 - **Implementation:** `functions/src/recordCommandEngine.js`
+  (`executeRecordCommand` dispatches CREATE vs mutation paths)
+- Shared contract/engine/policy/lifecycle are copied from `src/core/…` into
+  `functions/src/generated/` by `functions/scripts/build-shared.mjs`.
 
 ## Client adapter
 
-Feature UI does not call Firebase Functions directly. The adapter is:
+Feature code calls the service-layer facade only:
 
 ```text
-src/infrastructure/firebase/recordCommandClient.js
+services.recordCommand.submit({ workspaceId, moduleId, values, isDraft, operationId? })
+services.recordCommand.updateDraft({ workspaceId, recordId, values, operationId? })
+services.recordCommand.submitRecord({ workspaceId, recordId, operationId? })
+services.recordCommand.setPriority / archiveRecord / restoreRecord / cancelRecord(...)
 ```
 
-Usage through the existing service layer:
-
-```text
-Module Form
-  ↓
-ModuleSubmissionService
-  ↓
-recordCommand.submit({ workspaceId, moduleId, actor, values, isDraft })
-  ↓
-recordCommandClient.execute(command)
-  ↓
-Firebase callable: recordCommand
-```
-
-## Firestore Rules
-
-Direct browser `CREATE` on `workspaces/{workspaceId}/records/{recordId}` is
-denied. Records are created by the trusted callable running with Admin SDK
-privileges.
-
-`UPDATE` and `DELETE` rules are unchanged in Step 12; only submission/creation
-is moved behind the trusted boundary.
-
-## Failure behavior
-
-- Validation failures return deterministic error codes such as
-  `WORKSPACE_FORBIDDEN`, `MODULE_NOT_FOUND`, `MODULE_NOT_ACTIVE`, `SCHEMA_INVALID`,
-  `ENTITY_REFERENCE_INVALID`, `UNSUPPORTED_CONTRACT_VERSION`, `OPERATION_IN_PROGRESS`,
-  `OPERATION_MISMATCH`, etc.
-- If the operation journal shows `PROCESSING` when a duplicate arrives and the lease
-  is still valid, the duplicate receives `OPERATION_IN_PROGRESS`.
-- Best-effort Audit/Notification failures are logged and do not invalidate the
-  Record.
-
-## DRAFT Module policy
-
-Only `ACTIVE` Modules may receive canonical Records through trusted submission.
-`DRAFT` Modules are configuration under construction and are rejected with
-`MODULE_NOT_ACTIVE`. This is enforced server-side; it is not a UI-only restriction.
-Designer preview does not create Records and is unaffected.
-
-## Operation journal security
-
-Firestore Rules deny all client access to:
-
-```
-workspaces/{workspaceId}/recordOperations/{operationId}
-```
-
-The journal is written only by the trusted Cloud Function using Admin SDK privileges.
+`ModuleSubmissionService.submitDraft` delegates to trusted `SUBMIT_RECORD`
+when the command boundary is wired, which is the configuration in production.
+The legacy client path remains only for offline unit tests.
 
 ## Testing
 
-- Unit tests: `src/core/recordCommands/*.test.js`
-- Server logic tests: `functions/src/recordCommandEngine.test.js`
-- Integration tests: `tests/rules/recordCommand.integration.test.js`
-- Security tests: direct Record `CREATE` is proven denied in
-  `tests/rules/firestore.rules.test.js`.
+- Policy/lifecycle/contract: `src/core/recordCommands/*.test.js`
+- Server executor incl. mutation idempotency + 10× concurrency:
+  `functions/src/recordCommandEngine.test.js`
+- Rules (client mutation denials + legitimate reads):
+  `tests/rules/firestore.rules.test.js`
+- Live browser: `tests/e2e/step15.e2e.spec.js` (draft autosave, rejected then
+  successful submit, archive/restore, zero direct browser mutations).
 
-## Migration
+## Migration / compatibility
 
-- Existing historical Records remain valid and readable.
-- The Module Form UI continues to use `ModuleSubmissionService`.
-- In production `services.js` injects the trusted `recordCommand` adapter.
-- Tests and fallback scenarios can use `createRecordCommandLocalAdapter`.
+- Historical Records are untouched and remain readable.
+- Modules created before Step 15 work unchanged; old `1.0.0` CREATE clients
+  are accepted by the deployed server.

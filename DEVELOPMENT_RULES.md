@@ -145,6 +145,8 @@ A single canonical Record may power ListView, Table View, Dashboard, Widget, Rep
 
 Print output, single-Record exports, and Calendar projections are also views over the same canonical Record. They must read the Record the user is authorized to see and must not store or mutate presentation-derived copies.
 
+Canonical Record lifecycle mutations execute through trusted Record commands (`recordCommand`). Client UI may request an action, but must never directly author lifecycle state, actor identity, or timestamps. The command implies the transition; the server owns it.
+
 Records preserve the exact Module version/schema context under which they were created. Updating a Module must not silently reinterpret historical Records.
 
 ## 9. Entity ownership and extensibility
