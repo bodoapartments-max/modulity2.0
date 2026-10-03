@@ -4,7 +4,7 @@ import Label from '../../../design-system/components/Label/Label.jsx';
 
 const FIELD_TYPE_GROUPS = {
   title: new Set(['text', 'textarea', 'select', 'email', 'phone', 'entity-reference']),
-  time: new Set(['date', 'datetime', 'date-range']),
+  time: new Set(['date', 'datetime', 'date-range', 'datetime-range']),
   resource: new Set(['entity-reference']),
 };
 
