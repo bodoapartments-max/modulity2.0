@@ -24,6 +24,7 @@ All notable changes to Modulity 2.0 will be documented in this file.
 - Workspace Architect `EMPLOYEE_LEAVE` scenario proposes a single `date-range` Holiday Period field and a Calendar requirement
 - Generic `datetime-range` FormSchema field type for timed intervals (appointments, bookings, shifts), with From/Till datetime-local inputs, validation, Record display, and Calendar Engine consumption
 - Workspace Architect `BOOKING` scenario proposes a single `datetime-range` Appointment Time field
+- Step 11.0 architecture/roadmap/package audit: `docs/MODULITY_MASTER_ROADMAP.md`, `docs/PACKAGE_ARCHITECTURE.md`, and ADR-0006 package boundaries
 
 ### Changed
 - `builtInCapabilityCatalog.js`: Calendar availability moved from `ARCHITECTURE_ONLY` to `AVAILABLE`
