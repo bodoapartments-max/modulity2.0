@@ -13,6 +13,7 @@
 export const AUDIT_ACTIONS = Object.freeze({
   // Record lifecycle
   RECORD_CREATED: 'record.created',
+  RECORD_DRAFT_UPDATED: 'record.draft_updated',
   RECORD_SUBMITTED: 'record.submitted',
   RECORD_ARCHIVED: 'record.archived',
   RECORD_UNARCHIVED: 'record.unarchived',

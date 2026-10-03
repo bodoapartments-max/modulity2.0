@@ -7,6 +7,7 @@ import services from '../../../infrastructure/services.js';
 
 const ACTION_LABELS = {
   'record.created': 'Created',
+  'record.draft_updated': 'Draft updated',
   'record.submitted': 'Submitted',
   'record.archived': 'Archived',
   'record.unarchived': 'Unarchived',
@@ -24,6 +25,7 @@ const ACTION_LABELS = {
 
 const ACTION_COLORS = {
   'record.created': 'bg-blue-100 text-blue-700',
+  'record.draft_updated': 'bg-neutral-100 text-neutral-600',
   'record.submitted': 'bg-green-100 text-green-700',
   'record.archived': 'bg-neutral-100 text-neutral-600',
   'record.unarchived': 'bg-neutral-100 text-neutral-600',

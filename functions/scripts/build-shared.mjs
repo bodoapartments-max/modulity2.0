@@ -15,6 +15,8 @@ const files = [
   'src/capabilities/contracts/capabilityContracts.js',
   'src/core/recordCommands/recordCommandContract.js',
   'src/core/recordCommands/recordCommandEngine.js',
+  'src/core/recordCommands/recordActionPolicy.js',
+  'src/core/recordCommands/recordLifecycle.js',
   'src/core/data/record.js',
   'src/core/data/actorRef.js',
   'src/core/utils/generateId.js',
