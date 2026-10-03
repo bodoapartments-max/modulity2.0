@@ -13,6 +13,11 @@ const files = [
   'src/core/workspace/widgetDefinition.js', 'src/core/workspace/workset.js', 'src/core/workspace/notification.js',
   'src/modules/module.js', 'src/modules/forms/formSchemaValidator.js',
   'src/capabilities/contracts/capabilityContracts.js',
+  'src/core/recordCommands/recordCommandContract.js',
+  'src/core/recordCommands/recordCommandEngine.js',
+  'src/core/data/record.js',
+  'src/core/data/actorRef.js',
+  'src/core/utils/generateId.js',
 ];
 
 await rm(outputRoot, { recursive: true, force: true });
