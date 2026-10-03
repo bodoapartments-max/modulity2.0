@@ -20,6 +20,8 @@ export default function DataGrid({
   emptyDescription = 'There is nothing to show here yet.',
   error = null,
   onRowClick,
+  rowAriaLabel,
+  rowClassName,
   ariaLabel = 'Data grid',
 }) {
   if (error) return <ErrorState title="Unable to load data" message={error} />;
@@ -48,6 +50,7 @@ export default function DataGrid({
               <TableRow
                 key={key}
                 role={clickable ? 'button' : undefined}
+                aria-label={clickable && rowAriaLabel ? rowAriaLabel(row) : undefined}
                 tabIndex={clickable ? 0 : undefined}
                 onClick={clickable ? () => onRowClick(row) : undefined}
                 onKeyDown={clickable ? (event) => {
@@ -59,6 +62,7 @@ export default function DataGrid({
                 className={`
                   border-b border-neutral-100
                   ${clickable ? 'cursor-pointer hover:bg-neutral-50 focus:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500' : ''}
+                  ${rowClassName ? rowClassName(row) : ''}
                 `}
               >
                 {columns.map((column) => (

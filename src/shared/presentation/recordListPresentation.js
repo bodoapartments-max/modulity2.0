@@ -1,3 +1,5 @@
+import { parseLocalDateTime } from '../../modules/forms/displayFormatter.js';
+
 const SYSTEM_COLUMNS = Object.freeze([
   { key: 'status', label: 'Status', scope: 'SYSTEM', sortable: false },
   { key: 'createdAt', label: 'Created', scope: 'SYSTEM', sortable: true },
@@ -16,17 +18,17 @@ export function formatRecordListValue(record, column, entityLabels = {}) {
   if (column.type === 'entity-reference' && typeof value === 'object') return entityLabels[value.entityId] || value.entityId;
   if (column.type === 'boolean') return value ? 'Yes' : 'No';
   if (column.type === 'date-range' && typeof value === 'object' && value !== null && value.start && value.end) {
-    return `${new Date(value.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${new Date(value.end).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
+    return `${parseLocalDateTime(value.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${parseLocalDateTime(value.end).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
   }
   if (column.type === 'datetime-range' && typeof value === 'object' && value !== null && value.start && value.end) {
-    const sameDay = new Date(value.start).toDateString() === new Date(value.end).toDateString();
-    const startDate = new Date(value.start);
-    const endDate = new Date(value.end);
+    const startDate = parseLocalDateTime(value.start);
+    const endDate = parseLocalDateTime(value.end);
+    const sameDay = startDate.toDateString() === endDate.toDateString();
     if (sameDay) return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}–${endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
     return `${startDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} → ${endDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   }
   if (column.type === 'date' || column.type === 'datetime' || ['createdAt', 'updatedAt', 'submittedAt'].includes(column.key)) {
-    const parsed = new Date(value);
+    const parsed = parseLocalDateTime(value);
     return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   }
   if (Array.isArray(value)) return value.join(', ');

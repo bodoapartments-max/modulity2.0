@@ -40,4 +40,31 @@ describe('DataGrid', () => {
     render(<DataGrid columns={[{ key: 'x', header: 'X', render: (row) => `v:${row.value}` }]} rows={rows} />);
     expect(screen.getByRole('cell', { name: 'v:10' })).toBeInTheDocument();
   });
+
+  it('applies rowAriaLabel to clickable rows', () => {
+    render(
+      <DataGrid
+        columns={columns}
+        rows={rows}
+        onRowClick={() => {}}
+        rowAriaLabel={(row) => `Open ${row.name}`}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Open Alpha' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Beta' })).toBeInTheDocument();
+  });
+
+  it('applies rowClassName to rows', () => {
+    render(
+      <DataGrid
+        columns={columns}
+        rows={rows}
+        rowClassName={(row) => (row.id === '1' ? 'row-first' : '')}
+      />,
+    );
+    const firstRow = screen.getByRole('cell', { name: 'Alpha' }).closest('tr');
+    const secondRow = screen.getByRole('cell', { name: 'Beta' }).closest('tr');
+    expect(firstRow.className).toContain('row-first');
+    expect(secondRow.className).not.toContain('row-first');
+  });
 });

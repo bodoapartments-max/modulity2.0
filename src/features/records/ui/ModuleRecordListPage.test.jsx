@@ -37,14 +37,14 @@ describe('generic Module Record List', () => {
     expect(await screen.findByText('Guest A')).toHaveAttribute('href', '/app/records/record-a?fromModule=reservation');
     expect(screen.getByText('Guest B')).toHaveAttribute('href', '/app/records/record-b?fromModule=reservation');
     expect(screen.getAllByText('101')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('link', { name: 'Open RESERVATION record-b' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open RESERVATION record-b' }));
     expect(await screen.findByText('Record B Detail')).toBeInTheDocument();
   });
 
   it('supports keyboard row navigation by canonical Record ID', async () => {
     mocks.queryRecords.mockResolvedValue({ items: [record('record-a', 'Guest A')], hasMore: false, nextCursor: null });
     renderPage();
-    const row = await screen.findByRole('link', { name: 'Open RESERVATION record-a' });
+    const row = await screen.findByRole('button', { name: 'Open RESERVATION record-a' });
     fireEvent.keyDown(row, { key: 'Enter' });
     expect(await screen.findByText('Record A Detail')).toBeInTheDocument();
   });

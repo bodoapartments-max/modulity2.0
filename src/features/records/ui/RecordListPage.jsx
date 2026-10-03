@@ -5,14 +5,20 @@
  * This is a projection of canonical Records, NOT a separate collection.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import services from '../../../infrastructure/services.js';
 import RecordListToolbar from './RecordListToolbar.jsx';
 import RecordTable from './RecordTable.jsx';
-import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
+import { Button, EmptyState, ErrorState, Pagination, Tabs } from '../../../design-system/index.js';
 import { workspaceQueryCache, workspaceQueryKey } from '../../../core/cache/workspaceQueryCache.js';
+import {
+  filterRecordsBySearch,
+  getRecordDisplayLabel,
+  resolveRecordSort,
+} from '../model.js';
+import { useRecordPagination } from '../hooks/useRecordPagination.js';
 
 const BUCKETS = [
   { key: 'ALL', label: 'All' },
@@ -22,6 +28,8 @@ const BUCKETS = [
   { key: 'STARRED', label: 'Starred' },
   { key: 'ARCHIVED', label: 'Archived' },
 ];
+
+const FILTER_KEYS = ['status', 'priority', 'module', 'sort', 'from', 'to', 'q'];
 
 export default function RecordListPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
@@ -38,17 +46,45 @@ export default function RecordListPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [modules, setModules] = useState([]);
 
   // Read filters from URL search params
   const bucket = searchParams.get('bucket') || 'ALL';
   const statusFilter = searchParams.get('status') || '';
   const priorityFilter = searchParams.get('priority') || '';
   const moduleFilter = searchParams.get('module') || '';
-  const sortField = searchParams.get('sort') || 'createdAt';
-  const sortDir = searchParams.get('dir') || 'desc';
+  const sortValue = searchParams.get('sort') || 'newest';
+  const fromDate = searchParams.get('from') || '';
+  const toDate = searchParams.get('to') || '';
+  const searchTerm = searchParams.get('q') || '';
+  const sort = resolveRecordSort(sortValue);
+
   const cacheKey = useMemo(() => workspaceId ? workspaceQueryKey(workspaceId, 'records', {
-    userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir, page: 'first', limit: 25,
-  }) : null, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir]);
+    userId, bucket, statusFilter, priorityFilter, moduleFilter, sort: sort.value, fromDate, toDate, page: 'first', limit: 25,
+  }) : null, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sort.value, fromDate, toDate]);
+
+  const moduleById = useMemo(
+    () => Object.fromEntries(modules.map((mod) => [mod.moduleId, mod])),
+    [modules],
+  );
+
+  useEffect(() => {
+    if (!workspaceId || !services?.module?.listModules) return;
+    let cancelled = false;
+    services.module.listModules(workspaceId)
+      .then((list) => { if (!cancelled) setModules(Array.isArray(list) ? list : []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [workspaceId]);
+
+  const labelFor = useCallback(
+    (record) => getRecordDisplayLabel(
+      record,
+      moduleById[record.moduleId]?.formSchema?.fields || [],
+      moduleById[record.moduleId] || null,
+    ),
+    [moduleById],
+  );
 
   const loadRecords = useCallback(async (cursor = null, background = false) => {
     if (!workspaceId) {
@@ -69,13 +105,15 @@ export default function RecordListPage() {
         status: statusFilter || null,
         priority: priorityFilter || null,
         moduleId: moduleFilter || null,
-        sortField,
-        sortDirection: sortDir.toUpperCase(),
+        sortField: sort.sortField,
+        sortDirection: sort.sortDirection.toUpperCase(),
+        createdFrom: fromDate ? `${fromDate}T00:00:00` : null,
+        createdTo: toDate ? `${toDate}T23:59:59` : null,
         startAfter: cursor,
         limit: 25,
       });
       if (result) {
-        setRecords(cursor ? (prev) => [...prev, ...result.items] : result.items);
+        setRecords(result.items);
         setHasMore(result.hasMore);
         setNextCursor(result.nextCursor);
         if (!cursor && cacheKey) workspaceQueryCache.set(cacheKey, result);
@@ -86,9 +124,12 @@ export default function RecordListPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sortField, sortDir, cacheKey]);
+  }, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sort.sortField, sort.sortDirection, fromDate, toDate, cacheKey]);
+
+  const { page, hasPrevious, goNext, goPrevious, reset } = useRecordPagination(loadRecords);
 
   useEffect(() => {
+    reset();
     const cached = cacheKey ? workspaceQueryCache.get(cacheKey).data : null;
     if (cached) {
       setRecords(cached.items || []);
@@ -101,7 +142,16 @@ export default function RecordListPage() {
       setNextCursor(null);
       loadRecords(null);
     }
-  }, [loadRecords, cacheKey]);
+  }, [loadRecords, cacheKey, reset]);
+
+  const visibleRecords = useMemo(
+    () => filterRecordsBySearch(records, searchTerm, labelFor),
+    [records, searchTerm, labelFor],
+  );
+
+  const hasActiveFilters = Boolean(
+    statusFilter || priorityFilter || moduleFilter || fromDate || toDate || searchTerm || sortValue !== 'newest',
+  );
 
   const handleBucketChange = (newBucket) => {
     const params = new URLSearchParams(searchParams);
@@ -119,14 +169,9 @@ export default function RecordListPage() {
     setSearchParams(params);
   };
 
-  const handleSort = (field) => {
+  const handleClearFilters = () => {
     const params = new URLSearchParams(searchParams);
-    if (sortField === field) {
-      params.set('dir', sortDir === 'desc' ? 'asc' : 'desc');
-    } else {
-      params.set('sort', field);
-      params.set('dir', 'desc');
-    }
+    FILTER_KEYS.forEach((key) => params.delete(key));
     setSearchParams(params);
   };
 
@@ -143,10 +188,10 @@ export default function RecordListPage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === records.length) {
+    if (selectedIds.size === visibleRecords.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(records.map((r) => r.recordId)));
+      setSelectedIds(new Set(visibleRecords.map((r) => r.recordId)));
     }
   };
 
@@ -173,9 +218,78 @@ export default function RecordListPage() {
     }
   };
 
+  const columns = useMemo(() => [
+    {
+      key: 'title',
+      label: 'Title',
+      scope: 'DATA',
+      render: (record) => (
+        <Link
+          to={`/app/records/${record.recordId}`}
+          onClick={(event) => event.stopPropagation()}
+          className="font-medium text-neutral-900 hover:text-primary-600"
+        >
+          {labelFor(record)}
+        </Link>
+      ),
+    },
+    {
+      key: 'module',
+      label: 'Module',
+      scope: 'SYSTEM',
+      render: (record) => moduleById[record.moduleId]?.name || record.recordType || '—',
+    },
+    { key: 'status', label: 'Status', scope: 'SYSTEM' },
+    { key: 'priority', label: 'Priority', scope: 'SYSTEM' },
+    { key: 'createdAt', label: 'Created', scope: 'SYSTEM' },
+    { key: 'updatedAt', label: 'Updated', scope: 'SYSTEM' },
+  ], [labelFor, moduleById]);
+
   if (!workspaceLoading && (workspaceError || !currentWorkspace)) {
     return <ErrorState title="Workspace unavailable" message="Select an available workspace before viewing Records." />;
   }
+
+  const renderBody = () => {
+    if (!loading && records.length === 0 && hasActiveFilters && !error) {
+      return (
+        <EmptyState
+          title="No records match these filters"
+          description="Adjust or clear the filters to see more records."
+        >
+          <Button type="button" variant="outline" size="sm" onClick={handleClearFilters}>
+            Clear filters
+          </Button>
+        </EmptyState>
+      );
+    }
+    if (!loading && records.length > 0 && visibleRecords.length === 0 && !error) {
+      return (
+        <EmptyState
+          title="No matching records on this page"
+          description="Try another term or go to the next page"
+        >
+          <Button type="button" variant="outline" size="sm" onClick={() => handleFilterChange('q', '')}>
+            Clear search
+          </Button>
+        </EmptyState>
+      );
+    }
+    return (
+      <RecordTable
+        records={visibleRecords}
+        loading={loading}
+        error={error}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onSelectAll={handleSelectAll}
+        onToggleStar={handleToggleStar}
+        columns={columns}
+        labelFor={labelFor}
+        emptyMessage="No records yet"
+        emptyDescription="Create records using Modules to see them here."
+      />
+    );
+  };
 
   return (
     <div className="p-6 max-w-7xl">
@@ -183,76 +297,49 @@ export default function RecordListPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Records</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            All records in this workspace
+            All canonical Records in this workspace
           </p>
         </div>
       </div>
 
-      {/* Bucket Tabs */}
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-neutral-200">
-        {BUCKETS.map((b) => (
-          <button
-            key={b.key}
-            onClick={() => handleBucketChange(b.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              bucket === b.key
-                ? 'border-primary-600 text-primary-700'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700'
-            }`}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        tabs={BUCKETS}
+        activeTab={bucket}
+        onChange={handleBucketChange}
+        ariaLabel="Record buckets"
+        className="mb-4"
+      />
 
       <RecordListToolbar
         statusFilter={statusFilter}
         priorityFilter={priorityFilter}
         moduleFilter={moduleFilter}
+        moduleOptions={modules.map((mod) => ({ value: mod.moduleId, label: mod.name }))}
+        sortValue={sortValue}
+        fromDate={fromDate}
+        toDate={toDate}
+        searchTerm={searchTerm}
         onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        hasActiveFilters={hasActiveFilters}
         selectedCount={selectedIds.size}
         onBulkArchive={handleBulkArchive}
       />
 
       {refreshing && <p className="mb-2 text-xs text-neutral-400">Refreshing…</p>}
-      {error && (
-        <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {error}
-        </div>
-      )}
 
-      <RecordTable
-        records={records}
-        loading={loading}
-        sortField={sortField}
-        sortDirection={sortDir}
-        onSort={handleSort}
-        selectedIds={selectedIds}
-        onToggleSelect={handleToggleSelect}
-        onSelectAll={handleSelectAll}
-        onToggleStar={handleToggleStar}
-      />
+      {renderBody()}
 
-      {hasMore && !loading && (
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => loadRecords(nextCursor)}
-            className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 transition-colors"
-          >
-            Load More
-          </button>
-        </div>
-      )}
-
-      {!loading && records.length === 0 && (
-        <div className="text-center py-16 bg-neutral-50 rounded-xl border border-neutral-200">
-          <h2 className="text-lg font-semibold text-neutral-700 mb-2">No records found</h2>
-          <p className="text-sm text-neutral-500">
-            {bucket === 'ALL'
-              ? 'Create records using Modules to see them here.'
-              : `No records in the "${bucket}" view.`}
-          </p>
-        </div>
+      {!loading && visibleRecords.length > 0 && (
+        <Pagination
+          className="mt-4"
+          currentPage={page}
+          pageInfo={`Page ${page} · ${visibleRecords.length} records`}
+          hasPrevious={hasPrevious}
+          hasNext={hasMore}
+          onPrevious={goPrevious}
+          onNext={() => goNext(nextCursor)}
+        />
       )}
     </div>
   );

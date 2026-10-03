@@ -1,64 +1,119 @@
 /**
- * Record List Toolbar — filters and bulk actions for Record lists.
+ * Record List Toolbar — filters, sort, search, and bulk actions for Record lists.
+ * Built on design-system Select/Input/Button primitives.
  */
 
 import { RECORD_STATUSES, RECORD_PRIORITIES } from '../../../core/data/record.js';
+import { RECORD_SORT_OPTIONS } from '../model.js';
+import { Button, Input, Label, Select } from '../../../design-system/index.js';
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  ...Object.keys(RECORD_STATUSES).map((status) => ({ value: status, label: status })),
+];
+const PRIORITY_OPTIONS = [
+  { value: '', label: 'All Priorities' },
+  ...Object.keys(RECORD_PRIORITIES).map((priority) => ({ value: priority, label: priority })),
+];
 
 export default function RecordListToolbar({
   statusFilter,
   priorityFilter,
   moduleFilter,
+  moduleOptions = [],
+  sortValue,
+  fromDate,
+  toDate,
+  searchTerm,
   onFilterChange,
+  onClearFilters,
+  hasActiveFilters,
   selectedCount,
   onBulkArchive,
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-4">
-      {/* Status filter */}
-      <select
-        value={statusFilter}
-        onChange={(e) => onFilterChange('status', e.target.value)}
-        className="px-3 py-1.5 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-      >
-        <option value="">All Statuses</option>
-        {Object.keys(RECORD_STATUSES).map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
-
-      {/* Priority filter */}
-      <select
-        value={priorityFilter}
-        onChange={(e) => onFilterChange('priority', e.target.value)}
-        className="px-3 py-1.5 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-      >
-        <option value="">All Priorities</option>
-        {Object.keys(RECORD_PRIORITIES).map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select>
-
-      {/* Module filter — text input for now */}
-      <input
-        type="text"
-        value={moduleFilter}
-        onChange={(e) => onFilterChange('module', e.target.value)}
-        placeholder="Filter by module ID..."
-        className="px-3 py-1.5 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 w-48"
-      />
-
-      {/* Bulk actions */}
-      {selectedCount > 0 && (
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-neutral-600">{selectedCount} selected</span>
-          <button
-            onClick={onBulkArchive}
-            className="px-3 py-1.5 text-sm font-medium text-neutral-700 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors"
-          >
-            Archive Selected
-          </button>
+    <div className="mb-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Select
+          label="Status"
+          aria-label="Status filter"
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(event) => onFilterChange('status', event.target.value)}
+        />
+        <Select
+          label="Priority"
+          aria-label="Priority filter"
+          options={PRIORITY_OPTIONS}
+          value={priorityFilter}
+          onChange={(event) => onFilterChange('priority', event.target.value)}
+        />
+        <Select
+          label="Module"
+          aria-label="Module filter"
+          options={[{ value: '', label: 'All Modules' }, ...moduleOptions]}
+          value={moduleFilter}
+          onChange={(event) => onFilterChange('module', event.target.value)}
+        />
+        <Select
+          label="Sort"
+          aria-label="Sort records"
+          options={RECORD_SORT_OPTIONS}
+          value={sortValue}
+          onChange={(event) => onFilterChange('sort', event.target.value)}
+        />
+        <div>
+          <Label htmlFor="record-filter-from">Created from</Label>
+          <Input
+            id="record-filter-from"
+            type="date"
+            aria-label="Created from"
+            className="mt-1"
+            value={fromDate}
+            onChange={(event) => onFilterChange('from', event.target.value)}
+          />
         </div>
-      )}
+        <div>
+          <Label htmlFor="record-filter-to">Created to</Label>
+          <Input
+            id="record-filter-to"
+            type="date"
+            aria-label="Created to"
+            className="mt-1"
+            value={toDate}
+            onChange={(event) => onFilterChange('to', event.target.value)}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="record-search">Search</Label>
+          <Input
+            id="record-search"
+            type="search"
+            aria-label="Search records"
+            className="mt-1"
+            placeholder="Search loaded records…"
+            value={searchTerm}
+            onChange={(event) => onFilterChange('q', event.target.value)}
+          />
+          <p className="mt-1 text-xs text-neutral-500">Searches the records loaded on this page</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {hasActiveFilters && (
+          <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+            Clear filters
+          </Button>
+        )}
+        {selectedCount > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm text-neutral-600">{selectedCount} selected</span>
+            <Button type="button" variant="outline" size="sm" onClick={onBulkArchive}>
+              Archive Selected
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,44 @@
  * Display Formatter — Unit Tests
  */
 import { describe, it, expect } from 'vitest';
-import { formatDisplayValue } from './displayFormatter.js';
+import { formatDisplayValue, parseLocalDateTime } from './displayFormatter.js';
+
+describe('parseLocalDateTime', () => {
+  it('parses date-only strings as local wall-clock midnight', () => {
+    const date = parseLocalDateTime('2026-08-01');
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(7);
+    expect(date.getDate()).toBe(1);
+    expect(date.getHours()).toBe(0);
+    expect(date.getMinutes()).toBe(0);
+  });
+
+  it('parses zone-less datetime strings as local wall-clock time', () => {
+    const date = parseLocalDateTime('2026-08-01T09:30');
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(7);
+    expect(date.getDate()).toBe(1);
+    expect(date.getHours()).toBe(9);
+    expect(date.getMinutes()).toBe(30);
+  });
+
+  it('parses zone-less datetime strings with seconds and millis', () => {
+    const date = parseLocalDateTime('2026-08-01T09:30:15.250');
+    expect(date.getHours()).toBe(9);
+    expect(date.getMinutes()).toBe(30);
+    expect(date.getSeconds()).toBe(15);
+    expect(date.getMilliseconds()).toBe(250);
+  });
+
+  it('delegates zoned ISO instants to Date', () => {
+    expect(parseLocalDateTime('2026-08-01T09:30:00Z').getTime()).toBe(new Date('2026-08-01T09:30:00Z').getTime());
+    expect(parseLocalDateTime('2026-08-01T09:30:00+02:00').getTime()).toBe(new Date('2026-08-01T09:30:00+02:00').getTime());
+  });
+
+  it('delegates numbers and other values to Date', () => {
+    expect(parseLocalDateTime(0).getTime()).toBe(0);
+  });
+});
 
 describe('formatDisplayValue', () => {
   it('returns dash for undefined/null/empty', () => {

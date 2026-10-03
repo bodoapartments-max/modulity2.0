@@ -11,6 +11,8 @@ import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { buildModuleRecordColumns } from '../../../shared/presentation/recordListPresentation.js';
 import services from '../../../infrastructure/services.js';
 import RecordTable from './RecordTable.jsx';
+import { Pagination } from '../../../design-system/index.js';
+import { useRecordPagination } from '../hooks/useRecordPagination.js';
 
 export default function ModuleRecordListPage() {
   const { moduleId } = useParams();
@@ -58,7 +60,7 @@ export default function ModuleRecordListPage() {
         const entityIds = result.items.flatMap((record) => (record.entityReferences || []).map((ref) => ref.entityId));
         const entities = entityIds.length && services?.entity?.getEntitiesByIds ? await services.entity.getEntitiesByIds(workspaceId, entityIds) : [];
         setEntityLabels((current) => ({ ...current, ...Object.fromEntries(entities.map((entity) => [entity.entityId, entity.displayName])) }));
-        setRecords(cursor ? (prev) => [...prev, ...result.items] : result.items);
+        setRecords(result.items);
         setHasMore(result.hasMore);
         setNextCursor(result.nextCursor);
       }
@@ -69,11 +71,14 @@ export default function ModuleRecordListPage() {
     }
   }, [workspaceId, userId, moduleId, sortField, sortDir]);
 
+  const { page, hasPrevious, goNext, goPrevious, reset } = useRecordPagination(loadRecords);
+
   useEffect(() => {
+    reset();
     setRecords([]);
     setNextCursor(null);
     loadRecords(null);
-  }, [loadRecords]);
+  }, [loadRecords, reset]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -127,15 +132,10 @@ export default function ModuleRecordListPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
       <RecordTable
         records={records}
         loading={loading}
+        error={error}
         sortField={sortField}
         sortDirection={sortDir}
         onSort={handleSort}
@@ -146,30 +146,20 @@ export default function ModuleRecordListPage() {
         columns={columns}
         entityLabels={entityLabels}
         moduleId={moduleId}
+        emptyMessage="No records yet"
+        emptyDescription="Submit forms through this module to create records."
       />
 
-      {hasMore && !loading && (
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => loadRecords(nextCursor)}
-            className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 transition-colors"
-          >
-            Load More
-          </button>
-        </div>
-      )}
-
-      {!loading && records.length === 0 && (
-        <div className="text-center py-16 bg-neutral-50 rounded-xl border border-neutral-200">
-          <h2 className="text-lg font-semibold text-neutral-700 mb-2">No records yet</h2>
-          <p className="text-sm text-neutral-500 mb-4">
-            Submit forms through this module to create records.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {mod?.status === 'ACTIVE' && <Link to={`/app/modules/${moduleId}/form`} className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Create Record</Link>}
-            <Link to={`/app/modules/${moduleId}`} className="inline-block px-4 py-2 border border-neutral-300 text-neutral-700 rounded-lg text-sm font-medium hover:bg-white">Module Details</Link>
-          </div>
-        </div>
+      {!loading && records.length > 0 && (
+        <Pagination
+          className="mt-4"
+          currentPage={page}
+          pageInfo={`Page ${page} · ${records.length} records`}
+          hasPrevious={hasPrevious}
+          hasNext={hasMore}
+          onPrevious={goPrevious}
+          onNext={() => goNext(nextCursor)}
+        />
       )}
     </div>
   );
