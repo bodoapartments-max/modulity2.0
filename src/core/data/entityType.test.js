@@ -238,6 +238,24 @@ describe('entityType', () => {
       expect(validateFieldValue({ start: '2024-03-20', end: '2024-03-15' }, field)).toMatch(/start date cannot be after end date/);
     });
 
+    it('rejects partial date range', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15', end: '' }, field)).toMatch(/must have both start and end dates/);
+      expect(validateFieldValue({ start: '', end: '2024-03-15' }, field)).toMatch(/must have both start and end dates/);
+    });
+
+    it('allows empty optional date range', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: false };
+      expect(validateFieldValue({ start: '', end: '' }, field)).toBeNull();
+      expect(validateFieldValue(null, field)).toBeNull();
+    });
+
+    it('rejects required empty date range', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: true };
+      expect(validateFieldValue({ start: '', end: '' }, field)).toMatch(/is required/);
+      expect(validateFieldValue(null, field)).toMatch(/is required/);
+    });
+
     // ─── DATE ───
     it('accepts valid ISO date', () => {
       const field = { key: 'k', label: 'Date', type: 'date', required: true };

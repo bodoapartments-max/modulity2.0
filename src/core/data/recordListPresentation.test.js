@@ -18,4 +18,13 @@ describe('generic Module Record list presentation', () => {
     expect(formatRecordListValue(record, { key: 'room', scope: 'DATA', type: 'entity-reference' }, { 'room-1': '101' })).toBe('101');
     expect(formatRecordListValue(record, { key: 'room', scope: 'DATA', type: 'entity-reference' }, {})).toBe('room-1');
   });
+
+  it('renders date-range as a localized span', () => {
+    const record = { data: { period: { start: '2026-10-12', end: '2026-10-16' } } };
+    const value = formatRecordListValue(record, { key: 'period', scope: 'DATA', type: 'date-range' });
+    expect(value).toMatch(/12/);
+    expect(value).toMatch(/16/);
+    expect(value).toMatch(/2026/);
+    expect(value).toMatch(/–/);
+  });
 });

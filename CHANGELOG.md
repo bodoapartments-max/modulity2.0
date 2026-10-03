@@ -18,6 +18,10 @@ All notable changes to Modulity 2.0 will be documented in this file.
 - Workspace Reset integration removes CapabilityDefinitions while preserving identity, memberships, core entity types, and audit evidence
 - Unit tests for CapabilityDefinition domain model, Calendar Engine projections, and Calendar View rendering
 - `CALENDAR_ENGINE.md` documenting architecture, date semantics, bounded queries, authorization, views, and limitations
+- Year View with 12 Monday-first mini-months, activity indicators, bounded day-summary popover, and Year → Day navigation
+- All/individual CalendarDefinition visibility controls
+- Generic `date-range` FormSchema field type with From/Till date pickers, canonical `{ start, end }` ISO date value, deterministic validation, Record List / Record Detail formatting, and Calendar Engine consumption
+- Workspace Architect `EMPLOYEE_LEAVE` scenario proposes a single `date-range` Holiday Period field and a Calendar requirement
 
 ### Changed
 - `builtInCapabilityCatalog.js`: Calendar availability moved from `ARCHITECTURE_ONLY` to `AVAILABLE`

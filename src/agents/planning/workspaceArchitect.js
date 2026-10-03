@@ -7,6 +7,7 @@ const clone = (value) => structuredClone(value);
 const text = (key, label, required = false) => ({ key, label, type: 'text', required });
 const textarea = (key, label, required = false) => ({ key, label, type: 'textarea', required });
 const date = (key, label, required = false) => ({ key, label, type: 'date', required });
+const dateRange = (key, label, required = false) => ({ key, label, type: 'date-range', required });
 const datetime = (key, label, required = false) => ({ key, label, type: 'datetime', required });
 const bool = (key, label, required = false) => ({ key, label, type: 'boolean', required });
 const select = (key, label, options, required = false) => ({ key, label, type: 'select', options, required });
@@ -61,6 +62,7 @@ const includesAny = (textValue, words) => words.some((word) => textValue.include
 export function classifyBusinessRequest(request) {
   const value = normalized(request);
   if (!value || value.length > 10_000) throw new Error('Business request must contain 1-10000 characters');
+  if (includesAny(value, ['employee holiday', 'holiday request', 'vacation request', 'leave request', 'time off', 'employee leave'])) return 'EMPLOYEE_LEAVE';
   if (includesAny(value, ['restaurant', 'customer order', 'table reservation', 'inventory'])) return 'RESTAURANT_EXPANSION';
   if (includesAny(value, ['room inspection', 'inspect rooms'])) return 'ROOM_INSPECTION';
   if (includesAny(value, ['company vehicle', 'vehicle inspection', 'company cars'])) return 'VEHICLE_OPERATIONS';
@@ -92,6 +94,15 @@ function addEntity(proposal, reason, proposals, decisions, model = null) {
   decisions.push(decision(proposal.name, !existing ? 'CREATE' : compatible ? 'REUSE' : 'CONFLICT', proposal.ref, !existing ? reason : compatible ? `The Workspace already has a compatible ${existing.name} Entity Type.` : `The existing ${existing.code} schema has incompatible semantics and cannot be reused or overwritten.`));
 }
 function addModule(proposal, reason, proposals, decisions) { proposals.push(proposal); decisions.push(decision(proposal.name, 'CREATE', proposal.ref, reason)); }
+
+function employeeLeaveEvolution(model) {
+  const entityTypes = []; const decisions = [];
+  [['EMPLOYEE', 'Employee', 'Leave requests reference the existing Employee identity.']].forEach(([code, concept, reason]) => reuseEntity(model, code, concept, reason, entityTypes, decisions));
+  const existing = existingModuleProposal(model, 'EMPLOYEE_HOLIDAY_REQUEST');
+  const proposal = existing || moduleProposal('EMPLOYEE_HOLIDAY_REQUEST', 'Employee Holiday Request', 'HR', [entityRef('employee', 'Employee', 'EMPLOYEE'), dateRange('period', 'Holiday Period', true), textarea('reason', 'Reason'), select('status', 'Status', ['REQUESTED', 'APPROVED', 'REJECTED'], true)], 'A holiday request is a bounded date-range process. One date-range field captures the inclusive From/Till period.');
+  decisions.push(decision('Employee holiday request', existing ? 'REUSE' : 'CREATE', proposal.ref, proposal.rationale));
+  return { scenario: 'EMPLOYEE_LEAVE', businessAreas: [area('HR', 'Human Resources')], entityTypes, modules: [proposal], worksets: [workset('HR_OPERATIONS', 'HR Operations', ['EMPLOYEE_HOLIDAY_REQUEST'])], widgets: [], reports: [report('HOLIDAY_REQUEST_SUMMARY', 'Holiday Request Summary', 'EMPLOYEE_HOLIDAY_REQUEST')], decisions, questions: [], warnings: [] };
+}
 
 function restaurantEvolution(model) {
   const entityTypes = []; const modules = []; const decisions = [];
@@ -157,13 +168,14 @@ export function architectWorkspaceEvolution({ businessRequest, semanticModel }) 
   if (semanticModel.completeness.status === 'ANALYSIS_INCOMPLETE') return { schemaVersion: WORKSPACE_ARCHITECT_SCHEMA_VERSION, status: 'ANALYSIS_INCOMPLETE', scenario: 'INCOMPLETE', requestedChange: businessRequest, currentState: { analyzedResources: 0 }, reuse: [], create: [], connect: [], conflicts: [], unsupported: [], capabilityRequirements: [], questions: [{ code: 'ANALYSIS_BOUNDS', category: 'REQUIRED_CLARIFICATION', question: `Workspace analysis exceeded bounded context: ${semanticModel.completeness.truncatedKinds.join(', ')}.` }], warnings: [{ code: 'ANALYSIS_INCOMPLETE', message: 'No evolution is proposed until complete bounded coverage is available.' }], decisions: [], businessAreas: [], entityTypes: [], modules: [], worksets: [], widgets: [], reports: [] };
   const scenario = classifyBusinessRequest(businessRequest);
   if (scenario === 'AMBIGUOUS_STORAGE' || scenario === 'UNSUPPORTED_REQUEST') return { schemaVersion: WORKSPACE_ARCHITECT_SCHEMA_VERSION, status: 'NEEDS_CLARIFICATION', scenario, requestedChange: businessRequest, currentState: { analyzedResources: semanticModel.entityTypes.length + semanticModel.modules.length + semanticModel.worksets.length + semanticModel.widgets.length + semanticModel.reports.length }, reuse: [], create: [], connect: [], conflicts: [], unsupported: [], capabilityRequirements: [], questions: [{ code: scenario, category: 'REQUIRED_CLARIFICATION', question: scenario === 'AMBIGUOUS_STORAGE' ? 'Does storage mean inventory locations, physical rooms, documents, or files?' : 'Please describe the persistent business objects and operational processes involved.' }], warnings: [], decisions: [], businessAreas: [], entityTypes: [], modules: [], worksets: [], widgets: [], reports: [] };
-  const planned = scenario === 'RESTAURANT_EXPANSION' ? restaurantEvolution(semanticModel) : scenario === 'ROOM_INSPECTION' ? roomInspectionEvolution(semanticModel) : scenario === 'VEHICLE_OPERATIONS' ? vehicleEvolution(semanticModel) : scenario === 'SCHOOL_OPERATIONS' ? schoolEvolution(semanticModel) : installationEvolution(semanticModel);
+  const planned = scenario === 'EMPLOYEE_LEAVE' ? employeeLeaveEvolution(semanticModel) : scenario === 'RESTAURANT_EXPANSION' ? restaurantEvolution(semanticModel) : scenario === 'ROOM_INSPECTION' ? roomInspectionEvolution(semanticModel) : scenario === 'VEHICLE_OPERATIONS' ? vehicleEvolution(semanticModel) : scenario === 'SCHOOL_OPERATIONS' ? schoolEvolution(semanticModel) : installationEvolution(semanticModel);
   planned.worksets.forEach((item) => planned.decisions.push(decision(item.name, semanticModel.worksets.some((existing) => existing.name === item.name) ? 'REUSE' : 'CREATE', item.ref, 'Operational context grouping; authorization remains unchanged.')));
   planned.widgets.forEach((item) => planned.decisions.push(decision(item.name, semanticModel.widgets.some((existing) => existing.name === item.name) ? 'REUSE' : 'CREATE', item.ref, 'Bounded operational visibility over canonical Records.')));
   planned.reports.forEach((item) => planned.decisions.push(decision(item.name, semanticModel.reports.some((existing) => existing.name === item.name) ? 'REUSE' : 'CREATE', item.ref, 'Bounded reporting over canonical Records.')));
   const refs = [...planned.entityTypes, ...planned.modules, ...planned.worksets, ...planned.widgets, ...planned.reports].map((item) => item.ref);
   const calendar = semanticModel.capabilityCatalog.find((item) => item.engineId === 'calendar');
-  const capabilityRequirements = scenario === 'RESTAURANT_EXPANSION' && calendar ? [{ engineId: calendar.engineId, contractVersion: calendar.contractVersion, availability: calendar.availability, sourceRef: 'module:TABLE_RESERVATION', reason: calendar.availability === 'AVAILABLE' ? 'Table reservations have canonical start/end fields suitable for a Calendar projection.' : 'Table reservations have canonical start/end fields suitable for a future Calendar projection.', operational: calendar.operational }] : [];
+  const calendarSourceModule = scenario === 'EMPLOYEE_LEAVE' ? 'module:EMPLOYEE_HOLIDAY_REQUEST' : scenario === 'RESTAURANT_EXPANSION' ? 'module:TABLE_RESERVATION' : null;
+  const capabilityRequirements = calendarSourceModule && calendar ? [{ engineId: calendar.engineId, contractVersion: calendar.contractVersion, availability: calendar.availability, sourceRef: calendarSourceModule, reason: calendar.availability === 'AVAILABLE' ? `${calendarSourceModule.replace('module:', '')} has canonical start/end fields suitable for a Calendar projection.` : `${calendarSourceModule.replace('module:', '')} has canonical start/end fields suitable for a future Calendar projection.`, operational: calendar.operational }] : [];
   return { schemaVersion: WORKSPACE_ARCHITECT_SCHEMA_VERSION, status: 'READY_FOR_REVIEW', scenario, requestedChange: businessRequest, currentState: { analyzedResources: semanticModel.entityTypes.length + semanticModel.modules.length + semanticModel.worksets.length + semanticModel.widgets.length + semanticModel.reports.length }, reuse: planned.decisions.filter((item) => item.decision === 'REUSE').map((item) => item.targetRef), create: planned.decisions.filter((item) => item.decision === 'CREATE').map((item) => item.targetRef), connect: planned.modules.flatMap((item) => item.formSchema.fields.filter((field) => field.type === 'entity-reference').map((field) => ({ moduleRef: item.ref, fieldKey: field.key, entityTypeRef: field.entityTypeId }))), conflicts: planned.decisions.filter((item) => item.decision === 'CONFLICT').map((item) => item.targetRef), unsupported: [], questions: planned.questions, warnings: planned.warnings, capabilityRequirements, decisions: planned.decisions, businessAreas: planned.businessAreas, entityTypes: planned.entityTypes, modules: planned.modules, worksets: planned.worksets, widgets: planned.widgets, reports: planned.reports, refs };
 }
 

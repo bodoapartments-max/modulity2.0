@@ -15,6 +15,9 @@ export function formatRecordListValue(record, column, entityLabels = {}) {
   if (value === undefined || value === null || value === '') return '—';
   if (column.type === 'entity-reference' && typeof value === 'object') return entityLabels[value.entityId] || value.entityId;
   if (column.type === 'boolean') return value ? 'Yes' : 'No';
+  if (column.type === 'date-range' && typeof value === 'object' && value !== null && value.start && value.end) {
+    return `${new Date(value.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${new Date(value.end).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
+  }
   if (column.type === 'date' || column.type === 'datetime' || ['createdAt', 'updatedAt', 'submittedAt'].includes(column.key)) {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });

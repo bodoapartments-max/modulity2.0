@@ -35,6 +35,19 @@ describe('Automat Workspace Architect', () => {
     expect(model.completeness.status).toBe('COMPLETE');
   });
 
+  it('proposes a date-range field for an employee holiday request and connects it to Calendar', async () => {
+    const result = await evolve('We need an employee holiday request form. The employee selects the period from the first day of holiday until the last day, and it should appear in the calendar.');
+    expect(result.evolution.reuse).toEqual(expect.arrayContaining(['entityType:EMPLOYEE']));
+    const holidayModule = result.plan.proposedModules.find((item) => item.moduleCode === 'EMPLOYEE_HOLIDAY_REQUEST');
+    expect(holidayModule).toBeTruthy();
+    const periodField = holidayModule.formSchema.fields.find((field) => field.key === 'period');
+    expect(periodField?.type).toBe('date-range');
+    expect(periodField?.required).toBe(true);
+    expect(holidayModule.formSchema.fields.some((field) => field.type === 'date' && /start/i.test(field.label) && field.type === 'date')).toBe(false);
+    expect(result.plan.capabilityRequirements).toEqual([expect.objectContaining({ engineId: 'calendar', sourceRef: 'module:EMPLOYEE_HOLIDAY_REQUEST' })]);
+    expect(result.validation.status).toBe('VALID');
+  });
+
   it('reuses Core vocabulary and creates only missing restaurant things/processes', async () => {
     const result = await evolve('We opened a restaurant inside the hotel. Add table reservations, customer orders, suppliers and inventory.');
     expect(result.evolution.reuse).toEqual(expect.arrayContaining(['entityType:EMPLOYEE', 'entityType:CUSTOMER', 'entityType:SUPPLIER', 'entityType:LOCATION', 'entityType:EQUIPMENT']));

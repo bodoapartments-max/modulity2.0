@@ -318,7 +318,15 @@ export function validateFieldValue(value, field) {
       if (typeof value !== 'object' || value === null) {
         return `${field.label} must be an object with start and end dates`;
       }
-      const { start, end } = value;
+      const { start = '', end = '' } = value;
+      const startEmpty = start === undefined || start === null || start === '';
+      const endEmpty = end === undefined || end === null || end === '';
+      if (startEmpty && endEmpty) {
+        return field.required ? `${field.label} is required` : null;
+      }
+      if (startEmpty || endEmpty) {
+        return `${field.label} must have both start and end dates`;
+      }
       if (typeof start !== 'string' || !ISO_DATE_PATTERN.test(start) || Number.isNaN(Date.parse(start))) {
         return `${field.label} start must be a valid ISO date string (YYYY-MM-DD)`;
       }

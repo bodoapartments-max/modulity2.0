@@ -35,8 +35,8 @@ A `CalendarDefinition` is a persisted generic `CapabilityDefinition`:
 - `source`: typed canonical reference (`module:...`, `entityType:...`, `workset:...`)
 - `configuration.mapping`:
   - `titleField` — human-readable text/select/email/phone/entity-reference field
-  - `startField` — required date/datetime field
-  - `endField` — optional date/datetime field
+  - `startField` — required `date`, `datetime`, or `date-range` field
+  - `endField` — optional `date`/`datetime` field. Must be absent when `startField` is a `date-range` (the range supplies both endpoints).
   - `resourceField` — optional entity-reference field
 - Lifecycle: `DRAFT` → `ACTIVE` → `INACTIVE` / `ARCHIVED`
 
