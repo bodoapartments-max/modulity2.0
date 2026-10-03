@@ -11,11 +11,13 @@ import RegisterPage from '../../features/auth/ui/RegisterPage.jsx';
 import AppShell from '../shell/AppShell.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import GuestRoute from './GuestRoute.jsx';
+import ToastProvider from '../../design-system/components/Toast/ToastProvider.jsx';
 
 function AppRouter() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+    <ToastProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
       <Route
         path="/login"
@@ -43,7 +45,8 @@ function AppRouter() {
           </ProtectedRoute>
         }
       />
-    </Routes>
+      </Routes>
+    </ToastProvider>
   );
 }
 

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceContext } from '../../../app/providers/WorkspaceProvider.jsx';
+import ToastProvider from '../../../design-system/components/Toast/ToastProvider.jsx';
 import WorkspaceResetPanel from './WorkspaceResetPanel.jsx';
 
 const mocks = vi.hoisted(() => ({ plan: vi.fn(), execute: vi.fn() }));
@@ -8,7 +9,13 @@ vi.mock('../../../infrastructure/firebase/workspaceResetClient.js', () => ({ wor
 
 const workspace = { workspaceId: 'ws-1', name: 'Test Hotel', type: 'ORGANIZATION' };
 function renderPanel() {
-  return render(<WorkspaceContext.Provider value={{ currentWorkspace: workspace }}><WorkspaceResetPanel /></WorkspaceContext.Provider>);
+  return render(
+    <WorkspaceContext.Provider value={{ currentWorkspace: workspace }}>
+      <ToastProvider>
+        <WorkspaceResetPanel />
+      </ToastProvider>
+    </WorkspaceContext.Provider>,
+  );
 }
 
 describe('WorkspaceResetPanel', () => {

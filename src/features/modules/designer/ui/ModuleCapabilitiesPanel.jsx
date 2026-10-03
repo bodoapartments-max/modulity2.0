@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../../../design-system/components/Button/Button.jsx';
+import Select from '../../../../design-system/components/Select/Select.jsx';
 import { useWorkspace } from '../../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../../app/providers/AuthProvider.jsx';
 import services from '../../../../infrastructure/services.js';
@@ -104,34 +105,30 @@ export default function ModuleCapabilitiesPanel({ moduleDefinition }) {
 
       {showForm && (
         <form onSubmit={handleCreate} className="mb-4 grid gap-3 rounded-lg bg-neutral-50 p-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-medium text-neutral-700">Title field</label>
-            <select value={mapping.titleField} onChange={(e) => setMapping((m) => ({ ...m, titleField: e.target.value }))} className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1 text-sm">
-              <option value="">Select…</option>
-              {compatibleFields(FIELD_TYPE_GROUPS.title).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-700">Start field</label>
-            <select value={mapping.startField} onChange={(e) => setMapping((m) => ({ ...m, startField: e.target.value }))} className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1 text-sm">
-              <option value="">Select…</option>
-              {compatibleFields(FIELD_TYPE_GROUPS.time).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-700">End field</label>
-            <select value={mapping.endField || ''} onChange={(e) => setMapping((m) => ({ ...m, endField: e.target.value || undefined }))} className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1 text-sm">
-              <option value="">None</option>
-              {compatibleFields(FIELD_TYPE_GROUPS.time).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-700">Resource field</label>
-            <select value={mapping.resourceField || ''} onChange={(e) => setMapping((m) => ({ ...m, resourceField: e.target.value || undefined }))} className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1 text-sm">
-              <option value="">None</option>
-              {compatibleFields(FIELD_TYPE_GROUPS.resource).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-          </div>
+          <Select
+            label="Title field"
+            value={mapping.titleField}
+            options={[{ value: '', label: 'Select…' }, ...compatibleFields(FIELD_TYPE_GROUPS.title).map((f) => ({ value: f.key, label: f.label }))]}
+            onChange={(event) => setMapping((m) => ({ ...m, titleField: event.target.value }))}
+          />
+          <Select
+            label="Start field"
+            value={mapping.startField}
+            options={[{ value: '', label: 'Select…' }, ...compatibleFields(FIELD_TYPE_GROUPS.time).map((f) => ({ value: f.key, label: f.label }))]}
+            onChange={(event) => setMapping((m) => ({ ...m, startField: event.target.value }))}
+          />
+          <Select
+            label="End field"
+            value={mapping.endField || ''}
+            options={[{ value: '', label: 'None' }, ...compatibleFields(FIELD_TYPE_GROUPS.time).map((f) => ({ value: f.key, label: f.label }))]}
+            onChange={(event) => setMapping((m) => ({ ...m, endField: event.target.value || undefined }))}
+          />
+          <Select
+            label="Resource field"
+            value={mapping.resourceField || ''}
+            options={[{ value: '', label: 'None' }, ...compatibleFields(FIELD_TYPE_GROUPS.resource).map((f) => ({ value: f.key, label: f.label }))]}
+            onChange={(event) => setMapping((m) => ({ ...m, resourceField: event.target.value || undefined }))}
+          />
           <div className="sm:col-span-2">
             <Button type="submit" size="sm" loading={saving} disabled={saving}>Create CalendarDefinition</Button>
           </div>

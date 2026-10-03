@@ -7,9 +7,11 @@ import Button from '../../../design-system/components/Button/Button.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
 import Label from '../../../design-system/components/Label/Label.jsx';
 import Alert from '../../../design-system/components/Alert/Alert.jsx';
+import { useToast } from '../../../design-system/components/Toast/ToastProvider.jsx';
 
 export default function WorkspaceResetPanel() {
   const { currentWorkspace } = useWorkspace();
+  const { showToast } = useToast();
   const [state, setState] = useState('IDLE');
   const [plan, setPlan] = useState(null);
   const [confirmation, setConfirmation] = useState('');
@@ -35,6 +37,7 @@ export default function WorkspaceResetPanel() {
       setError(null);
       await workspaceResetClient.execute({ workspaceId: currentWorkspace.workspaceId, requestId: crypto.randomUUID(), confirmation });
       workspaceQueryCache.invalidate(`${currentWorkspace.workspaceId}:`);
+      showToast({ message: 'Workspace reset completed. Reloading…', variant: 'success' });
       setState('SUCCESS');
       window.setTimeout(() => window.location.assign('/app'), 600);
     } catch (resetError) {
