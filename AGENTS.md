@@ -365,8 +365,10 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 - The Record command contract is versioned (`RECORD_COMMAND_CONTRACT_VERSION = "1.0.0"`) and extensible; Step 12 implements only `CREATE_RECORD`.
 - The server derives actor identity from verified Firebase Auth, not from client payload.
 - The server resolves Workspace membership, Module existence/status/version, FormSchema, and EntityReferences from canonical Workspace data.
+- Only `ACTIVE` Modules may receive canonical Records; `DRAFT` Modules are rejected.
 - Server-authoritative metadata (`createdAt`, `updatedAt`, `createdBy`, `recordId`, `moduleVersion`) is generated/overridden by the trusted executor.
-- Record submission is idempotent per `operationId`; the same `operationId` returns the same canonical Record on retry.
+- Record submission is idempotent per `operationId`; the same `operationId` returns the same canonical Record on retry, while a different command with the same `operationId` is rejected.
+- Stale `PROCESSING` operations are recovered by inspecting canonical state and bounded server-side leases, not by client clocks.
 - Direct browser `CREATE` on `workspaces/{workspaceId}/records/{recordId}` is denied; canonical creation flows through the `recordCommand` callable.
 - Capability Engines and Agents may request commands later but may not bypass authorization or deterministic validation.
 - Stable refs and fingerprint/stale-plan behavior remain mandatory; repeat requests must converge on REUSE.

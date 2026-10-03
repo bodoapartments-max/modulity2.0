@@ -53,7 +53,7 @@ The following facts are resolved server-side from canonical Workspace data:
 
 - Authenticated Firebase Auth identity (`request.auth.uid`).
 - Workspace existence and caller authorization (Personal owner / active Organization member).
-- Module existence, workspace ownership, and status (`ACTIVE` or `DRAFT`).
+- Module existence, workspace ownership, and status (`ACTIVE` only).
 - Canonical Module Version and historical FormSchema snapshot.
 - EntityReference existence, workspace match, and Entity Type match.
 
@@ -69,7 +69,13 @@ operation journal at `workspaces/{workspaceId}/recordOperations/{operationId}`.
 
 - First call creates an operation entry, writes the canonical Record, and marks the
   operation `COMPLETED` with the resulting `recordId`.
-- Retry with the same `operationId` returns the previously created Record.
+- Retry with the same `operationId` and identical command fingerprint returns the
+  previously created Record.
+- Retry with the same `operationId` but a different command returns
+  `OPERATION_MISMATCH`.
+- A retry while a valid `PROCESSING` lease exists receives `OPERATION_IN_PROGRESS`.
+- A retry after a stale `PROCESSING` lease is recovered: if the Record exists the
+  operation is reconciled to `COMPLETED`; otherwise creation is safely retried.
 - Concurrent duplicate calls are serialized by Firestore transactions: exactly one
   canonical Record is created.
 
@@ -80,13 +86,13 @@ intentionally two distinct Records.
 
 The critical path is one Firestore transaction:
 
-1. Validate the command envelope.
+1. Validate the command envelope and compute the command fingerprint.
 2. Read/verify workspace authorization, module, module version snapshot, and entity
    references.
-3. Read the operation journal entry.
-4. If not completed, create the operation entry (`PROCESSING`), create the Record
-   document with a deterministic `recordId`, and update the operation entry to
-   `COMPLETED`.
+3. Read the operation journal entry and Record document.
+4. If not completed/in-progress with valid lease, create or recover the operation
+   entry (`PROCESSING` with bounded `leaseExpiresAt`), create the Record document
+   with a deterministic `recordId`, and update the operation entry to `COMPLETED`.
 
 Audit and notification side effects run after the transaction and are best-effort.
 They do not roll back an otherwise valid Record.
@@ -133,16 +139,35 @@ is moved behind the trusted boundary.
 ## Failure behavior
 
 - Validation failures return deterministic error codes such as
-  `WORKSPACE_FORBIDDEN`, `MODULE_NOT_FOUND`, `SCHEMA_INVALID`,
-  `ENTITY_REFERENCE_INVALID`, `UNSUPPORTED_CONTRACT_VERSION`, etc.
-- If the operation journal shows `PROCESSING` when a duplicate arrives, the
-  duplicate receives `OPERATION_CONFLICT`.
+  `WORKSPACE_FORBIDDEN`, `MODULE_NOT_FOUND`, `MODULE_NOT_ACTIVE`, `SCHEMA_INVALID`,
+  `ENTITY_REFERENCE_INVALID`, `UNSUPPORTED_CONTRACT_VERSION`, `OPERATION_IN_PROGRESS`,
+  `OPERATION_MISMATCH`, etc.
+- If the operation journal shows `PROCESSING` when a duplicate arrives and the lease
+  is still valid, the duplicate receives `OPERATION_IN_PROGRESS`.
 - Best-effort Audit/Notification failures are logged and do not invalidate the
   Record.
+
+## DRAFT Module policy
+
+Only `ACTIVE` Modules may receive canonical Records through trusted submission.
+`DRAFT` Modules are configuration under construction and are rejected with
+`MODULE_NOT_ACTIVE`. This is enforced server-side; it is not a UI-only restriction.
+Designer preview does not create Records and is unaffected.
+
+## Operation journal security
+
+Firestore Rules deny all client access to:
+
+```
+workspaces/{workspaceId}/recordOperations/{operationId}
+```
+
+The journal is written only by the trusted Cloud Function using Admin SDK privileges.
 
 ## Testing
 
 - Unit tests: `src/core/recordCommands/*.test.js`
+- Server logic tests: `functions/src/recordCommandEngine.test.js`
 - Integration tests: `tests/rules/recordCommand.integration.test.js`
 - Security tests: direct Record `CREATE` is proven denied in
   `tests/rules/firestore.rules.test.js`.

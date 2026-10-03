@@ -138,6 +138,7 @@ Independent streams:
 |---|---|---|---|---|---|
 | 11.1 | Physical Package Reorganization | Make generic/engine/feature/agent boundaries explicit without behavior changes | Audit complete | ALL | Unblocks parallel engine work |
 | 12 | Trusted Record Submission Function | Move normal Record creation behind a Cloud Function to close the trusted-submission gap | Step 11.1 | INFRASTRUCTURE | Required before approval/workflow can be authoritative |
+| 12.1 | Record Command Recovery, Module Policy & Browser Verification | Stabilize Step 12: recover stale operations, enforce ACTIVE-only module submission, verify real browser path | Step 12 | INFRASTRUCTURE+QA | Closes Step 12 before design-system work |
 | 13 | Design-System Primitives | Add Select, Textarea, Table, DataGrid, Pagination, Toast, FileUpload, Tabs | Step 11.1 | DESIGN_SYSTEM | Required for Attachments, Sharing, Chat, etc. |
 | 14 | Record UX Hardening | Bulk actions, saved views, print/export hooks, breadcrumbs, recent items | Step 13 | FEATURE | Makes Records actually usable at scale |
 | 15 | Generic Record Actions / Lifecycle | Formalize `submit`, `approve`, `reject`, `assign`, `complete`, `cancel`, `archive` as trusted commands with audit | Steps 12, 13 | CORE+FEATURE | Foundation for Approval/Workflow |

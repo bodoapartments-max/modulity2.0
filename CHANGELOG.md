@@ -2,6 +2,30 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 12.1 — Record Command Recovery, Module Policy & Real Browser Verification
+
+### Added
+- Server-side command fingerprint and operation lease to prevent stale `PROCESSING` operations from blocking legitimate retries
+- Deterministic recovery for stale `PROCESSING` operations:
+  - If Record exists, reconcile operation to `COMPLETED` and return existing Record
+  - If lease expired and Record does not exist, reacquire operation and retry creation
+- `OPERATION_IN_PROGRESS` and `OPERATION_MISMATCH` error codes in `RECORD_COMMAND_ERROR_CODES`
+- DRAFT Module rejection in the trusted command engine
+- Server-only Firestore Rules for `workspaces/{workspaceId}/recordOperations/{operationId}`
+- Function-level unit tests for recovery, mismatch, concurrent duplicate requests, and DRAFT policy
+
+### Changed
+- `recordCommandEngine.js` now validates `operationId` ownership, command fingerprint, and lease expiry inside the Firestore transaction
+- `recordCommandEngine.js` rejects `DRAFT`/`INACTIVE`/`ARCHIVED` Modules; only `ACTIVE` Modules may receive canonical Records
+- `vite.config.js` excludes `functions/**` from Vitest test discovery so Node.js `node:test` files can coexist
+- `docs/TRUSTED_RECORD_COMMANDS.md` updated with recovery semantics, lease design, fingerprint design, and DRAFT policy
+- `docs/MODULITY_MASTER_ROADMAP.md` updated with Step 12.1
+
+### Security
+- `recordOperations` collection is inaccessible to browser clients
+- Same `operationId` with different command returns `OPERATION_MISMATCH` instead of an unrelated existing Record
+- DRAFT Module submission is explicitly rejected server-side
+
 ## Step 12 — Trusted Record Submission & Server Authority Foundation
 
 ### Added
