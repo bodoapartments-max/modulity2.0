@@ -1,413 +1,203 @@
 /**
- * Modulity 2.0 — Ledger Concurrency Integration Tests
+ * Modulity 2.0 — Ledger Concurrency Integration Tests (Step 16)
  *
- * Runs against Firebase Emulator with REAL Firestore transactions.
- * Tests the actual registerRecordAtomic() implementation.
+ * Step 16 moved Ledger registration behind the trusted ledgerCommand
+ * boundary. This suite drives `executeLedgerCommand` (functions/src) with
+ * the firebase-admin SDK against the real Firestore Emulator — the same
+ * transaction semantics the Cloud Function has in production.
  *
- * MANDATORY tests:
- *   A. 20 concurrent registrations of SAME Record → 1 entry, 1 sequence consumed
- *   B. 50 concurrent DISTINCT Records → 50 entries, 50 unique contiguous sequences
- *   C. Concurrent registration across block rollover → no duplicate blocks/numbers
+ * This suite REPLACES the historical client-transaction concurrency test,
+ * whose flakiness came from browser-SDK transactions racing under full
+ * emulator load. Browser clients can no longer register Ledger entries at
+ * all (Firestore Rules: read-only).
+ *
+ * MANDATORY invariants:
+ *   A. 20 concurrent registrations of SAME Record → 1 entry, 1 sequence
+ *   B. 50 concurrent DISTINCT Records → 50 unique contiguous sequences
+ *   C. Rollover across block boundary stays correct
+ *   D. Same operationId replay ⇔ same entry, no second sequence
  */
 
 /* eslint-disable no-undef */
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest';
-import {
-  initializeTestEnvironment,
-} from '@firebase/rules-unit-testing';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import {
-  doc, getDoc, setDoc, getDocs, collection,
-  query, where, setLogLevel,
-  runTransaction, serverTimestamp,
-} from 'firebase/firestore';
-import { formatReferenceNumber } from '../../src/core/ledger/ledgerBook.js';
-
-setLogLevel('error');
+// Same nested import path the other rules integration suites use — the
+// functions engine resolves firebase-admin from functions/node_modules, so
+// tests must use the same instance for Timestamp/FieldValue identity.
+import { initializeApp, deleteApp, getApps } from '../../functions/node_modules/firebase-admin/lib/esm/app/index.js';
+import { getFirestore } from '../../functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
+import { executeLedgerCommand } from '../../functions/src/ledgerCommandEngine.js';
+import { buildRegisterLedgerEntryCommand } from '../../src/core/ledger/ledgerCommandContract.js';
 
 const PROJECT_ID = 'modulity-concurrency-test';
-const RULES_PATH = resolve(process.cwd(), 'firestore.rules');
-
-let testEnv;
-
-function deterministicEntryId(bookId, recordId) {
-  return `le_${bookId}_${recordId}`;
-}
-
-/**
- * Core registration function — mirrors actual repository logic.
- * Uses real Firestore transactions against the emulator.
- */
-async function registerRecordAtomic(db, workspaceId, {
-  ledgerBookId, recordId, moduleId, moduleVersion, recordType,
-  referencePrefix, referenceFormatVersion, actor,
-}) {
-  return runTransaction(db, async (transaction) => {
-    const entryId = deterministicEntryId(ledgerBookId, recordId);
-    const entryRef = doc(db, 'workspaces', workspaceId, 'ledgerEntries', entryId);
-    const existingSnap = await transaction.get(entryRef);
-
-    if (existingSnap.exists()) {
-      const existing = existingSnap.data();
-      return { ...existing, ledgerEntryId: entryId, _idempotent: true };
-    }
-
-    const recRef = doc(db, 'workspaces', workspaceId, 'records', recordId);
-    const recSnap = await transaction.get(recRef);
-    if (!recSnap.exists()) throw new Error('Record not found');
-
-    const bookRef = doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId);
-    const bookSnap = await transaction.get(bookRef);
-    if (!bookSnap.exists()) throw new Error('Book not found');
-    const book = bookSnap.data();
-    if (book.status !== 'ACTIVE') throw new Error('Book not active');
-
-    let currentBlockId = book.currentBlockId;
-    let blockRef = doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks', currentBlockId);
-    let blockSnap = await transaction.get(blockRef);
-    if (!blockSnap.exists()) throw new Error('Block not found');
-    let block = blockSnap.data();
-
-    // Block rollover
-    if (block.nextSequence > block.endSequence) {
-      transaction.update(blockRef, { status: 'FULL', _closedAt: serverTimestamp() });
-
-      const newBlockNumber = block.blockNumber + 1;
-      const newStartSequence = block.endSequence + 1;
-      const newEndSequence = newStartSequence + book.blockSize - 1;
-      const newBlockId = `block_${newBlockNumber}`;
-      const newBlockRef = doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks', newBlockId);
-
-      transaction.set(newBlockRef, {
-        ledgerBlockId: newBlockId, ledgerBookId, workspaceId,
-        blockNumber: newBlockNumber, startSequence: newStartSequence,
-        endSequence: newEndSequence, nextSequence: newStartSequence,
-        capacity: book.blockSize, status: 'OPEN', closedAt: null,
-        createdBy: actor, _createdAt: serverTimestamp(), _openedAt: serverTimestamp(),
-      });
-
-      transaction.update(bookRef, { currentBlockId: newBlockId, _updatedAt: serverTimestamp() });
-      currentBlockId = newBlockId;
-      block = {
-        blockNumber: newBlockNumber, startSequence: newStartSequence,
-        endSequence: newEndSequence, nextSequence: newStartSequence,
-      };
-    }
-
-    const sequenceNumber = block.nextSequence;
-    const referenceNumber = formatReferenceNumber(
-      referencePrefix || book.ledgerCode, sequenceNumber, referenceFormatVersion || 1,
-    );
-
-    const activeBlockRef = doc(db, 'workspaces', workspaceId, 'ledgerBooks', ledgerBookId, 'blocks', currentBlockId);
-    transaction.update(activeBlockRef, { nextSequence: sequenceNumber + 1 });
-
-    const entryData = {
-      ledgerEntryId: entryId, workspaceId, ledgerBookId,
-      ledgerBlockId: currentBlockId, recordId,
-      moduleId: moduleId || null, moduleVersion: moduleVersion || null,
-      recordType: recordType || null, sequenceNumber, referenceNumber,
-      referenceFormatVersion: referenceFormatVersion || 1,
-      entryStatus: 'ACTIVE', registeredBy: actor,
-      cancelledAt: null, cancelledBy: null, cancellationReason: null,
-      voidedAt: null, voidedBy: null, voidReason: null,
-      supersededByRecordId: null, _registeredAt: serverTimestamp(),
-    };
-    transaction.set(entryRef, entryData);
-
-    // Update record linkage
-    const rec = recSnap.data();
-    if (!rec.ledgerEntryId) {
-      transaction.update(recRef, {
-        ledgerEntryId: entryId, ledgerBookId, referenceNumber,
-        _updatedAt: serverTimestamp(),
-      });
-    }
-
-    return { ...entryData, _idempotent: false };
-  }, { maxAttempts: 50 });
-}
-
-beforeAll(async () => {
-  const rules = readFileSync(RULES_PATH, 'utf8');
-  testEnv = await initializeTestEnvironment({
-    projectId: PROJECT_ID,
-    firestore: { rules, host: '127.0.0.1', port: 8080 },
-  });
-});
-
-afterAll(async () => {
-  if (testEnv) await testEnv.cleanup();
-});
-
-beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-async function seedWorkspace(workspaceId) {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    const db = ctx.firestore();
-    await setDoc(doc(db, 'workspaces', workspaceId), {
-      workspaceId, type: 'PERSONAL', ownerUserId: 'user1', name: 'Test WS',
-    });
-    await setDoc(doc(db, 'users', 'user1'), {
-      userId: 'user1', email: 'test@test.com', displayName: 'Test',
-    });
-  });
-}
-
-async function seedLedgerBook(workspaceId, bookId, blockSize) {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    const db = ctx.firestore();
-    await setDoc(doc(db, 'workspaces', workspaceId, 'ledgerBooks', bookId), {
-      ledgerBookId: bookId, workspaceId, ledgerCode: 'RI', name: 'Test Book',
-      status: 'ACTIVE', blockSize, currentBlockId: 'block_1',
-      referencePrefix: 'RI', referenceFormatVersion: 1,
-      numberingStrategy: 'SEQUENTIAL',
-      createdBy: { actorType: 'USER', actorId: 'user1' },
-    });
-    await setDoc(doc(db, 'workspaces', workspaceId, 'ledgerBooks', bookId, 'blocks', 'block_1'), {
-      ledgerBlockId: 'block_1', ledgerBookId: bookId, workspaceId,
-      blockNumber: 1, startSequence: 1, endSequence: blockSize,
-      nextSequence: 1, capacity: blockSize, status: 'OPEN',
-      closedAt: null, createdBy: { actorType: 'USER', actorId: 'user1' },
-    });
-  });
-}
-
-async function seedRecord(workspaceId, recordId) {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    const db = ctx.firestore();
-    await setDoc(doc(db, 'workspaces', workspaceId, 'records', recordId), {
-      recordId, workspaceId, recordType: 'inspection', status: 'SUBMITTED',
-      data: {}, moduleId: null, moduleVersion: null,
-      createdBy: { actorType: 'USER', actorId: 'user1' },
-      ledgerEntryId: null, ledgerBookId: null, referenceNumber: null,
-    });
-  });
-}
-
-function getDb() {
-  // Use rules-disabled context so we can test transaction logic without security rule interference
-  return testEnv.authenticatedContext('user1').firestore();
-}
-
-const actor = { actorType: 'USER', actorId: 'user1' };
 const WS = 'ws-conc';
 const BOOK = 'lb-conc';
 
-describe('Ledger Concurrency Integration Tests', () => {
+let app;
+let db;
 
-  // ═══════════════════════════════════════════════════════
-  // TEST A: 20 concurrent registrations of SAME Record
-  // ═══════════════════════════════════════════════════════
-  describe('same-record concurrent registration', () => {
-    it('20 concurrent registrations produce exactly 1 entry and consume 1 sequence', async () => {
-      await seedWorkspace(WS);
-      await seedLedgerBook(WS, BOOK, 100);
-      await seedRecord(WS, 'rec-same');
+beforeAll(() => {
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    throw new Error('FIRESTORE_EMULATOR_HOST must be set (run via npm run test:rules)');
+  }
+  if (!getApps().length) {
+    app = initializeApp({ projectId: PROJECT_ID }, 'ledger-concurrency');
+  } else {
+    app = getApps()[0];
+  }
+  db = getFirestore(app);
+});
 
-      const db = getDb();
-      const N = 20;
-      const promises = [];
-      for (let i = 0; i < N; i++) {
-        promises.push(
-          registerRecordAtomic(db, WS, {
-            ledgerBookId: BOOK, recordId: 'rec-same',
-            referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-          }).catch(() => null),
-        );
-      }
-      const results = await Promise.all(promises);
+afterAll(async () => {
+  const entries = await db.collection(`workspaces/${WS}/ledgerEntries`).get();
+  void entries;
+  if (app) await deleteApp(app).catch(() => {});
+});
 
-      // All resolved results must have the same entry ID and sequence
-      const successful = results.filter(Boolean);
-      expect(successful.length).toBe(N);
+beforeEach(async () => {
+  // Wipe workspace state between tests (admin SDK — rules bypassed)
+  for (const path of [
+    `workspaces/${WS}`,
+    `workspaces/${WS}/ledgerBooks/${BOOK}`,
+  ]) {
+    const snap = await db.doc(path).get().catch(() => null);
+    void snap;
+  }
+  const collections = ['ledgerEntries', 'records', 'recordOperations', 'auditEntries', 'ledgerCodes'];
+  for (const col of collections) {
+    const snap = await db.collection(`workspaces/${WS}/${col}`).get();
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  const booksSnap = await db.collection(`workspaces/${WS}/ledgerBooks`).get();
+  for (const book of booksSnap.docs) {
+    const blocks = await book.ref.collection('blocks').get();
+    blocks.docs.forEach((d) => { void d; });
+    const batch = db.batch();
+    blocks.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(book.ref);
+    await batch.commit();
+  }
 
-      const entryIds = new Set(successful.map((r) => r.ledgerEntryId));
-      expect(entryIds.size).toBe(1);
+  await db.doc(`workspaces/${WS}`).set({ workspaceId: WS, type: 'PERSONAL', ownerUserId: 'user1', name: 'Test WS' });
+});
 
-      const seqNumbers = new Set(successful.map((r) => r.sequenceNumber));
-      expect(seqNumbers.size).toBe(1);
-      expect(successful[0].sequenceNumber).toBe(1);
+async function seedBook(blockSize = 100) {
+  await db.doc(`workspaces/${WS}/ledgerBooks/${BOOK}`).set({
+    ledgerBookId: BOOK, workspaceId: WS, ledgerCode: 'RI', name: 'Test Book',
+    status: 'ACTIVE', blockSize, currentBlockId: 'block_1',
+    referencePrefix: 'RI', referenceFormatVersion: 1,
+    numberingStrategy: 'SEQUENTIAL',
+    createdBy: { actorType: 'USER', actorId: 'user1' },
+  });
+  await db.doc(`workspaces/${WS}/ledgerBooks/${BOOK}/blocks/block_1`).set({
+    ledgerBlockId: 'block_1', ledgerBookId: BOOK, workspaceId: WS,
+    blockNumber: 1, startSequence: 1, endSequence: blockSize,
+    nextSequence: 1, capacity: blockSize, status: 'OPEN',
+    closedAt: null, createdBy: { actorType: 'USER', actorId: 'user1' },
+  });
+}
 
-      // Verify exactly one entry in Firestore
-      const entriesSnap = await getDocs(
-        query(
-          collection(db, 'workspaces', WS, 'ledgerEntries'),
-          where('ledgerBookId', '==', BOOK),
-        ),
-      );
-      expect(entriesSnap.size).toBe(1);
+async function seedRecord(recordId, { linked = false } = {}) {
+  await db.doc(`workspaces/${WS}/records/${recordId}`).set({
+    recordId, workspaceId: WS, recordType: 'inspection', status: 'SUBMITTED',
+    data: {}, moduleId: null, moduleVersion: null,
+    createdBy: { actorType: 'USER', actorId: 'user1' },
+    ledgerEntryId: linked ? 'le-x' : null, ledgerBookId: null, referenceNumber: null,
+  });
+}
 
-      // Verify block nextSequence advanced exactly once (to 2)
-      const blockSnap = await getDoc(doc(db, 'workspaces', WS, 'ledgerBooks', BOOK, 'blocks', 'block_1'));
-      expect(blockSnap.data().nextSequence).toBe(2);
-    });
+function register(recordId, operationId) {
+  return executeLedgerCommand(db, {
+    userId: 'user1',
+    command: buildRegisterLedgerEntryCommand({ operationId, workspaceId: WS, recordId, ledgerBookId: BOOK }),
+  });
+}
+
+describe('Ledger concurrency (trusted server path)', () => {
+  // 50-way transaction contention on one sequence document is slow on the
+  // local emulator; the budget must cover honest retries rather than hide them.
+  const TX_TIMEOUT = 180_000;
+
+  it('A. 20 concurrent registrations of the SAME Record produce exactly 1 entry and consume 1 sequence', { timeout: TX_TIMEOUT }, async () => {
+    await seedBook(100);
+    await seedRecord('rec-same');
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, (_, i) => register('rec-same', `op-same-${i}`)),
+    );
+
+    // Every concurrent request either completes or is told to retry after
+    // the in-flight operation — the invariant is the STORE state:
+    const entries = await db.collection(`workspaces/${WS}/ledgerEntries`).get();
+    expect(entries.size).toBe(1);
+    const entry = entries.docs[0].data();
+    expect(entry.sequenceNumber).toBe(1);
+
+    // Sequence consumed exactly once
+    const block = await db.doc(`workspaces/${WS}/ledgerBooks/${BOOK}/blocks/block_1`).get();
+    expect(block.data().nextSequence).toBe(2);
+
+    // Record linkage consistent with the entry
+    const rec = await db.doc(`workspaces/${WS}/records/rec-same`).get();
+    expect(rec.data().ledgerEntryId).toBe(entry.ledgerEntryId);
+    expect(rec.data().referenceNumber).toBe(entry.referenceNumber);
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled');
+    expect(succeeded.length).toBeGreaterThanOrEqual(1);
+    const references = new Set(succeeded.map((r) => r.value.entry.referenceNumber));
+    expect(references.size).toBe(1);
   });
 
-  // ═══════════════════════════════════════════════════════
-  // TEST B: 50 concurrent DISTINCT Records
-  // ═══════════════════════════════════════════════════════
-  describe('distinct-record concurrent registration', () => {
-    it('50 concurrent distinct records produce 50 unique contiguous sequences', async () => {
-      const N = 50;
-      await seedWorkspace(WS);
-      await seedLedgerBook(WS, BOOK, 100);
-      for (let i = 0; i < N; i++) {
-        await seedRecord(WS, `rec-dist-${i}`);
-      }
+  it('B. 50 concurrent DISTINCT Records produce 50 unique contiguous sequences across block rollover', { timeout: TX_TIMEOUT }, async () => {
+    await seedBook(30); // force rollover at 30
+    for (let i = 0; i < 50; i++) await seedRecord(`rec-${i}`);
 
-      const db = getDb();
-      const promises = [];
-      for (let i = 0; i < N; i++) {
-        promises.push(
-          registerRecordAtomic(db, WS, {
-            ledgerBookId: BOOK, recordId: `rec-dist-${i}`,
-            referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-          }),
-        );
-      }
-      const results = await Promise.all(promises);
+    const results = await Promise.allSettled(
+      Array.from({ length: 50 }, (_, i) => register(`rec-${i}`, `op-distinct-${i}`)),
+    );
+    const succeeded = results.filter((r) => r.status === 'fulfilled').map((r) => r.value.entry);
+    expect(succeeded.length).toBe(50, `all distinct registrations must succeed; rejected: ${results.filter((r) => r.status === 'rejected').map((r) => String(r.reason?.message || r.reason)).join(' | ')}`);
 
-      expect(results.length).toBe(N);
+    const sequences = succeeded.map((e) => e.sequenceNumber).sort((a, b) => a - b);
+    expect(new Set(sequences).size).toBe(50);
 
-      const seqNumbers = results.map((r) => r.sequenceNumber).sort((a, b) => a - b);
-      const uniqueSeqs = new Set(seqNumbers);
-      expect(uniqueSeqs.size).toBe(N);
+    // Contiguity inside each block (rollover permitted between blocks)
+    const block2 = await db.doc(`workspaces/${WS}/ledgerBooks/${BOOK}/blocks/block_2`).get();
+    expect(block2.exists).toBe(true);
+    expect(block2.data().startSequence).toBe(31);
+    expect(sequences[0]).toBe(1);
+    expect(sequences[49]).toBe(50);
 
-      // Must be contiguous from 1 to N
-      expect(seqNumbers[0]).toBe(1);
-      expect(seqNumbers[N - 1]).toBe(N);
-      for (let i = 0; i < N; i++) {
-        expect(seqNumbers[i]).toBe(i + 1);
-      }
-
-      // Verify all entries exist
-      const entriesSnap = await getDocs(
-        query(
-          collection(db, 'workspaces', WS, 'ledgerEntries'),
-          where('ledgerBookId', '==', BOOK),
-        ),
-      );
-      expect(entriesSnap.size).toBe(N);
-    });
+    const refs = succeeded.map((e) => e.referenceNumber);
+    expect(new Set(refs).size).toBe(50);
   });
 
-  // ═══════════════════════════════════════════════════════
-  // TEST C: Block rollover under concurrency
-  // ═══════════════════════════════════════════════════════
-  describe('block rollover concurrency', () => {
-    it('concurrent registrations across block boundary produce correct rollover', async () => {
-      await seedWorkspace(WS);
-      // Block size 3, seed 2 existing entries
-      await seedLedgerBook(WS, BOOK, 3);
+  it('C. same operationId replay returns the same entry and never consumes a second sequence', { timeout: TX_TIMEOUT }, async () => {
+    await seedBook(10);
+    await seedRecord('rec-replay');
 
-      // Pre-allocate 2 entries so nextSequence = 3
-      await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        const db = ctx.firestore();
-        // Set block nextSequence to 3 (2 already allocated)
-        await setDoc(doc(db, 'workspaces', WS, 'ledgerBooks', BOOK, 'blocks', 'block_1'), {
-          ledgerBlockId: 'block_1', ledgerBookId: BOOK, workspaceId: WS,
-          blockNumber: 1, startSequence: 1, endSequence: 3,
-          nextSequence: 3, capacity: 3, status: 'OPEN',
-          closedAt: null, createdBy: actor,
-        }, { merge: true });
-      });
+    const cmd = buildRegisterLedgerEntryCommand({ operationId: 'op-replay-1', workspaceId: WS, recordId: 'rec-replay', ledgerBookId: BOOK });
+    const first = await executeLedgerCommand(db, { userId: 'user1', command: cmd });
+    const second = await executeLedgerCommand(db, { userId: 'user1', command: buildRegisterLedgerEntryCommand({ operationId: 'op-replay-1', workspaceId: WS, recordId: 'rec-replay', ledgerBookId: BOOK }) });
 
-      // Seed 5 records (3 goes into block1, 4-7 into block2)
-      for (let i = 0; i < 5; i++) {
-        await seedRecord(WS, `rec-rollover-${i}`);
-      }
+    expect(second.idempotent).toBe(true);
+    expect(second.entry.referenceNumber).toBe(first.entry.referenceNumber);
 
-      const db = getDb();
-      const promises = [];
-      for (let i = 0; i < 5; i++) {
-        promises.push(
-          registerRecordAtomic(db, WS, {
-            ledgerBookId: BOOK, recordId: `rec-rollover-${i}`,
-            referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-          }),
-        );
-      }
-      const results = await Promise.all(promises);
-
-      expect(results.length).toBe(5);
-      const seqNumbers = results.map((r) => r.sequenceNumber).sort((a, b) => a - b);
-      const uniqueSeqs = new Set(seqNumbers);
-      expect(uniqueSeqs.size).toBe(5);
-
-      // Must be contiguous from 3 to 7
-      expect(seqNumbers[0]).toBe(3);
-      expect(seqNumbers[4]).toBe(7);
-
-      // Verify block 1 became FULL
-      const block1Snap = await getDoc(doc(db, 'workspaces', WS, 'ledgerBooks', BOOK, 'blocks', 'block_1'));
-      expect(block1Snap.data().status).toBe('FULL');
-
-      // Verify block 2 exists
-      const block2Snap = await getDoc(doc(db, 'workspaces', WS, 'ledgerBooks', BOOK, 'blocks', 'block_2'));
-      expect(block2Snap.exists()).toBe(true);
-      expect(block2Snap.data().startSequence).toBe(4);
-      expect(block2Snap.data().endSequence).toBe(6);
-      // Block 2 may be FULL if all 3 slots used and another rollover occurred
-      expect(['OPEN', 'FULL']).toContain(block2Snap.data().status);
-
-      // Some entries should be in block_1, rest in block_2 or block_3
-      const block1Entries = results.filter((r) => r.ledgerBlockId === 'block_1');
-      expect(block1Entries.length).toBe(1); // Only sequence 3 fits in block_1
-
-      // Entries beyond block_1 should be in block_2 or block_3
-      const laterEntries = results.filter((r) => r.ledgerBlockId !== 'block_1');
-      expect(laterEntries.length).toBe(4); // 4,5,6,7
-
-      // No duplicate entries
-      const entryIds = new Set(results.map((r) => r.ledgerEntryId));
-      expect(entryIds.size).toBe(5);
-    });
+    const entries = await db.collection(`workspaces/${WS}/ledgerEntries`).get();
+    expect(entries.size).toBe(1);
+    const block = await db.doc(`workspaces/${WS}/ledgerBooks/${BOOK}/blocks/block_1`).get();
+    expect(block.data().nextSequence).toBe(2);
   });
 
-  // ═══════════════════════════════════════════════════════
-  // TEST D: Cancelled number is never reused
-  // ═══════════════════════════════════════════════════════
-  describe('cancelled number sequence gap', () => {
-    it('cancelled entry number is not reused by next registration', async () => {
-      await seedWorkspace(WS);
-      await seedLedgerBook(WS, BOOK, 100);
-      await seedRecord(WS, 'rec-gap-1');
-      await seedRecord(WS, 'rec-gap-2');
-      await seedRecord(WS, 'rec-gap-3');
+  it('D. same operationId with a different Record is rejected as mismatch', { timeout: TX_TIMEOUT }, async () => {
+    await seedBook(10);
+    await seedRecord('rec-a');
+    await seedRecord('rec-b');
 
-      const db = getDb();
-
-      // Register 3 records sequentially
-      const e1 = await registerRecordAtomic(db, WS, {
-        ledgerBookId: BOOK, recordId: 'rec-gap-1',
-        referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-      });
-      const e2 = await registerRecordAtomic(db, WS, {
-        ledgerBookId: BOOK, recordId: 'rec-gap-2',
-        referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-      });
-
-      expect(e1.sequenceNumber).toBe(1);
-      expect(e2.sequenceNumber).toBe(2);
-
-      // "Cancel" entry 2 (just update status, don't free number)
-      await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        const adb = ctx.firestore();
-        await setDoc(doc(adb, 'workspaces', WS, 'ledgerEntries', e2.ledgerEntryId), {
-          ...e2, entryStatus: 'CANCELLED',
-        }, { merge: true });
-      });
-
-      // Register another record — must get 3, NOT 2
-      const e3 = await registerRecordAtomic(db, WS, {
-        ledgerBookId: BOOK, recordId: 'rec-gap-3',
-        referencePrefix: 'RI', referenceFormatVersion: 1, actor,
-      });
-      expect(e3.sequenceNumber).toBe(3);
+    await register('rec-a', 'op-mismatch');
+    await expect(register('rec-b', 'op-mismatch')).rejects.toMatchObject({
+      details: { code: 'OPERATION_MISMATCH' },
     });
   });
 });

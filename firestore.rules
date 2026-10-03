@@ -349,17 +349,12 @@ service cloud.firestore {
       // ─── Records ─────────────────────────────────────────
       // Path: workspaces/{workspaceId}/records/{recordId}
       //
-      // IMMUTABILITY POLICY (Step 15 — trusted lifecycle):
-      //   Clients may NEVER mutate: workspaceId, recordId, createdBy, createdAt,
-      //     _createdAt, moduleId, moduleVersion, recordType, sourceRequestId,
-      //     submittedBy, submittedAt, status, priority, _previousStatus,
-      //     archivedAt, archivedBy, data, entityReferences, entityReferenceIds,
-      //     attachments, createdEntityIds.
-      //   ALL business-data and lifecycle mutations execute through the trusted
-      //     recordCommand callable (Admin SDK, bypasses Rules).
-      //   EXPIRES AT STEP 16: ledger linkage (ledgerEntryId/ledgerBookId/
-      //     referenceNumber) may still be set once from null by the existing
-      //     client Ledger registration flow; it remains immutable after being set.
+      // IMMUTABILITY POLICY (Step 16 — trusted lifecycle + ledger):
+      //   Browsers may READ Records but may not create, update, or delete
+      //   them at all. Every mutation executes through trusted callables:
+      //   recordCommand (create/lifecycle/data) and ledgerCommand (Ledger
+      //   linkage), both of which run with Admin SDK and enforce their own
+      //   authorization because Admin SDK bypasses Rules.
 
       match /records/{recordId} {
         allow read: if isAuthenticated()
@@ -375,47 +370,11 @@ service cloud.firestore {
         // server-authoritative via the trusted recordCommand callable.
         allow create: if false;
 
-        // Update: trusted commands own every lifecycle/business mutation.
-        // Clients may only attach Ledger linkage once (set-once from null) —
-        // a documented interim exception until the Ledger backend moves
-        // server-side in Step 16.
-        allow update: if isAuthenticated()
-          // Immutable identity + provenance
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('recordId')
-          && fieldUnchanged('createdBy')
-          && fieldUnchanged('createdAt')
-          && fieldUnchanged('_createdAt')
-          && fieldUnchanged('moduleId')
-          && fieldUnchanged('moduleVersion')
-          && fieldUnchanged('recordType')
-          && fieldUnchanged('sourceRequestId')
-          && fieldUnchanged('submittedBy')
-          && fieldUnchanged('submittedAt')
-          // Lifecycle + operational state: trusted command only
-          && fieldUnchanged('status')
-          && fieldUnchanged('priority')
-          && fieldUnchanged('_previousStatus')
-          && fieldUnchanged('archivedAt')
-          && fieldUnchanged('archivedBy')
-          // Business data: trusted command only
-          && fieldUnchanged('data')
-          && fieldUnchanged('entityReferences')
-          && fieldUnchanged('entityReferenceIds')
-          && fieldUnchanged('attachments')
-          && fieldUnchanged('createdEntityIds')
-          // Ledger linkage: set-once from null, immutable afterwards
-          && (resource.data.ledgerEntryId == null || fieldUnchanged('ledgerEntryId'))
-          && (resource.data.ledgerBookId == null || fieldUnchanged('ledgerBookId'))
-          && (resource.data.referenceNumber == null || fieldUnchanged('referenceNumber'))
-          // Workspace access
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
+        // Update: trusted commands own EVERY mutation (Step 15/16).
+        // Business data and lifecycle changes go through recordCommand;
+        // Ledger linkage linkage is set by the trusted ledgerCommand
+        // (Admin SDK). Browsers no longer update Records at all.
+        allow update: if false;
 
         allow delete: if false;
       }
@@ -995,33 +954,14 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.createdBy != null
-          && isValidClientActor(request.resource.data.createdBy)
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
+        // STEP 16: browsers cannot author Ledger Books at all — creation
+        // (code reservation + book + initial block) is atomic inside the
+        // trusted CREATE_LEDGER_BOOK command.
+        allow create: if false;
 
-        // Update: immutable identity/numbering fields protected
-        allow update: if isAuthenticated()
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('ledgerBookId')
-          && fieldUnchanged('ledgerCode')
-          && fieldUnchanged('createdBy')
-          && fieldUnchanged('numberingStrategy')
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
+        // STEP 16: browser updates to Ledger Books are denied. Books are
+        // authored exclusively by the trusted ledgerCommand boundary.
+        allow update: if false;
         allow delete: if false;
 
         // ─── Ledger Blocks (subcollection) ────────────────────
@@ -1037,36 +977,8 @@ service cloud.firestore {
                 && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
             );
 
-          allow create: if isAuthenticated()
-            && request.resource.data.workspaceId == workspaceId
-            && request.resource.data.ledgerBookId == ledgerBookId
-            && (
-              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-              ||
-              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-            );
-
-          // Update: immutable identity fields protected
-          allow update: if isAuthenticated()
-            && fieldUnchanged('workspaceId')
-            && fieldUnchanged('ledgerBookId')
-            && fieldUnchanged('ledgerBlockId')
-            && fieldUnchanged('blockNumber')
-            && fieldUnchanged('startSequence')
-            && fieldUnchanged('endSequence')
-            && fieldUnchanged('capacity')
-            && fieldUnchanged('createdBy')
-            && (
-              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-              ||
-              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-            );
-
-          allow delete: if false;
+          // STEP 16: sequence machinery is server-owned. Browsers may only read.
+          allow create, update, delete: if false;
         }
       }
 
@@ -1084,50 +996,11 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.registeredBy != null
-          && isValidClientActor(request.resource.data.registeredBy)
-          // Provenance: referenced Record must exist in the same workspace
-          && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/records/$(request.resource.data.recordId))
-          // Provenance: referenced LedgerBook must exist in the same workspace
-          && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/ledgerBooks/$(request.resource.data.ledgerBookId))
-          // Entry must be created with ACTIVE status
-          && request.resource.data.entryStatus == 'ACTIVE'
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
-        // Update: identity and numbering immutable; only status transitions allowed
-        allow update: if isAuthenticated()
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('ledgerEntryId')
-          && fieldUnchanged('ledgerBookId')
-          && fieldUnchanged('ledgerBlockId')
-          && fieldUnchanged('recordId')
-          && fieldUnchanged('moduleId')
-          && fieldUnchanged('moduleVersion')
-          && fieldUnchanged('recordType')
-          && fieldUnchanged('sequenceNumber')
-          && fieldUnchanged('referenceNumber')
-          && fieldUnchanged('referenceFormatVersion')
-          && fieldUnchanged('registeredAt')
-          && fieldUnchanged('registeredBy')
-          && fieldUnchanged('_registeredAt')
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
-        // Ledger entries are NEVER deleted
-        allow delete: if false;
+        // STEP 16: entries are authored exclusively by the trusted
+        // ledgerCommand boundary (registration, sequence allocation).
+        // Browsers are readers only. Cancel/void now require a trusted
+        // command and are deferred (no client UX invoked them before).
+        allow create, update, delete: if false;
       }
 
       // ─── Ledger Codes ─────────────────────────────────────
@@ -1144,24 +1017,18 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
-        // Code reservations are immutable
-        allow update: if false;
-        allow delete: if false;
+        // STEP 16: code reservations happen inside the trusted
+        // CREATE_LEDGER_BOOK transaction. Browsers may only read.
+        allow create, update, delete: if false;
       }
 
       // ─── Audit Entries ────────────────────────────────────
       // Path: workspaces/{workspaceId}/auditEntries/{auditEntryId}
       // Append-only accountability history.
+      // STEP 16: authoritative Audit evidence is authored exclusively by
+      // trusted server functions (recordCommand, ledgerCommand,
+      // workspaceReset, automatApply). The legacy browser AuditBridge was
+      // retired: browser telemetry must never masquerade as canonical Audit.
 
       match /auditEntries/{auditEntryId} {
         allow read: if isAuthenticated()
@@ -1173,23 +1040,7 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Create: actor must be valid client actor
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.actor != null
-          && request.resource.data.actor.actorType == 'USER'
-          && request.resource.data.actor.actorId == request.auth.uid
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
-        // Audit entries are NEVER updated or deleted
-        allow update: if false;
-        allow delete: if false;
+        allow create, update, delete: if false;
       }
     }
 

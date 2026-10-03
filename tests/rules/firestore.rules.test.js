@@ -3039,16 +3039,16 @@ describe('Ledger Book rules', () => {
     await assertFails(getDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-1')));
   });
 
-  it('allows member to create ledger book', async () => {
+  it('denies client ledger book creation (Step 16: books authored by trusted ledgerCommand)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-new'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-new'), {
       ledgerBookId: 'lb-new', workspaceId: 'org-ws-1', ledgerCode: 'TEST', name: 'Test Book',
       status: 'ACTIVE', blockSize: 100,
       createdBy: { actorType: 'USER', actorId: 'user1' }, numberingStrategy: 'SEQUENTIAL',
     }));
   });
 
-  it('denies changing immutable ledger code', async () => {
+  it('denies ANY client ledger book update (Step 16)', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerBooks', 'lb-immut'), {
@@ -3100,8 +3100,8 @@ describe('Ledger Entry rules', () => {
     });
   });
 
-  it('allows member to create ledger entry with valid provenance', async () => {
-    // Setup: referenced Record and LedgerBook must exist
+  it('denies client ledger entry creation (Step 16: entries authored by trusted ledgerCommand)', async () => {
+    // Setup: referenced Record and LedgerBook may exist — creation is denied anyway
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(doc(db, 'workspaces', 'org-ws-1', 'records', 'rec-1'), {
@@ -3115,7 +3115,7 @@ describe('Ledger Entry rules', () => {
       });
     });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-1'), {
       ledgerEntryId: 'le-1', workspaceId: 'org-ws-1', ledgerBookId: 'lb-1',
       ledgerBlockId: 'block_1', recordId: 'rec-1', sequenceNumber: 1,
       referenceNumber: 'RI-2026-000001', referenceFormatVersion: 1, entryStatus: 'ACTIVE',
@@ -3254,7 +3254,7 @@ describe('Ledger Entry rules', () => {
     }));
   });
 
-  it('allows status change to CANCELLED', async () => {
+  it('denies entry status change to CANCELLED from browser (Step 16: cancel requires a trusted command — deferred)', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-cancel'), {
@@ -3266,7 +3266,7 @@ describe('Ledger Entry rules', () => {
       });
     });
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-cancel'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerEntries', 'le-cancel'), {
       entryStatus: 'CANCELLED', cancelledAt: '2026-06-01T00:00:00Z',
       cancelledBy: { actorType: 'USER', actorId: 'user1' }, cancellationReason: 'Duplicate',
     }));
@@ -3296,9 +3296,9 @@ describe('Audit Entry rules', () => {
     ]);
   });
 
-  it('allows creating audit entry with own USER actor', async () => {
+  it('denies browser audit entry creation (Step 16: evidence is server-authored only)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'auditEntries', 'ae-1'), {
       auditEntryId: 'ae-1', workspaceId: 'org-ws-1',
       actor: { actorType: 'USER', actorId: 'user1' },
       action: 'record.created', resourceType: 'RECORD', resourceId: 'rec-1',
@@ -3384,9 +3384,9 @@ describe('Ledger Code rules', () => {
     ]);
   });
 
-  it('allows creating ledger code reservation', async () => {
+  it('denies client ledger code reservation (Step 16: reservations happen inside trusted CREATE_LEDGER_BOOK)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'TEST_CODE'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'org-ws-1', 'ledgerCodes', 'TEST_CODE'), {
       ledgerCode: 'TEST_CODE', workspaceId: 'org-ws-1',
       reservedBy: { actorType: 'USER', actorId: 'user1' },
     }));
@@ -3444,7 +3444,7 @@ describe('Record ledger linkage immutability', () => {
     }));
   });
 
-  it('allows setting ledger linkage on record that had null', async () => {
+  it('denies setting ledger linkage on record from browser (Step 16: linkage is server-owned by ledgerCommand)', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-nol'), {
@@ -3458,7 +3458,7 @@ describe('Record ledger linkage immutability', () => {
       });
     });
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-nol'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-nol'), {
       ledgerEntryId: 'le-new', ledgerBookId: 'lb-new', referenceNumber: 'RI-2026-000099',
     }));
   });
