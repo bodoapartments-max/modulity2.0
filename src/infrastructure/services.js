@@ -30,6 +30,12 @@ import { createLedgerQueryService } from '../core/ledger/ledgerQueryService.js';
 import { createAuditService } from '../core/audit/auditService.js';
 import { startAuditBridge } from '../core/audit/auditBridge.js';
 import { eventBus } from '../core/events/eventBus.js';
+
+export function bootstrapServices(servicesInstance) {
+  startAuditBridge(eventBus, servicesInstance.audit);
+  startNotificationBridge(eventBus, servicesInstance.notification);
+  return servicesInstance;
+}
 import { createWorksetService } from '../core/workspace/worksetService.js';
 import {
   createWidgetService,
@@ -124,10 +130,6 @@ function createServices() {
     analyticsExecutionService: analyticsExecutionSvc,
     moduleRepo: repositories.modules,
   });
-
-  // Start selective persistence bridges. Event, Audit, and Notification remain distinct.
-  startAuditBridge(eventBus, auditSvc);
-  startNotificationBridge(eventBus, notificationSvc);
 
   return {
     workspace: createWorkspaceService({
