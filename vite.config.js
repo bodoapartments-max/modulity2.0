@@ -15,7 +15,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/rules/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/rules/**', 'functions/**'],
     env: {
       VITE_APP_ENV: 'test',
       VITE_APP_NAME: 'Modulity Test',

@@ -1,4 +1,4 @@
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { createHash } from 'node:crypto';
 import { HttpsError } from 'firebase-functions/v2/https';
 import {
@@ -25,18 +25,43 @@ const OPERATION_STATUS = Object.freeze({
   FAILED: 'FAILED',
 });
 
+const OPERATION_LEASE_MS = 30_000;
+const MAX_RECOVERY_ATTEMPTS = 10;
+
 const fail = (code, message, details = {}) => {
   const httpCode =
     code === RECORD_COMMAND_ERROR_CODES.UNAUTHENTICATED ? 'unauthenticated'
     : code === RECORD_COMMAND_ERROR_CODES.WORKSPACE_NOT_FOUND || code === RECORD_COMMAND_ERROR_CODES.MODULE_NOT_FOUND ? 'not-found'
     : code === RECORD_COMMAND_ERROR_CODES.WORKSPACE_FORBIDDEN || code === RECORD_COMMAND_ERROR_CODES.MODULE_FORBIDDEN ? 'permission-denied'
-    : code === RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT ? 'already-exists'
+    : code === RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT || code === RECORD_COMMAND_ERROR_CODES.OPERATION_MISMATCH ? 'already-exists'
+    : code === RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS ? 'failed-precondition'
     : 'failed-precondition';
   throw new HttpsError(httpCode, message, { code, ...details });
 };
 
 function deriveRecordId(operationId) {
   return `rec_${createHash('sha256').update(operationId).digest('hex').slice(0, 20)}`;
+}
+
+function stableJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`).join(',')}}`;
+}
+
+function computeCommandFingerprint(userId, command) {
+  const { commandType, payload } = command;
+  const { workspaceId, moduleId, values, isDraft } = payload;
+  const normalized = stableJson({
+    userId,
+    commandType,
+    workspaceId,
+    moduleId,
+    values,
+    isDraft: isDraft ?? false,
+  });
+  return createHash('sha256').update(normalized).digest('hex');
 }
 
 function recordDoc(db, workspaceId, recordId) {
@@ -86,7 +111,6 @@ async function loadVersionSnapshot(db, workspaceId, moduleId, version) {
 
 async function resolveEntityReferences(db, workspaceId, refs, fields) {
   const fieldByKey = new Map(fields.map((f) => [f.key, f]));
-  const resolved = [];
   for (const ref of refs) {
     const entitySnap = await db.doc(`workspaces/${workspaceId}/entities/${ref.entityId}`).get();
     if (!entitySnap.exists) {
@@ -103,14 +127,7 @@ async function resolveEntityReferences(db, workspaceId, refs, fields) {
     if (field && field.entityTypeId && entity.entityTypeId !== field.entityTypeId) {
       fail(RECORD_COMMAND_ERROR_CODES.ENTITY_REFERENCE_INVALID, `Reference does not match declared entity type for field ${field.key}`);
     }
-    resolved.push({
-      entityId: ref.entityId,
-      entityTypeId: ref.entityTypeId,
-      workspaceId: ref.workspaceId,
-      displayName: entity.displayName || null,
-    });
   }
-  return resolved;
 }
 
 function buildFirestoreRecordDocument(record) {
@@ -133,6 +150,23 @@ function mapFromFirestoreRecord(snap) {
   };
 }
 
+function buildOperationDocument({ command, userId, fingerprint, status, recordId = null, attemptCount = 1, leaseMs = OPERATION_LEASE_MS }) {
+  const now = Timestamp.now();
+  return {
+    operationId: command.operationId,
+    workspaceId: command.payload.workspaceId,
+    commandType: command.commandType,
+    status,
+    fingerprint,
+    userId,
+    recordId,
+    attemptCount,
+    leaseExpiresAt: Timestamp.fromMillis(now.toMillis() + leaseMs),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
 export async function executeRecordCommand(db, { userId, command }) {
   if (!userId) fail(RECORD_COMMAND_ERROR_CODES.UNAUTHENTICATED, 'Authentication required.');
 
@@ -146,6 +180,7 @@ export async function executeRecordCommand(db, { userId, command }) {
   }
 
   const { workspaceId, moduleId, values, isDraft = false } = command.payload;
+  const fingerprint = computeCommandFingerprint(userId, command);
 
   // Authorization and workspace isolation
   await authorizeWorkspace(db, workspaceId, userId);
@@ -156,8 +191,8 @@ export async function executeRecordCommand(db, { userId, command }) {
   if (moduleData.workspaceId !== workspaceId) fail(RECORD_COMMAND_ERROR_CODES.MODULE_FORBIDDEN, 'Module does not belong to this workspace.');
 
   const status = moduleData.status;
-  if (!['ACTIVE', 'DRAFT'].includes(status)) {
-    fail(RECORD_COMMAND_ERROR_CODES.MODULE_NOT_ACTIVE, `Module status "${status}" does not allow record creation.`);
+  if (status !== 'ACTIVE') {
+    fail(RECORD_COMMAND_ERROR_CODES.MODULE_NOT_ACTIVE, `Module status "${status}" does not allow record creation. Only ACTIVE Modules may receive canonical Records.`);
   }
 
   const versionSnap = await loadVersionSnapshot(db, workspaceId, moduleId, moduleData.version);
@@ -188,28 +223,64 @@ export async function executeRecordCommand(db, { userId, command }) {
 
   const result = await db.runTransaction(async (transaction) => {
     const opSnap = await transaction.get(opRef);
+    const recSnap = await transaction.get(recRef);
+
     if (opSnap.exists) {
       const op = opSnap.data();
-      if (op.status === OPERATION_STATUS.COMPLETED && op.recordId) {
-        const existingSnap = await transaction.get(recordDoc(db, workspaceId, op.recordId));
-        return { idempotent: true, record: mapFromFirestoreRecord(existingSnap, op.recordId) };
-      }
-      if (op.status === OPERATION_STATUS.PROCESSING) {
-        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'The same operation is already being processed.');
-      }
-      // FAILED operations are not automatically retried to avoid undefined recovery
-      fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation exists with terminal or failed status.');
-    }
 
-    transaction.set(opRef, {
-      operationId: command.operationId,
-      workspaceId,
-      commandType: command.commandType,
-      status: OPERATION_STATUS.PROCESSING,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      userId,
-    });
+      // Ownership and integrity checks
+      if (op.userId !== userId || op.workspaceId !== workspaceId) {
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation identity mismatch.');
+      }
+      if (op.fingerprint !== fingerprint) {
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_MISMATCH, 'Operation command mismatch.');
+      }
+
+      if (op.status === OPERATION_STATUS.COMPLETED) {
+        if (op.recordId) {
+          const existingSnap = await transaction.get(recordDoc(db, workspaceId, op.recordId));
+          return { status: OPERATION_STATUS.COMPLETED, record: mapFromFirestoreRecord(existingSnap), idempotent: true };
+        }
+        // Corrupt completed op without recordId: fail safely
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_FAILED, 'Operation is completed but has no Record reference.');
+      }
+
+      if (op.status === OPERATION_STATUS.PROCESSING) {
+        const leaseExpired = !op.leaseExpiresAt || op.leaseExpiresAt.toMillis() <= Timestamp.now().toMillis();
+        if (!leaseExpired) {
+          return { status: OPERATION_STATUS.PROCESSING, record: null, idempotent: false };
+        }
+
+        // Stale PROCESSING: recover by inspecting canonical state
+        if (recSnap.exists) {
+          // Record was actually created but operation marker was not updated
+          transaction.update(opRef, {
+            status: OPERATION_STATUS.COMPLETED,
+            recordId,
+            completedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          return { status: OPERATION_STATUS.COMPLETED, record: mapFromFirestoreRecord(recSnap), idempotent: true };
+        }
+
+        // Lease expired and Record does not exist: recover by reacquiring
+        const attemptCount = (op.attemptCount || 1) + 1;
+        if (attemptCount > MAX_RECOVERY_ATTEMPTS) {
+          fail(RECORD_COMMAND_ERROR_CODES.OPERATION_FAILED, 'Operation recovery limit exceeded.');
+        }
+        transaction.update(opRef, {
+          status: OPERATION_STATUS.PROCESSING,
+          attemptCount,
+          leaseExpiresAt: Timestamp.fromMillis(Timestamp.now().toMillis() + OPERATION_LEASE_MS),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (op.status === OPERATION_STATUS.FAILED) {
+        // FAILED is terminal; do not auto-recover
+        fail(RECORD_COMMAND_ERROR_CODES.OPERATION_CONFLICT, 'Operation exists with terminal or failed status.');
+      }
+    } else {
+      transaction.set(opRef, buildOperationDocument({ command, userId, fingerprint, status: OPERATION_STATUS.PROCESSING }));
+    }
 
     const record = buildCanonicalRecordFromCommand({
       command,
@@ -228,8 +299,12 @@ export async function executeRecordCommand(db, { userId, command }) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return { idempotent: false, record };
+    return { status: OPERATION_STATUS.COMPLETED, record, idempotent: false };
   });
+
+  if (result.status === OPERATION_STATUS.PROCESSING) {
+    fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
+  }
 
   // Best-effort durable audit (outside transaction)
   try {
@@ -242,7 +317,7 @@ export async function executeRecordCommand(db, { userId, command }) {
       resourceType: AUDIT_RESOURCE_TYPES.RECORD,
       resourceId: recordId,
       timestamp: now,
-      metadata: { moduleId, moduleVersion: module.version, operationId: command.operationId },
+      metadata: { moduleId, moduleVersion: module.version, operationId: command.operationId, idempotent: result.idempotent },
       source: AUDIT_SOURCES.WEB,
       correlationId: `op:${command.operationId}`,
     });

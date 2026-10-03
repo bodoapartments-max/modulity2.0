@@ -76,12 +76,19 @@ describe('recordCommandEngine', () => {
     expect(record.submittedAt).toBe('2024-01-01T00:00:00.000Z');
   });
 
-  it('builds a canonical DRAFT Record', () => {
+  it('builds a canonical DRAFT Record when Module is ACTIVE', () => {
     const mod = makeModule();
     const command = buildCreateRecordCommand({ operationId: 'op-1', workspaceId: 'ws-1', moduleId: 'mod-1', values: { name: 'X' }, isDraft: true });
     const record = buildCanonicalRecordFromCommand({ command, module: mod, actorId, recordId: 'rec-1' });
     expect(record.status).toBe(RECORD_STATUSES.DRAFT);
     expect(record.submittedBy).toBeNull();
     expect(record.submittedAt).toBeNull();
+  });
+
+  it('rejects DRAFT Module submission', () => {
+    const mod = makeModule({ status: MODULE_STATUSES.DRAFT });
+    const command = buildCreateRecordCommand({ operationId: 'op-1', workspaceId: 'ws-1', moduleId: 'mod-1', values: { name: 'X', date: '2024-01-01' } });
+    const result = validateCreateRecordCommand(command, mod);
+    expect(result.valid).toBe(false);
   });
 });

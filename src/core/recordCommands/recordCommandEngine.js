@@ -33,9 +33,9 @@ export function validateCreateRecordCommand(command, module) {
   }
 
   const status = module.status;
-  const allowedStatuses = ['ACTIVE', 'DRAFT'];
+  const allowedStatuses = ['ACTIVE'];
   if (!allowedStatuses.includes(status)) {
-    errors.push(`Module status "${status}" does not allow record creation`);
+    errors.push(`Module status "${status}" does not allow record creation. Only ACTIVE Modules may receive canonical Records.`);
   }
 
   const fields = module.formSchema?.fields || [];
