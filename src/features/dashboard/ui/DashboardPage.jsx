@@ -10,7 +10,7 @@ import EmptyState from '../../../design-system/components/EmptyState/EmptyState.
 import ErrorState from '../../../design-system/components/ErrorState/ErrorState.jsx';
 import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
-import WidgetCard from '../../widgets/ui/WidgetCard.jsx';
+import WidgetCard from '../../../shared/ui/WidgetCard.jsx';
 
 const QUICK_ACTIONS = [
   ['Create Record', '/app/modules'], ['Open Module', '/app/modules'], ['Create Module', '/app/modules/new'],

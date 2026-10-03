@@ -12,6 +12,7 @@ import IconButton from '../../design-system/components/IconButton/IconButton.jsx
 import Dropdown from '../../design-system/components/Dropdown/Dropdown.jsx';
 import { DropdownItem } from '../../design-system/components/Dropdown/Dropdown.jsx';
 import WorkspaceSwitcher from './WorkspaceSwitcher.jsx';
+import WorksetSelector from '../../design-system/components/WorksetSelector/WorksetSelector.jsx';
 import NotificationButton from '../../features/notifications/ui/NotificationButton.jsx';
 
 function MenuIcon(props) {
@@ -48,7 +49,14 @@ function Header({ onOpenMobileMenu }) {
 
       <div className="flex items-center gap-2 lg:gap-4">
         <WorkspaceSwitcher />
-        <select id="active-workset" name="activeWorksetId" className="hidden max-w-36 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-700 md:block" aria-label="Active Workset" value={activeWorkset?.worksetId || ''} onChange={(event) => activateWorkset(event.target.value || null)}><option value="">All Modules</option>{worksets.map((workset) => <option key={workset.worksetId} value={workset.worksetId}>{workset.name}</option>)}</select>
+        <WorksetSelector
+          id="active-workset"
+          name="activeWorksetId"
+          value={activeWorkset?.worksetId}
+          worksets={worksets}
+          onChange={activateWorkset}
+          className="hidden max-w-36 md:block"
+        />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
         <NotificationButton />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
