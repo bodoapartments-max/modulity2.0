@@ -12,12 +12,13 @@ import CalendarDefinitionForm from './CalendarDefinitionForm.jsx';
 export default function ManageCalendarsPage() {
   const { currentWorkspace, currentMembership } = useWorkspace();
   const { user } = useAuth();
-  const { definitions, modules, loading, saving, error, canManage, create, setStatus } = useCalendarDefinitions({
+  const { definitions, modules, loading, saving, error, canManage, create, update, setStatus } = useCalendarDefinitions({
     workspace: currentWorkspace,
     membership: currentMembership,
     user,
   });
   const [showForm, setShowForm] = useState(false);
+  const [editingDefinition, setEditingDefinition] = useState(null);
 
   if (loading) return <PageContainer><LoadingState message="Loading calendars…" /></PageContainer>;
 
@@ -29,15 +30,18 @@ export default function ManageCalendarsPage() {
       {canManage && (
         <div className="mb-6">
           {!showForm ? (
-            <Button onClick={() => setShowForm(true)}>Create Calendar</Button>
+            <Button onClick={() => { setEditingDefinition(null); setShowForm(true); }}>Create Calendar</Button>
           ) : (
             <CalendarDefinitionForm
               modules={modules}
+              initialDefinition={editingDefinition}
               saving={saving}
-              onCancel={() => setShowForm(false)}
+              onCancel={() => { setShowForm(false); setEditingDefinition(null); }}
               onSubmit={async (data) => {
-                await create(data);
+                if (data.definitionId) await update(data.definitionId, data);
+                else await create(data);
                 setShowForm(false);
+                setEditingDefinition(null);
               }}
             />
           )}
@@ -54,6 +58,7 @@ export default function ManageCalendarsPage() {
             </div>
             {canManage && (
               <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { setEditingDefinition(def); setShowForm(true); }}>Edit</Button>
                 {def.status === 'ACTIVE' ? (
                   <Button size="sm" variant="secondary" loading={saving} onClick={() => setStatus(def.definitionId, 'INACTIVE')}>Deactivate</Button>
                 ) : (

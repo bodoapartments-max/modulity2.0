@@ -8,11 +8,22 @@ const FIELD_TYPE_GROUPS = {
   resource: new Set(['entity-reference']),
 };
 
-export default function CalendarDefinitionForm({ modules, onSubmit, onCancel, saving }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [moduleId, setModuleId] = useState('');
-  const [mapping, setMapping] = useState({ titleField: '', startField: '' });
+function parseInitialMapping(definition) {
+  return definition?.configuration?.mapping || { titleField: '', startField: '' };
+}
+
+function parseInitialModuleId(definition, modules) {
+  if (!definition) return '';
+  const moduleCode = definition.source?.ref?.replace('module:', '');
+  return modules.find((m) => m.moduleCode === moduleCode)?.moduleId || '';
+}
+
+export default function CalendarDefinitionForm({ modules, initialDefinition, onSubmit, onCancel, saving }) {
+  const isEdit = Boolean(initialDefinition);
+  const [name, setName] = useState(initialDefinition?.name || '');
+  const [description, setDescription] = useState(initialDefinition?.description || '');
+  const [moduleId, setModuleId] = useState(() => parseInitialModuleId(initialDefinition, modules));
+  const [mapping, setMapping] = useState(() => parseInitialMapping(initialDefinition));
   const [error, setError] = useState(null);
 
   const selectedModule = useMemo(() => modules.find((m) => m.moduleId === moduleId), [modules, moduleId]);
@@ -32,12 +43,12 @@ export default function CalendarDefinitionForm({ modules, onSubmit, onCancel, sa
     if (!mapping.titleField) return setError('Title field is required');
     if (!mapping.startField) return setError('Start field is required');
     const cleanMapping = Object.fromEntries(Object.entries(mapping).filter(([, v]) => v));
-    onSubmit({ name: name.trim(), description: description.trim(), sourceModuleId: moduleId, mapping: cleanMapping }).catch((err) => setError(err.message));
+    onSubmit({ definitionId: initialDefinition?.definitionId, name: name.trim(), description: description.trim(), sourceModuleId: moduleId, mapping: cleanMapping }).catch((err) => setError(err.message));
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-neutral-200 bg-white p-4">
-      <h3 className="text-lg font-semibold text-neutral-900">New Calendar</h3>
+      <h3 className="text-lg font-semibold text-neutral-900">{isEdit ? 'Edit Calendar' : 'New Calendar'}</h3>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
         <Label htmlFor="cal-name" required>Name</Label>
@@ -89,7 +100,7 @@ export default function CalendarDefinitionForm({ modules, onSubmit, onCancel, sa
         </>
       )}
       <div className="flex gap-2 pt-2">
-        <Button type="submit" loading={saving} disabled={saving}>Create Calendar</Button>
+        <Button type="submit" loading={saving} disabled={saving}>{isEdit ? 'Save Changes' : 'Create Calendar'}</Button>
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
     </form>

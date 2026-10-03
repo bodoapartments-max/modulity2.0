@@ -18,6 +18,7 @@ export default function ModuleDesigner({ moduleId = null }) {
   const { user } = useAuth();
   const designer = useModuleDesigner({ workspace: currentWorkspace, user, moduleId });
   if (designer.loading) return <PageContainer><LoadingState message="Loading Module Designer…" /></PageContainer>;
+  if (moduleId && !designer.moduleDefinition) return <PageContainer><Alert variant="error">Module could not be loaded.</Alert></PageContainer>;
   const editing = Boolean(moduleId);
   const active = designer.moduleDefinition?.status === 'ACTIVE';
   const previewSchema = designer.validation.payload?.formSchema || { schemaVersion: '1.0.0', fields: [] };

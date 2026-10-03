@@ -80,6 +80,16 @@ describe('Calendar Engine', () => {
     expect(result.events[0].allDay).toBe(false);
   });
 
+  it('resolves EntityReference title labels', async () => {
+    const fields = [{ key: 'employee', label: 'Employee', type: 'entity-reference', entityTypeId: 'employee-type' }, { key: 'date', label: 'Date', type: 'date' }];
+    const employee = { entityId: 'emp-1', entityTypeId: 'employee-type', workspaceId, displayName: 'Anna Smith' };
+    const record = fakeRecord({ data: { employee: { entityId: 'emp-1', entityTypeId: 'employee-type', workspaceId }, date: '2026-10-10' } });
+    const definition = createCalendarDefinitionV1({ definitionId: 'cal-title-entity', workspaceId, sourceRef: 'module:RESERVATION', mapping: { titleField: 'employee', startField: 'date' }, status: 'ACTIVE' });
+    const engine = createCalendarEngine({ recordRepo: fakeRepo([record]), moduleRepo: fakeModuleRepo(fakeModule(fields)), entityRepo: fakeEntityRepo([employee]) });
+    const result = await engine.project(definition, { windowStart: '2026-10-01', windowEnd: '2026-10-31' });
+    expect(result.events[0].title).toBe('Anna Smith');
+  });
+
   it('resolves EntityReference resource labels', async () => {
     const fields = [{ key: 'title', label: 'Title', type: 'text' }, { key: 'date', label: 'Date', type: 'date' }, { key: 'room', label: 'Room', type: 'entity-reference', entityTypeId: 'room-type' }];
     const room = { entityId: 'room-1', entityTypeId: 'room-type', workspaceId, displayName: 'Room 102' };

@@ -101,6 +101,13 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     return labels;
   }
 
+  function extractEntityRef(value) {
+    if (value && typeof value === 'object' && value.entityId) {
+      return { entityId: value.entityId, entityTypeId: value.entityTypeId, workspaceId: value.workspaceId };
+    }
+    return null;
+  }
+
   async function projectSingleRecord(record, definition, fieldMap, resourceLabels) {
     const mapping = definition.configuration.mapping;
     const titleValue = resolveFieldValue(record, mapping, 'titleField');
@@ -111,7 +118,15 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     const endType = fieldMap.end?.type;
     const allDay = startType === 'date' || (endType === 'date' && endValue);
 
-    const title = titleValue === undefined || titleValue === null ? '(no title)' : String(titleValue);
+    let title;
+    if (titleValue === undefined || titleValue === null) {
+      title = '(no title)';
+    } else if (fieldMap.title?.type === 'entity-reference') {
+      const ref = extractEntityRef(titleValue);
+      title = ref ? resourceLabels[ref.entityId] || '(unknown)' : '(invalid reference)';
+    } else {
+      title = String(titleValue);
+    }
     const start = startValue;
     const end = normalizeEnd(endValue, allDay);
 
@@ -174,11 +189,17 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
       for (const record of records) {
         const start = resolveFieldValue(record, definition.configuration.mapping, 'startField');
         if (!isValidDateString(start)) continue;
-        const resourceRef = (() => {
-          const raw = record.data?.[definition.configuration.mapping.resourceField];
-          return raw && typeof raw === 'object' && raw.entityId ? raw : null;
-        })();
-        if (resourceRef) resourceRefs.push(resourceRef);
+        const mapping = definition.configuration.mapping;
+        if (mapping.titleField) {
+          const titleRaw = record.data?.[mapping.titleField];
+          const titleRef = extractEntityRef(titleRaw);
+          if (titleRef) resourceRefs.push(titleRef);
+        }
+        if (mapping.resourceField) {
+          const resourceRaw = record.data?.[mapping.resourceField];
+          const resourceRef = extractEntityRef(resourceRaw);
+          if (resourceRef) resourceRefs.push(resourceRef);
+        }
       }
 
       const resourceLabels = await resolveResourceLabels(resourceRefs, definition.workspaceId);

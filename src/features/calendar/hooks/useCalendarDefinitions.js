@@ -80,5 +80,39 @@ export function useCalendarDefinitions({ workspace, membership, user }) {
     }
   }, [workspace, membership, load, canManage]);
 
-  return { definitions, modules, loading, saving, error, canManage, refresh: load, create, setStatus };
+  const update = useCallback(async (definitionId, { name, description, sourceModuleId, mapping }) => {
+    if (!canManage) throw new Error('Not authorized');
+    const module = modules.find((m) => m.moduleId === sourceModuleId);
+    if (!module) throw new Error('Source module not found');
+    setSaving(true);
+    setError(null);
+    try {
+      const def = createCalendarDefinitionV1({
+        definitionId,
+        workspaceId,
+        sourceRef: `module:${module.moduleCode}`,
+        mapping,
+        status: undefined,
+      });
+      await services.capabilityDefinition.updateDefinition({
+        workspace,
+        membership,
+        definitionId,
+        changes: {
+          name,
+          description,
+          source: def.source,
+          configuration: def.configuration,
+        },
+      });
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [workspace, membership, workspaceId, modules, load, canManage]);
+
+  return { definitions, modules, loading, saving, error, canManage, refresh: load, create, update, setStatus };
 }
