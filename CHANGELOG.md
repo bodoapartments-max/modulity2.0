@@ -2,6 +2,39 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 12 — Trusted Record Submission & Server Authority Foundation
+
+### Added
+- Versioned `RecordCommand` contract (`src/core/recordCommands/recordCommandContract.js`) with `CREATE_RECORD` support and extensible future command types
+- Pure `recordCommandEngine.js` for deterministic command validation and canonical Record construction
+- Server-authoritative `recordCommand` Firebase callable (`functions/src/recordCommandEngine.js`) with:
+  - Firebase Auth identity verification
+  - Workspace authorization (Personal owner / active Organization member)
+  - Module resolution, status/version authority, and FormSchema validation
+  - EntityReference existence, workspace, and type verification
+  - Deterministic `recordId` derived from `operationId`
+  - Operation journal for idempotent retries
+  - Server-authoritative timestamps and actor fields
+  - Best-effort Audit and Notification side effects
+- Client adapter `src/infrastructure/firebase/recordCommandClient.js` to keep Firebase SDK calls inside infrastructure
+- Local test adapter `src/infrastructure/recordCommandLocalAdapter.js` for unit/integration tests outside the Functions emulator
+
+### Changed
+- `ModuleSubmissionService` now routes submission through an injected trusted `recordCommand` executor when available; direct local path remains as test fallback
+- `services.js` wires the trusted `recordCommand` client into `moduleSubmission`
+- `firestore.rules` denies direct browser `CREATE` on canonical Records; creation flows through the trusted callable
+- `functions/scripts/build-shared.mjs` copies the Record command contract and engine into Functions generated contracts
+- Integration tests updated to use privileged (rules-disabled) Firestore contexts for Record creation paths
+
+### Security
+- Direct client Record creation is rejected by Firestore Rules
+- Actor identity, workspace/module authority, schema validation, and reference integrity are enforced server-side
+- `operationId` idempotency prevents duplicate Records on retry
+
+### Documentation
+- `docs/TRUSTED_RECORD_COMMANDS.md` documenting contract, trust boundary, idempotency, transaction scope, failure semantics, and migration
+- `AGENTS.md` updated with Step 12 durable rule: canonical Record creation must cross a trusted server-authoritative command boundary
+
 ## Step 11.1 — Physical Architecture Package Reorganization
 
 ### Changed

@@ -357,6 +357,18 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 - Clarification and `ANALYSIS_INCOMPLETE` stop before persistence/approval.
 - Never propose DELETE, replacement, arbitrary SAFE_UPDATE, operational Entity/Record creation, scripts/JSX, Calendar copies, or RelationshipDefinition.
 - Configuration text is untrusted data. Agent output cannot select Firestore paths, authorization, entitlement, or apply authority.
+
+## Step 12 — Trusted Record Submission & Server Authority
+
+- Canonical business Record creation from user-facing clients must cross a trusted server-authoritative command boundary.
+- Client-side validation is UX, not authority.
+- The Record command contract is versioned (`RECORD_COMMAND_CONTRACT_VERSION = "1.0.0"`) and extensible; Step 12 implements only `CREATE_RECORD`.
+- The server derives actor identity from verified Firebase Auth, not from client payload.
+- The server resolves Workspace membership, Module existence/status/version, FormSchema, and EntityReferences from canonical Workspace data.
+- Server-authoritative metadata (`createdAt`, `updatedAt`, `createdBy`, `recordId`, `moduleVersion`) is generated/overridden by the trusted executor.
+- Record submission is idempotent per `operationId`; the same `operationId` returns the same canonical Record on retry.
+- Direct browser `CREATE` on `workspaces/{workspaceId}/records/{recordId}` is denied; canonical creation flows through the `recordCommand` callable.
+- Capability Engines and Agents may request commands later but may not bypass authorization or deterministic validation.
 - Stable refs and fingerprint/stale-plan behavior remain mandatory; repeat requests must converge on REUSE.
 
 ## Step 10.0 — Generic Entity Management
