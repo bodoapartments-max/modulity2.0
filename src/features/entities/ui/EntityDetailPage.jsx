@@ -16,7 +16,7 @@ import Button from '../../../design-system/components/Button/Button.jsx';
 import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
 import { RELATIONSHIP_OBJECT_TYPES } from '../../../core/data/relationship.js';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
-import { orderedEntityDataFields } from '../../../core/data/entityPresentation.js';
+import { orderedEntityDataFields } from '../../../shared/presentation/entityPresentation.js';
 
 function EntityDetailPage() {
   const { entityId } = useParams();

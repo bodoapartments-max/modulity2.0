@@ -9,7 +9,7 @@ import Input from '../../../design-system/components/Input/Input.jsx';
 import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
-import { buildEntityListColumns, formatEntityListValue, pluralizeEntityType } from '../../../core/data/entityPresentation.js';
+import { buildEntityListColumns, formatEntityListValue, pluralizeEntityType } from '../../../shared/presentation/entityPresentation.js';
 
 export default function EntityListPage() {
   const { entityTypeId } = useParams();

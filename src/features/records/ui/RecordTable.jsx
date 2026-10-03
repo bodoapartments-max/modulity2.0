@@ -5,7 +5,7 @@
  * Renders canonical Record data with sorting, selection, and navigation.
  */
 import { Link, useNavigate } from 'react-router-dom';
-import { formatRecordListValue } from '../../../core/data/recordListPresentation.js';
+import { formatRecordListValue } from '../../../shared/presentation/recordListPresentation.js';
 
 const STATUS_COLORS = {
   DRAFT: 'bg-neutral-100 text-neutral-700',

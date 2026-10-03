@@ -9,7 +9,7 @@ import ErrorState from '../../../design-system/components/ErrorState/ErrorState.
 import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
-import { pluralizeEntityType, sortEntityTypes } from '../../../core/data/entityPresentation.js';
+import { pluralizeEntityType, sortEntityTypes } from '../../../shared/presentation/entityPresentation.js';
 
 export default function EntitiesPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();

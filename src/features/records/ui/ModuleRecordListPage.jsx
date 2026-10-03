@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
-import { buildModuleRecordColumns } from '../../../core/data/recordListPresentation.js';
+import { buildModuleRecordColumns } from '../../../shared/presentation/recordListPresentation.js';
 import services from '../../../infrastructure/services.js';
 import RecordTable from './RecordTable.jsx';
 

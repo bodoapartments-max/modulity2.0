@@ -22,7 +22,7 @@ import ErrorState from '../../../design-system/components/ErrorState/ErrorState.
 import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import { ENTITY_FIELD_TYPES, FIELD_TYPES } from '../../../core/data/entityType.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
-import { sortEntityTypes } from '../../../core/data/entityPresentation.js';
+import { sortEntityTypes } from '../../../shared/presentation/entityPresentation.js';
 
 function EntityTypesPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
