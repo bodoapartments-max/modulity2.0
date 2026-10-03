@@ -204,6 +204,7 @@ export default function RecordListPage() {
       );
       setSelectedIds(new Set());
       workspaceQueryCache.invalidate(`${workspaceId}:widgetResult:`);
+      reset();
       loadRecords(null);
     } catch (err) {
       setError(err.message);
