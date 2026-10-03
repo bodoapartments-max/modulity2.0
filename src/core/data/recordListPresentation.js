@@ -18,6 +18,13 @@ export function formatRecordListValue(record, column, entityLabels = {}) {
   if (column.type === 'date-range' && typeof value === 'object' && value !== null && value.start && value.end) {
     return `${new Date(value.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${new Date(value.end).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
   }
+  if (column.type === 'datetime-range' && typeof value === 'object' && value !== null && value.start && value.end) {
+    const sameDay = new Date(value.start).toDateString() === new Date(value.end).toDateString();
+    const startDate = new Date(value.start);
+    const endDate = new Date(value.end);
+    if (sameDay) return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}–${endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+    return `${startDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} → ${endDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  }
   if (column.type === 'date' || column.type === 'datetime' || ['createdAt', 'updatedAt', 'submittedAt'].includes(column.key)) {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });

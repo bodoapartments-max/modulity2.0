@@ -40,6 +40,15 @@ export function formatDisplayValue(value, field, context = {}) {
       return `${formatDate(start)} – ${formatDate(end)}`;
     }
 
+    case FIELD_TYPES.DATETIME_RANGE: {
+      if (typeof value !== 'object' || value === null) return String(value);
+      const { start, end } = value;
+      if (!start || !end) return String(value);
+      const sameDay = isSameCalendarDate(start, end);
+      if (sameDay) return `${formatDate(start)}, ${formatTime(start)}–${formatTime(end)}`;
+      return `${formatDateTime(start)} – ${formatDateTime(end)}`;
+    }
+
     case FIELD_TYPES.SELECT: {
       // If options are {value, label} objects, resolve the label
       if (Array.isArray(field.options)) {
@@ -91,5 +100,25 @@ function formatDateTime(value) {
     });
   } catch {
     return String(value);
+  }
+}
+
+function formatTime(value) {
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return String(value);
+  }
+}
+
+function isSameCalendarDate(start, end) {
+  try {
+    const startDate = new Date(start).toDateString();
+    const endDate = new Date(end).toDateString();
+    return startDate === endDate;
+  } catch {
+    return false;
   }
 }

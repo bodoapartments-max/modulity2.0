@@ -35,6 +35,18 @@ describe('Automat Workspace Architect', () => {
     expect(model.completeness.status).toBe('COMPLETE');
   });
 
+  it('proposes a datetime-range field for an appointment booking and connects it to Calendar', async () => {
+    const result = await evolve('We need to book appointments with customers, each has a start and end time.');
+    expect(result.evolution.reuse).toEqual(expect.arrayContaining(['entityType:CUSTOMER', 'entityType:EMPLOYEE']));
+    const appointmentModule = result.plan.proposedModules.find((item) => item.moduleCode === 'APPOINTMENT');
+    expect(appointmentModule).toBeTruthy();
+    const slotField = appointmentModule.formSchema.fields.find((field) => field.key === 'appointmentTime');
+    expect(slotField?.type).toBe('datetime-range');
+    expect(slotField?.required).toBe(true);
+    expect(result.plan.capabilityRequirements).toEqual([expect.objectContaining({ engineId: 'calendar', sourceRef: 'module:APPOINTMENT' })]);
+    expect(result.validation.status).toBe('VALID');
+  });
+
   it('proposes a date-range field for an employee holiday request and connects it to Calendar', async () => {
     const result = await evolve('We need an employee holiday request form. The employee selects the period from the first day of holiday until the last day, and it should appear in the calendar.');
     expect(result.evolution.reuse).toEqual(expect.arrayContaining(['entityType:EMPLOYEE']));

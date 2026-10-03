@@ -3,7 +3,7 @@ import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY
 export const CALENDAR_ENGINE_ID = 'calendar';
 export const CALENDAR_DEFINITION_TYPE = 'CalendarDefinitionV1';
 const MAPPING_KEYS = new Set(['titleField', 'startField', 'endField', 'resourceField']);
-const TIME_TYPES = new Set(['date', 'datetime', 'date-range']);
+const TIME_TYPES = new Set(['date', 'datetime', 'date-range', 'datetime-range']);
 const TITLE_TYPES = new Set(['text', 'textarea', 'select', 'email', 'phone', 'entity-reference']);
 
 export function createCalendarDefinitionV1({ definitionId, workspaceId, sourceRef, mapping, status = CAPABILITY_DEFINITION_STATUSES.DRAFT }) {
@@ -27,12 +27,12 @@ export function validateCalendarDefinitionV1(definition, { source }) {
   if (mapping.titleField && !title) issues.push({ code: 'UNKNOWN_FIELD', message: `Unknown titleField: ${mapping.titleField}` });
   else if (title && !TITLE_TYPES.has(title.type)) issues.push({ code: 'WRONG_FIELD_TYPE', message: 'titleField must be human-readable' });
   if (mapping.startField && !start) issues.push({ code: 'UNKNOWN_FIELD', message: `Unknown startField: ${mapping.startField}` });
-  else if (start && !TIME_TYPES.has(start.type)) issues.push({ code: 'WRONG_FIELD_TYPE', message: 'startField must be date, datetime, or date-range' });
-  if (start?.type === 'date-range' && mapping.endField) {
-    issues.push({ code: 'AMBIGUOUS_RANGE', message: 'endField must be empty when startField is a date-range' });
+  else if (start && !TIME_TYPES.has(start.type)) issues.push({ code: 'WRONG_FIELD_TYPE', message: 'startField must be date, datetime, date-range, or datetime-range' });
+  if ((start?.type === 'date-range' || start?.type === 'datetime-range') && mapping.endField) {
+    issues.push({ code: 'AMBIGUOUS_RANGE', message: `endField must be empty when startField is a ${start.type}` });
   }
   if (mapping.endField && !end) issues.push({ code: 'UNKNOWN_FIELD', message: `Unknown endField: ${mapping.endField}` });
-  else if (end && !TIME_TYPES.has(end.type)) issues.push({ code: 'WRONG_FIELD_TYPE', message: 'endField must be date, datetime, or date-range' });
+  else if (end && !TIME_TYPES.has(end.type)) issues.push({ code: 'WRONG_FIELD_TYPE', message: 'endField must be date, datetime, date-range, or datetime-range' });
   if (mapping.resourceField && !resource) issues.push({ code: 'UNKNOWN_FIELD', message: `Unknown resourceField: ${mapping.resourceField}` });
   else if (resource && resource.type !== 'entity-reference') issues.push({ code: 'WRONG_FIELD_TYPE', message: 'resourceField must be an EntityReference' });
   return Object.freeze({ valid: issues.length === 0, issues: Object.freeze(issues) });

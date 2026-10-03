@@ -256,6 +256,39 @@ describe('entityType', () => {
       expect(validateFieldValue(null, field)).toMatch(/is required/);
     });
 
+    // ─── DATETIME RANGE ───
+    it('accepts valid same-day datetime range', () => {
+      const field = { key: 'k', label: 'Slot', type: 'datetime-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15T09:30:00Z', end: '2024-03-15T10:15:00Z' }, field)).toBeNull();
+    });
+
+    it('accepts valid cross-day datetime range', () => {
+      const field = { key: 'k', label: 'Shift', type: 'datetime-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15T22:00:00Z', end: '2024-03-16T02:00:00Z' }, field)).toBeNull();
+    });
+
+    it('rejects equal start and end datetime range', () => {
+      const field = { key: 'k', label: 'Slot', type: 'datetime-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15T09:30:00Z', end: '2024-03-15T09:30:00Z' }, field)).toMatch(/end must be later than start/);
+    });
+
+    it('rejects end before start in datetime range', () => {
+      const field = { key: 'k', label: 'Slot', type: 'datetime-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15T10:15:00Z', end: '2024-03-15T09:30:00Z' }, field)).toMatch(/end must be later than start/);
+    });
+
+    it('rejects partial datetime range', () => {
+      const field = { key: 'k', label: 'Slot', type: 'datetime-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15T09:30:00Z', end: '' }, field)).toMatch(/must have both start and end/);
+      expect(validateFieldValue({ start: '', end: '2024-03-15T10:15:00Z' }, field)).toMatch(/must have both start and end/);
+    });
+
+    it('allows empty optional datetime range', () => {
+      const field = { key: 'k', label: 'Slot', type: 'datetime-range', required: false };
+      expect(validateFieldValue({ start: '', end: '' }, field)).toBeNull();
+      expect(validateFieldValue(null, field)).toBeNull();
+    });
+
     // ─── DATE ───
     it('accepts valid ISO date', () => {
       const field = { key: 'k', label: 'Date', type: 'date', required: true };

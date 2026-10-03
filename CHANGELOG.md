@@ -22,6 +22,8 @@ All notable changes to Modulity 2.0 will be documented in this file.
 - All/individual CalendarDefinition visibility controls
 - Generic `date-range` FormSchema field type with From/Till date pickers, canonical `{ start, end }` ISO date value, deterministic validation, Record List / Record Detail formatting, and Calendar Engine consumption
 - Workspace Architect `EMPLOYEE_LEAVE` scenario proposes a single `date-range` Holiday Period field and a Calendar requirement
+- Generic `datetime-range` FormSchema field type for timed intervals (appointments, bookings, shifts), with From/Till datetime-local inputs, validation, Record display, and Calendar Engine consumption
+- Workspace Architect `BOOKING` scenario proposes a single `datetime-range` Appointment Time field
 
 ### Changed
 - `builtInCapabilityCatalog.js`: Calendar availability moved from `ARCHITECTURE_ONLY` to `AVAILABLE`

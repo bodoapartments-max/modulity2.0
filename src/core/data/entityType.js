@@ -26,7 +26,7 @@ export const ENTITY_TYPE_STATUSES = Object.freeze({
  *   text, number, date, boolean, select, entity-reference, file-reference
  *
  * Extended types (usable in Form schemas, not typical for Entity Type schemas):
- *   textarea, email, phone, url, datetime, date-range
+ *   textarea, email, phone, url, datetime, date-range, datetime-range
  */
 export const FIELD_TYPES = Object.freeze({
   TEXT: 'text',
@@ -35,6 +35,7 @@ export const FIELD_TYPES = Object.freeze({
   DATE: 'date',
   DATETIME: 'datetime',
   DATE_RANGE: 'date-range',
+  DATETIME_RANGE: 'datetime-range',
   BOOLEAN: 'boolean',
   SELECT: 'select',
   EMAIL: 'email',
@@ -335,6 +336,31 @@ export function validateFieldValue(value, field) {
       }
       if (Date.parse(start) > Date.parse(end)) {
         return `${field.label} start date cannot be after end date`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.DATETIME_RANGE: {
+      if (typeof value !== 'object' || value === null) {
+        return `${field.label} must be an object with start and end datetimes`;
+      }
+      const { start = '', end = '' } = value;
+      const startEmpty = start === undefined || start === null || start === '';
+      const endEmpty = end === undefined || end === null || end === '';
+      if (startEmpty && endEmpty) {
+        return field.required ? `${field.label} is required` : null;
+      }
+      if (startEmpty || endEmpty) {
+        return `${field.label} must have both start and end datetimes`;
+      }
+      if (typeof start !== 'string' || !ISO_DATETIME_PATTERN.test(start) || Number.isNaN(Date.parse(start))) {
+        return `${field.label} start must be a valid ISO datetime`;
+      }
+      if (typeof end !== 'string' || !ISO_DATETIME_PATTERN.test(end) || Number.isNaN(Date.parse(end))) {
+        return `${field.label} end must be a valid ISO datetime`;
+      }
+      if (Date.parse(start) >= Date.parse(end)) {
+        return `${field.label} end must be later than start`;
       }
       return null;
     }

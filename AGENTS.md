@@ -137,7 +137,8 @@ Step 4 added the deterministic Module runtime under `src/modules/`:
 Key concepts:
 - **MODULE != FORM != RECORD != ENTITY**. A Module is a definition. A Form is a rendered interface. A Record is persisted data. An Entity is a persistent business object.
 - **MODULE != MODULE VERSION**. The Module document is the current configurable definition. A Module Version is an immutable historical snapshot.
-- **One field system**: `FIELD_TYPES` in `entityType.js` extended with form types (including `date-range` for inclusive From/Till date periods). `ENTITY_FIELD_TYPES` subset for Entity Type validation. Full set for Form Schema validation.
+- **One field system**: `FIELD_TYPES` in `entityType.js` extended with form types (including `date-range` for inclusive From/Till date periods and `datetime-range` for timed intervals). `ENTITY_FIELD_TYPES` subset for Entity Type validation. Full set for Form Schema validation.
+- **Date/period field semantics**: `date` = one calendar date; `date-range` = inclusive calendar-date period; `datetime` = one date+time; `datetime-range` = one timed interval. Use `datetime-range` only when start/end form one business interval, never to combine unrelated business timestamps.
 - **ModuleSubmissionService** is the orchestrator: loads Module, validates status, validates form data, extracts entity references, delegates to RecordService with exact `moduleVersion`, creates exactly ONE canonical Record.
 - **Module identity**: `moduleId` (immutable internal), `moduleCode` (stable human/developer-facing, unique per workspace, immutable after creation, atomically reserved via `moduleCodes/{code}`).
 - **Module lifecycle**: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable without version snapshots. First activation creates immutable Version 1 snapshot. ACTIVE schema changes create next immutable version. Archived preserved for historical Records.
@@ -335,7 +336,7 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 
 - Calendar is the first operational Capability Engine. It is a derived read/projection over canonical Records.
 - CapabilityDefinitions are persisted generically in `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}`.
-- CalendarDefinitions map title, start, optional end, and optional resource fields from a Module's `FormSchema`. Field choices are constrained. A single `date-range` field can supply both start and end for inclusive date-only periods.
+- CalendarDefinitions map title, start, optional end, and optional resource fields from a Module's `FormSchema`. Field choices are constrained. A single `date-range` or `datetime-range` field can supply both start and end for its respective period semantics.
 - The Calendar Engine queries canonical Records within a bounded window, maps them to rebuildable `CalendarEventProjection`s, and resolves EntityReference labels through the canonical Entity service.
 - Calendar View supports Month, Week, and Day; event click opens canonical Record Detail.
 - Multiple CalendarDefinitions can coexist; combined views retain record/module/definition identity.

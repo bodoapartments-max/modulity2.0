@@ -30,14 +30,14 @@ export default function CalendarDefinitionForm({ modules, initialDefinition, onS
   const fields = selectedModule?.formSchema?.fields || [];
 
   const compatibleFields = (typeSet) => fields.filter((f) => typeSet.has(f.type));
-  const startIsDateRange = fields.find((f) => f.key === mapping.startField)?.type === 'date-range';
+  const startIsRange = ['date-range', 'datetime-range'].includes(fields.find((f) => f.key === mapping.startField)?.type);
 
   const handleFieldChange = (key, value) => {
     setMapping((m) => {
       const next = { ...m, [key]: value || undefined };
       if (key === 'startField') {
         const field = fields.find((f) => f.key === value);
-        if (field?.type === 'date-range') {
+        if (['date-range', 'datetime-range'].includes(field?.type)) {
           delete next.endField;
         }
       }
@@ -93,8 +93,8 @@ export default function CalendarDefinitionForm({ modules, initialDefinition, onS
               </select>
             </div>
             <div>
-              <Label htmlFor="cal-end">End field {startIsDateRange && <span className="text-neutral-400 text-xs">(not used with date-range)</span>}</Label>
-              <select id="cal-end" value={mapping.endField || ''} disabled={startIsDateRange} onChange={(e) => handleFieldChange('endField', e.target.value)} className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100 disabled:text-neutral-500">
+              <Label htmlFor="cal-end">End field {startIsRange && <span className="text-neutral-400 text-xs">(not used with range field)</span>}</Label>
+              <select id="cal-end" value={mapping.endField || ''} disabled={startIsRange} onChange={(e) => handleFieldChange('endField', e.target.value)} className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100 disabled:text-neutral-500">
                 <option value="">None</option>
                 {compatibleFields(FIELD_TYPE_GROUPS.time).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
               </select>

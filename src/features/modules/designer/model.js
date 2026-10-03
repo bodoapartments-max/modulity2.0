@@ -6,7 +6,7 @@ import { validateFormSchema } from '../../../modules/forms/formSchemaValidator.j
 export const DESIGNER_LIMITS = Object.freeze({ MAX_FIELDS: 50, MAX_OPTIONS: 50, MAX_LIST_FIELDS: 8, MAX_NAME_LENGTH: 120, MAX_CODE_LENGTH: 80, MAX_DESCRIPTION_LENGTH: 1000, MAX_CATEGORY_LENGTH: 120, MAX_LABEL_LENGTH: 160, MAX_HELP_TEXT_LENGTH: 500, MAX_PLACEHOLDER_LENGTH: 200, MAX_SCHEMA_BYTES: 64_000, MAX_CONFIG_DEPTH: 8 });
 const UNSAFE_KEYS = new Set(['collectionPath', 'firestorePath', 'rawQuery', 'script', 'scriptUrl', 'moduleUrl', 'executable', 'expression', 'eval', 'function', 'componentCode', 'jsx']);
 const FIELD_PROPERTY_KEYS = new Set(['key', 'label', 'type', 'required', 'placeholder', 'helpText', 'options', 'entityTypeId', 'min', 'max', 'minLength', 'maxLength']);
-const FIELD_TYPE_LABELS = Object.freeze({ text: 'Text', textarea: 'Long Text', number: 'Number', date: 'Date', datetime: 'Date & Time', 'date-range': 'Date Range', boolean: 'Yes / No', select: 'Select', email: 'Email', phone: 'Phone', url: 'URL', 'entity-reference': 'Entity Reference', 'file-reference': 'File Reference' });
+const FIELD_TYPE_LABELS = Object.freeze({ text: 'Text', textarea: 'Long Text', number: 'Number', date: 'Date', datetime: 'Date & Time', 'date-range': 'Date Range', 'datetime-range': 'Date & Time Range', boolean: 'Yes / No', select: 'Select', email: 'Email', phone: 'Phone', url: 'URL', 'entity-reference': 'Entity Reference', 'file-reference': 'File Reference' });
 let designerSequence = 0;
 const nextDesignerId = () => `designer-field-${++designerSequence}`;
 const bytes = (value) => new TextEncoder().encode(JSON.stringify(value)).length;

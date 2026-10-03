@@ -19,6 +19,14 @@ describe('generic Module Record list presentation', () => {
     expect(formatRecordListValue(record, { key: 'room', scope: 'DATA', type: 'entity-reference' }, {})).toBe('room-1');
   });
 
+  it('renders datetime-range as a localized same-day slot', () => {
+    const record = { data: { slot: { start: '2026-10-12T09:30:00', end: '2026-10-12T10:15:00' } } };
+    const value = formatRecordListValue(record, { key: 'slot', scope: 'DATA', type: 'datetime-range' });
+    expect(value).toMatch(/12/);
+    expect(value).toMatch(/09:30/);
+    expect(value).toMatch(/10:15/);
+  });
+
   it('renders date-range as a localized span', () => {
     const record = { data: { period: { start: '2026-10-12', end: '2026-10-16' } } };
     const value = formatRecordListValue(record, { key: 'period', scope: 'DATA', type: 'date-range' });

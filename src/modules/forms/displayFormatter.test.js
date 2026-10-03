@@ -58,6 +58,21 @@ describe('formatDisplayValue', () => {
     expect(result).toContain('Entity');
   });
 
+  it('formats same-day datetime-range', () => {
+    const result = formatDisplayValue({ start: '2024-06-15T09:30:00', end: '2024-06-15T10:15:00' }, { type: 'datetime-range' });
+    expect(result).toContain('09:30');
+    expect(result).toContain('10:15');
+    expect(result).toContain('–');
+  });
+
+  it('formats cross-day datetime-range', () => {
+    const result = formatDisplayValue({ start: '2024-06-15T22:00:00', end: '2024-06-16T02:00:00' }, { type: 'datetime-range' });
+    expect(result).toContain('15');
+    expect(result).toContain('16');
+    expect(result).toContain('22:00');
+    expect(result).toContain('02:00');
+  });
+
   it('formats number with locale', () => {
     const result = formatDisplayValue(1234, { type: 'number' });
     expect(result).toBeTruthy();

@@ -82,6 +82,30 @@ describe('Calendar Engine', () => {
     expect(result.events[0].end).toBe('2026-10-14');
   });
 
+  it('projects a datetime-range from a datetime-range field object', async () => {
+    const fields = [{ key: 'title', label: 'Title', type: 'text' }, { key: 'slot', label: 'Slot', type: 'datetime-range' }];
+    const record = fakeRecord({ data: { title: 'Haircut', slot: { start: '2026-10-10T09:30:00Z', end: '2026-10-10T10:15:00Z' } } });
+    const definition = createCalendarDefinitionV1({ definitionId: 'cal-dtr', workspaceId, sourceRef: 'module:RESERVATION', mapping: { titleField: 'title', startField: 'slot' }, status: 'ACTIVE' });
+    const engine = createCalendarEngine({ recordRepo: fakeRepo([record]), moduleRepo: fakeModuleRepo(fakeModule(fields)), entityRepo: fakeEntityRepo([]) });
+    const result = await engine.project(definition, { windowStart: '2026-10-01', windowEnd: '2026-10-31' });
+    expect(result.ok).toBe(true);
+    expect(result.events[0].start).toBe('2026-10-10T09:30:00Z');
+    expect(result.events[0].end).toBe('2026-10-10T10:15:00Z');
+    expect(result.events[0].allDay).toBe(false);
+  });
+
+  it('projects a cross-midnight datetime-range as one logical event', async () => {
+    const fields = [{ key: 'title', label: 'Title', type: 'text' }, { key: 'slot', label: 'Slot', type: 'datetime-range' }];
+    const record = fakeRecord({ data: { title: 'Night Shift', slot: { start: '2026-10-10T22:00:00Z', end: '2026-10-11T02:00:00Z' } } });
+    const definition = createCalendarDefinitionV1({ definitionId: 'cal-dtr-xday', workspaceId, sourceRef: 'module:RESERVATION', mapping: { titleField: 'title', startField: 'slot' }, status: 'ACTIVE' });
+    const engine = createCalendarEngine({ recordRepo: fakeRepo([record]), moduleRepo: fakeModuleRepo(fakeModule(fields)), entityRepo: fakeEntityRepo([]) });
+    const result = await engine.project(definition, { windowStart: '2026-10-01', windowEnd: '2026-10-31' });
+    expect(result.ok).toBe(true);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].start).toBe('2026-10-10T22:00:00Z');
+    expect(result.events[0].end).toBe('2026-10-11T02:00:00Z');
+  });
+
   it('projects a datetime range event', async () => {
     const fields = [{ key: 'title', label: 'Title', type: 'text' }, { key: 'start', label: 'Start', type: 'datetime' }, { key: 'end', label: 'End', type: 'datetime' }];
     const record = fakeRecord({ data: { title: 'Meeting', start: '2026-10-10T10:00:00Z', end: '2026-10-10T11:00:00Z' } });

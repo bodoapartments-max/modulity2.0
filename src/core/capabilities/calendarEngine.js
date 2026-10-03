@@ -114,11 +114,11 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     const startType = fieldMap.start?.type;
     const endType = fieldMap.end?.type;
 
-    if (startType === 'date-range' && startValue && typeof startValue === 'object') {
-      endValue = endValue || startValue.end || null;
+    if ((startType === 'date-range' || startType === 'datetime-range') && startValue && typeof startValue === 'object') {
+      endValue = startValue.end || endValue || null;
       startValue = startValue.start || null;
     }
-    if (endType === 'date-range' && endValue && typeof endValue === 'object') {
+    if ((endType === 'date-range' || endType === 'datetime-range') && endValue && typeof endValue === 'object') {
       endValue = endValue.end || endValue;
     }
 
