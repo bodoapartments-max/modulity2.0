@@ -349,13 +349,17 @@ service cloud.firestore {
       // ─── Records ─────────────────────────────────────────
       // Path: workspaces/{workspaceId}/records/{recordId}
       //
-      // IMMUTABILITY POLICY (Step 5.1):
-      //   ALWAYS immutable: workspaceId, recordId, createdBy, createdAt, _createdAt,
-      //     moduleId, moduleVersion, recordType, sourceRequestId, submittedBy
-      //   DRAFT records: data/entityReferences may be updated (via RecordService).
-      //   SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED records:
-      //     data, entityReferences, entityReferenceIds are frozen.
-      //     Only operational fields may change: status, priority, _previousStatus, archivedAt, archivedBy.
+      // IMMUTABILITY POLICY (Step 15 — trusted lifecycle):
+      //   Clients may NEVER mutate: workspaceId, recordId, createdBy, createdAt,
+      //     _createdAt, moduleId, moduleVersion, recordType, sourceRequestId,
+      //     submittedBy, submittedAt, status, priority, _previousStatus,
+      //     archivedAt, archivedBy, data, entityReferences, entityReferenceIds,
+      //     attachments, createdEntityIds.
+      //   ALL business-data and lifecycle mutations execute through the trusted
+      //     recordCommand callable (Admin SDK, bypasses Rules).
+      //   EXPIRES AT STEP 16: ledger linkage (ledgerEntryId/ledgerBookId/
+      //     referenceNumber) may still be set once from null by the existing
+      //     client Ledger registration flow; it remains immutable after being set.
 
       match /records/{recordId} {
         allow read: if isAuthenticated()
@@ -371,10 +375,12 @@ service cloud.firestore {
         // server-authoritative via the trusted recordCommand callable.
         allow create: if false;
 
-        // Update: provenance + sourceRequestId always immutable.
-        // SUBMITTED+ records: data/entityReferences/submittedBy also immutable.
+        // Update: trusted commands own every lifecycle/business mutation.
+        // Clients may only attach Ledger linkage once (set-once from null) —
+        // a documented interim exception until the Ledger backend moves
+        // server-side in Step 16.
         allow update: if isAuthenticated()
-          // Always-immutable provenance fields
+          // Immutable identity + provenance
           && fieldUnchanged('workspaceId')
           && fieldUnchanged('recordId')
           && fieldUnchanged('createdBy')
@@ -385,20 +391,23 @@ service cloud.firestore {
           && fieldUnchanged('recordType')
           && fieldUnchanged('sourceRequestId')
           && fieldUnchanged('submittedBy')
-          // Ledger linkage immutable after assignment
+          && fieldUnchanged('submittedAt')
+          // Lifecycle + operational state: trusted command only
+          && fieldUnchanged('status')
+          && fieldUnchanged('priority')
+          && fieldUnchanged('_previousStatus')
+          && fieldUnchanged('archivedAt')
+          && fieldUnchanged('archivedBy')
+          // Business data: trusted command only
+          && fieldUnchanged('data')
+          && fieldUnchanged('entityReferences')
+          && fieldUnchanged('entityReferenceIds')
+          && fieldUnchanged('attachments')
+          && fieldUnchanged('createdEntityIds')
+          // Ledger linkage: set-once from null, immutable afterwards
           && (resource.data.ledgerEntryId == null || fieldUnchanged('ledgerEntryId'))
           && (resource.data.ledgerBookId == null || fieldUnchanged('ledgerBookId'))
           && (resource.data.referenceNumber == null || fieldUnchanged('referenceNumber'))
-          // Submitted Record business data immutability:
-          // If status is not DRAFT, data/entityReferences/entityReferenceIds are frozen.
-          && (
-            resource.data.status == 'DRAFT'
-            || (
-              fieldUnchanged('data')
-              && fieldUnchanged('entityReferences')
-              && fieldUnchanged('entityReferenceIds')
-            )
-          )
           // Workspace access
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'

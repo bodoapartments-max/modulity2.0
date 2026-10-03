@@ -2285,7 +2285,7 @@ describe('record provenance immutability (moduleId, moduleVersion, recordType)',
     }));
   });
 
-  it('record status update allowed (provenance fields unchanged)', async () => {
+  it('record status update DENIED from browser (Step 15: lifecycle is trusted-command only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
@@ -2296,12 +2296,12 @@ describe('record provenance immutability (moduleId, moduleVersion, recordType)',
       });
     });
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
       status: 'SUBMITTED',
     }));
   });
 
-  it('record data update allowed (provenance fields unchanged)', async () => {
+  it('record data update DENIED from browser (Step 15: UPDATE_DRAFT is trusted-command only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
@@ -2312,7 +2312,7 @@ describe('record provenance immutability (moduleId, moduleVersion, recordType)',
       });
     });
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec1'), {
       data: { name: 'updated' },
     }));
   });
@@ -2861,16 +2861,16 @@ describe('Step 5.1 — Submitted Record immutability', () => {
     }));
   });
 
-  it('priority-only update allowed on SUBMITTED record', async () => {
+  it('priority-only update DENIED from browser (Step 15: SET_PRIORITY is trusted-command only)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
       priority: 'HIGH',
     }));
   });
 
-  it('status-only update allowed on SUBMITTED record', async () => {
+  it('status-only update DENIED from browser (Step 15: lifecycle transitions are trusted-command only)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
       status: 'ARCHIVED',
     }));
   });
@@ -2883,9 +2883,9 @@ describe('Step 5.1 — Submitted Record immutability', () => {
     }));
   });
 
-  it('archive-only update allowed (status + archivedAt + archivedBy)', async () => {
+  it('archive field set DENIED from browser (Step 15: ARCHIVE_RECORD is trusted-command only)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-sub'), {
       status: 'ARCHIVED',
       archivedAt: new Date().toISOString(),
       archivedBy: { actorType: 'USER', actorId: 'user1' },
@@ -2893,17 +2893,26 @@ describe('Step 5.1 — Submitted Record immutability', () => {
     }));
   });
 
-  it('DRAFT record data update allowed', async () => {
+  it('DRAFT record data update DENIED from browser (Step 15: trusted UPDATE_DRAFT only)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
       data: { amount: 200, description: 'Updated draft' },
     }));
   });
 
-  it('DRAFT record entityReferences update allowed', async () => {
+  it('DRAFT record entityReferences update DENIED from browser (Step 15)', async () => {
     const db = authedDb('user1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
       entityReferences: [{ entityId: 'ent-1', entityTypeId: 'type-1' }],
+    }));
+  });
+
+  it('submittedAt impersonation DENIED from browser on DRAFT record (Step 15)', async () => {
+    const db = authedDb('user1');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'records', 'rec-draft'), {
+      status: 'SUBMITTED',
+      submittedBy: { actorType: 'USER', actorId: 'attacker' },
+      submittedAt: new Date().toISOString(),
     }));
   });
 });
