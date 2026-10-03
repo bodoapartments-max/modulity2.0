@@ -1,11 +1,13 @@
 /**
  * Create Ledger Book — form for creating a new Ledger Book.
+ *
+ * Step 16: creation goes through the trusted ledgerCommand boundary —
+ * code reservation, book and initial block are atomic and server-authored.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
-import { userActor } from '../../../core/data/actorRef.js';
 import services from '../../../infrastructure/services.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
@@ -30,15 +32,15 @@ export default function CreateLedgerBookPage() {
     setSaving(true);
     setError(null);
     try {
-      const book = await services?.ledger?.createBook({
+      const result = await services?.ledgerCommand?.createBook({
         workspaceId,
         ledgerCode: ledgerCode.toUpperCase(),
         name,
         description,
         blockSize: parseInt(blockSize, 10) || 100,
         referencePrefix: referencePrefix.toUpperCase() || ledgerCode.toUpperCase(),
-        actor: userActor(user.userId || user.uid),
       });
+      const book = result?.book;
       if (book) {
         workspaceQueryCache.invalidate(`${workspaceId}:ledgerBooks:`);
         navigate(`/app/ledger/${book.ledgerBookId}`);
@@ -126,8 +128,9 @@ export default function CreateLedgerBookPage() {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={saving || !name || !ledgerCode}
+            disabled={saving || !name || !ledgerCode || !workspaceId || !user}
             className="w-full sm:w-auto px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!workspaceId ? 'Waiting for the workspace to load…' : undefined}
           >
             {saving ? 'Creating...' : 'Create Ledger Book'}
           </button>

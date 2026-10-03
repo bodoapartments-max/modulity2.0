@@ -17,7 +17,7 @@
  * - "Create copy" only PREFILLS a Module form; the new Record is created
  *   through the trusted recordCommand CREATE_RECORD path.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
@@ -383,6 +383,15 @@ export default function RecordDetailPage() {
         </div>
       )}
 
+      {/* Trusted Ledger Registration (Step 16) */}
+      {!record.referenceNumber && (
+        <LedgerRegistrationPanel
+          workspaceId={workspaceId}
+          record={record}
+          onRegistered={() => { workspaceQueryCache.invalidate(`${workspaceId}:records:`); reload(); }}
+        />
+      )}
+
       {/* Record History (Audit Trail) — from the canonical Audit Service */}
       <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-neutral-800 mb-4">History</h2>
@@ -440,4 +449,89 @@ function formatTimestamp(ts) {
   } catch {
     return ts;
   }
+}
+
+/**
+ * Ledger Registration panel — registers the canonical Record into an ACTIVE
+ * Ledger Book through the TRUSTED ledgerCommand boundary. Sequence number,
+ * reference, actor and timestamps are all server-derived; the browser only
+ * sends workspaceId + recordId + ledgerBookId + operationId.
+ */
+function LedgerRegistrationPanel({ workspaceId, record, onRegistered }) {
+  const [books, setBooks] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const registrable = ['SUBMITTED', 'ACTIVE', 'COMPLETED'].includes(record.status);
+
+  useEffect(() => {
+    if (!registrable || !workspaceId || books !== null || !services?.ledger?.listBooks) return;
+    let cancelled = false;
+    services.ledger.listBooks(workspaceId)
+      .then((list) => { if (!cancelled) setBooks(Array.isArray(list) ? list : []); })
+      .catch(() => { if (!cancelled) setBooks([]); });
+    return () => { cancelled = true; };
+  }, [workspaceId, books, registrable]);
+
+  if (!registrable || !workspaceId) return null;
+
+  if (!books) {
+    return (
+      <div className="no-print bg-white border border-neutral-200 rounded-xl p-6 mb-6">
+        <div className="animate-pulse h-4 w-40 bg-neutral-100 rounded" />
+      </div>
+    );
+  }
+  const eligible = books.filter((book) => book.status === 'ACTIVE'
+    && (!book.moduleId || book.moduleId === record.moduleId)
+    && (!book.recordType || book.recordType === record.recordType));
+  if (eligible.length === 0) return null;
+
+  const selected = selectedBookId || eligible[0].ledgerBookId;
+
+  async function handleRegister() {
+    setBusy(true);
+    setError(null);
+    try {
+      await services?.ledgerCommand?.registerEntry({
+        workspaceId,
+        recordId: record.recordId,
+        ledgerBookId: selected,
+      });
+      onRegistered();
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="no-print bg-white border border-neutral-200 rounded-xl p-6 mb-6">
+      <h2 className="text-lg font-semibold text-neutral-800 mb-1">Ledger Registration</h2>
+      <p className="text-xs text-neutral-500 mb-3">
+        Register this Record into a Ledger. Numbering and the reference are assigned
+        by the trusted server; a Record can be registered only once per Ledger Book.
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          aria-label="Ledger book"
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm bg-white"
+          value={selected}
+          onChange={(event) => setSelectedBookId(event.target.value)}
+        >
+          {eligible.map((book) => (
+            <option key={book.ledgerBookId} value={book.ledgerBookId}>{book.name}</option>
+          ))}
+        </select>
+        <Button type="button" variant="primary" size="sm" disabled={busy} onClick={handleRegister}>
+          {busy ? 'Registering…' : 'Register in Ledger'}
+        </Button>
+      </div>
+      {error && (
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">{error}</div>
+      )}
+    </div>
+  );
 }

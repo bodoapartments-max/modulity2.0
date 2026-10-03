@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   archiveRecord: vi.fn(),
   restoreRecord: vi.fn(),
   cancelRecord: vi.fn(),
+  listBooks: vi.fn(),
+  registerEntry: vi.fn(),
 }));
 vi.mock('../../../infrastructure/services.js', () => ({
   default: {
@@ -29,6 +31,8 @@ vi.mock('../../../infrastructure/services.js', () => ({
       restoreRecord: mocks.restoreRecord,
       cancelRecord: mocks.cancelRecord,
     },
+    ledger: { listBooks: mocks.listBooks },
+    ledgerCommand: { registerEntry: mocks.registerEntry },
   },
 }));
 
@@ -74,12 +78,18 @@ function FormProbe() {
   return <div data-testid="form-state">{JSON.stringify(location.state)}</div>;
 }
 
-function renderPage(record, { entity = { entityId: 'room-1', displayName: 'Room 101' } } = {}) {
+function renderPage(record, { entity = { entityId: 'room-1', displayName: 'Room 101' }, books = [] } = {}) {
   mocks.getRecord.mockResolvedValue(record);
   mocks.getModule.mockResolvedValue(moduleDef);
   mocks.getModuleVersion.mockResolvedValue({ version: 1, formSchema: moduleDef.formSchema });
   mocks.getEntity.mockResolvedValue(entity);
   mocks.getResourceHistory.mockResolvedValue({ items: [] });
+  mocks.listBooks.mockResolvedValue(books);
+  mocks.registerEntry.mockResolvedValue({
+    entry: { ledgerEntryId: 'le_lb-1_rec-1', referenceNumber: 'RESV-2026-000001', sequenceNumber: 1 },
+    operationId: 'op-r',
+    idempotent: false,
+  });
   for (const fn of [mocks.submitRecord, mocks.archiveRecord, mocks.restoreRecord, mocks.cancelRecord]) {
     fn.mockResolvedValue({ record, operationId: 'op-x', idempotent: false });
   }
@@ -238,5 +248,33 @@ describe('Record Detail lifecycle actions', () => {
     mocks.submitRecord.mockRejectedValue(new Error('Guest is required'));
     fireEvent.click(await screen.findByRole('button', { name: 'Submit record' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Guest is required/);
+  });
+});
+
+describe('Record Detail — trusted Ledger registration', () => {
+  it('registers an unregistered submitted Record through the trusted ledgerCommand', async () => {
+    renderPage(makeRecord(), { books: [{ ledgerBookId: 'lb-1', name: 'Reservation Register', status: 'ACTIVE' }] });
+    fireEvent.click(await screen.findByRole('button', { name: 'Register in Ledger' }));
+    expect(mocks.registerEntry).toHaveBeenCalledWith({
+      workspaceId: 'ws-1',
+      recordId: 'rec-1',
+      ledgerBookId: 'lb-1',
+    });
+  });
+
+  it('shows no registration panel when the Record already has ledger linkage', async () => {
+    renderPage(makeRecord({ referenceNumber: 'RESV-2026-000001', ledgerBookId: 'lb-1', ledgerEntryId: 'le-1' }));
+    await screen.findByRole('heading', { name: 'Guest A' });
+    expect(screen.queryByRole('button', { name: 'Register in Ledger' })).toBeNull();
+    expect(screen.getByText('RESV-2026-000001')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View Book' })).toHaveAttribute('href', '/app/ledger/lb-1');
+  });
+
+  it('shows no registration panel for DRAFT Records', async () => {
+    renderPage(makeRecord({ status: 'DRAFT', submittedBy: null, submittedAt: null }), {
+      books: [{ ledgerBookId: 'lb-1', name: 'Book', status: 'ACTIVE' }],
+    });
+    await screen.findByRole('heading', { name: 'Guest A' });
+    expect(screen.queryByRole('button', { name: 'Register in Ledger' })).toBeNull();
   });
 });

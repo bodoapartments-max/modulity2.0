@@ -142,7 +142,7 @@ export default function RecordEditPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [workspaceId, recordId, persist, saveState, navigate]);
+  }, [workspaceId, recordId, persist, saveState, navigate, actor]);
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

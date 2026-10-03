@@ -28,11 +28,13 @@ import { createModuleSubmissionService } from '../modules/moduleSubmissionServic
 import { createLedgerService } from '../core/ledger/ledgerService.js';
 import { createLedgerQueryService } from '../core/ledger/ledgerQueryService.js';
 import { createAuditService } from '../core/audit/auditService.js';
-import { startAuditBridge } from '../core/audit/auditBridge.js';
 import { eventBus } from '../core/events/eventBus.js';
 
 export function bootstrapServices(servicesInstance) {
-  startAuditBridge(eventBus, servicesInstance.audit);
+  // Step 16: the browser AuditBridge was retired — durable Audit evidence is
+  // authored exclusively by trusted server boundaries (recordCommand,
+  // ledgerCommand, workspaceReset, automatApply). Browsers may only READ
+  // audit entries (Record History). The notification bridge remains.
   startNotificationBridge(eventBus, servicesInstance.notification);
   return servicesInstance;
 }
@@ -53,6 +55,7 @@ import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRunti
 import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
 import { recordCommandClient } from './firebase/recordCommandClient.js';
+import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
 import {
   buildCreateRecordCommand,
   buildUpdateDraftCommand,
@@ -62,6 +65,10 @@ import {
   buildRestoreRecordCommand,
   buildCancelRecordCommand,
 } from '../core/recordCommands/recordCommandContract.js';
+import {
+  buildCreateLedgerBookCommand,
+  buildRegisterLedgerEntryCommand,
+} from '../core/ledger/ledgerCommandContract.js';
 import { generateId } from '../core/utils/generateId.js';
 
 function createServices() {
@@ -169,6 +176,17 @@ function createServices() {
     },
   });
 
+  const ledgerCommand = Object.freeze({
+    async createBook({ workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', operationId = generateId() }) {
+      return ledgerCommandClient.execute(buildCreateLedgerBookCommand({
+        operationId, workspaceId, ledgerCode, name, description, moduleId, recordType, blockSize, referencePrefix,
+      }));
+    },
+    async registerEntry({ workspaceId, recordId, ledgerBookId, operationId = generateId() }) {
+      return ledgerCommandClient.execute(buildRegisterLedgerEntryCommand({ operationId, workspaceId, recordId, ledgerBookId }));
+    },
+  });
+
   return {
     workspace: createWorkspaceService({
       workspaceRepo: repositories.workspaces,
@@ -212,6 +230,7 @@ function createServices() {
       recordCommand,
     }),
     recordCommand,
+    ledgerCommand,
     recordQuery: recordQuerySvc,
     recordOperation: recordOpSvc,
     delivery: deliverySvc,
