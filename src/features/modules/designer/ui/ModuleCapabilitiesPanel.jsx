@@ -4,7 +4,7 @@ import Button from '../../../../design-system/components/Button/Button.jsx';
 import { useWorkspace } from '../../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../../app/providers/AuthProvider.jsx';
 import services from '../../../../infrastructure/services.js';
-import { createCalendarDefinitionV1 } from '../../../../core/capabilities/calendarDefinitionV1.js';
+import { createCalendarDefinitionV1 } from '../../../../engines/calendar/index.js';
 import { userActor } from '../../../../core/data/actorRef.js';
 
 const FIELD_TYPE_GROUPS = {

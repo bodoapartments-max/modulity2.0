@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import services from '../../../infrastructure/services.js';
-import { createCalendarDefinitionV1 } from '../../../core/capabilities/calendarDefinitionV1.js';
+import { createCalendarDefinitionV1 } from '../../../engines/calendar/index.js';
 import { userActor } from '../../../core/data/actorRef.js';
 
 export function useCalendarDefinitions({ workspace, membership, user }) {

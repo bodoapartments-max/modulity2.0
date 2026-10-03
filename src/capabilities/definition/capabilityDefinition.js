@@ -8,7 +8,7 @@
  * Does NOT store projected business data.
  */
 
-import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, createCapabilityDefinition } from './capabilityContracts.js';
+import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, createCapabilityDefinition } from '../contracts/capabilityContracts.js';
 
 /**
  * @typedef {Object} CapabilityDefinition

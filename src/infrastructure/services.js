@@ -42,8 +42,10 @@ import { createConversationService } from '../core/workspace/conversationService
 import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
 import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';
 import { createReportService } from '../core/analytics/reportService.js';
-import { createCapabilityDefinitionService } from '../core/capabilities/capabilityDefinitionService.js';
-import { createCapabilityRuntime } from '../core/capabilities/capabilityRuntime.js';
+import { createCapabilityDefinitionService } from '../capabilities/definition/capabilityDefinitionService.js';
+import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRuntime.js';
+import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
+import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
 
 function createServices() {
   if (!repositories) {
@@ -190,11 +192,19 @@ function createServices() {
       moduleRepo: repositories.modules,
       entityTypeRepo: repositories.entityTypes,
     }),
-    capabilityRuntime: createCapabilityRuntime({
-      recordRepo: repositories.records,
-      moduleRepo: repositories.modules,
-      entityRepo: repositories.entities,
-    }),
+    capabilityRuntime: (() => {
+      const capabilityRegistry = createBuiltInCapabilityRegistry({
+        calendar: { definitionValidator: validateCalendarDefinitionV1 },
+      });
+      const runtime = createCapabilityRuntime({
+        registry: capabilityRegistry,
+        recordRepo: repositories.records,
+        moduleRepo: repositories.modules,
+        entityRepo: repositories.entities,
+      });
+      runtime.registerEngineFactory('calendar', '1.0.0', createCalendarEngine);
+      return runtime;
+    })(),
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,
       worksetRepo: repositories.worksets,

@@ -3,7 +3,7 @@
  *
  * Path: workspaces/{workspaceId}/capabilityDefinitions/{definitionId}
  *
- * @module core/capabilities/capabilityDefinitionRepository
+ * @module capabilities/definition/capabilityDefinitionRepository
  */
 
 /**

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createWorkspaceConfigurationSnapshot } from '../../agents/automat/automatContracts.js';
 import { createWorkspaceSemanticModel } from '../../agents/planning/workspaceArchitect.js';
+import { createCalendarDefinitionV1, validateCalendarDefinitionV1 } from '../../engines/calendar/validation/calendarDefinitionV1.js';
+import { CAPABILITY_AVAILABILITY, CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY_MODES, CAPABILITY_SOURCE_KINDS, assertCapabilityConfigurationSafe, createCapabilityBinding, createCapabilityDefinition, createCapabilityEngineDescriptor, createCapabilitySourceRef } from '../contracts/capabilityContracts.js';
 import { createArchitectCapabilityCatalog, createBuiltInCapabilityRegistry } from './builtInCapabilityCatalog.js';
-import { createCalendarDefinitionV1 } from './calendarDefinitionV1.js';
-import { CAPABILITY_AVAILABILITY, CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY_MODES, CAPABILITY_SOURCE_KINDS, assertCapabilityConfigurationSafe, createCapabilityBinding, createCapabilityDefinition, createCapabilityEngineDescriptor, createCapabilitySourceRef } from './capabilityContracts.js';
 import { CapabilityEngineRegistry } from './capabilityEngineRegistry.js';
 
 const workspaceId = 'workspace-capability';
@@ -50,14 +50,14 @@ describe('Composable Capability Engine architecture', () => {
     ['Holiday', 'module:HOLIDAY_REQUEST', { titleField: 'employeeName', startField: 'startDate', endField: 'endDate', resourceField: 'employee' }],
     ['Meeting', 'module:MEETING', { titleField: 'title', startField: 'startDateTime', endField: 'endDateTime', resourceField: 'location' }],
   ])('validates CalendarDefinitionV1 %s mapping without a Calendar runtime', async (_name, sourceRef, mapping) => {
-    const result = await createBuiltInCapabilityRegistry().validateDefinition(calendar(sourceRef, mapping), context());
+    const result = await createBuiltInCapabilityRegistry({ calendar: { definitionValidator: validateCalendarDefinitionV1 } }).validateDefinition(calendar(sourceRef, mapping), context());
     expect(result.valid).toBe(true);
     expect(result.operational).toBe(false);
     expect(result.definition.configuration.mapping).toEqual(mapping);
   });
 
   it('rejects unknown sources, unknown fields, wrong field types, and active architecture-only definitions', async () => {
-    const registry = createBuiltInCapabilityRegistry();
+    const registry = createBuiltInCapabilityRegistry({ calendar: { definitionValidator: validateCalendarDefinitionV1 } });
     const unknownEngine = createCapabilityDefinition({ definitionId: 'unknown:def', definitionVersion: '1.0.0', engineId: 'unknown', contractVersion: '1.0.0', workspaceId, source: { kind: 'MODULE', ref: 'module:RESERVATION', workspaceId }, configuration: {}, status: 'DRAFT' });
     expect((await registry.validateDefinition(unknownEngine, context())).issues.map((item) => item.code)).toContain('UNKNOWN_ENGINE');
     expect((await registry.validateDefinition(calendar('module:UNKNOWN', { titleField: 'title', startField: 'startDate' }), context())).issues.map((item) => item.code)).toContain('UNKNOWN_SOURCE');
@@ -70,7 +70,7 @@ describe('Composable Capability Engine architecture', () => {
   });
 
   it('enforces resolver Workspace ownership for Personal and Organization compatible contracts', async () => {
-    const registry = createBuiltInCapabilityRegistry();
+    const registry = createBuiltInCapabilityRegistry({ calendar: { definitionValidator: validateCalendarDefinitionV1 } });
     const personal = await registry.validateDefinition(calendar('module:RESERVATION', { titleField: 'guestName', startField: 'arrivalDate' }), context(workspaceId));
     expect(personal.valid).toBe(true);
     const cross = await registry.validateDefinition(calendar('module:RESERVATION', { titleField: 'guestName', startField: 'arrivalDate' }), { workspaceId, resolveSource: async () => ({ ...sources.get('module:RESERVATION'), workspaceId: 'other' }) });
@@ -104,7 +104,7 @@ describe('Composable Capability Engine architecture', () => {
   });
 
   it('keeps Engine, Definition, Binding and canonical data contracts distinct', () => {
-    const descriptorValue = createBuiltInCapabilityRegistry().get('calendar');
+    const descriptorValue = createBuiltInCapabilityRegistry({ calendar: { definitionValidator: validateCalendarDefinitionV1 } }).get('calendar');
     const definition = calendar('module:RESERVATION', { titleField: 'guestName', startField: 'arrivalDate' });
     const binding = createCapabilityBinding({ engineId: 'calendar', contractVersion: '1.0.0', definitionRef: definition.definitionId, sourceRef: definition.source.ref });
     expect(descriptorValue.mode).toBe(CAPABILITY_MODES.READ);

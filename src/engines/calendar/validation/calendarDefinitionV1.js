@@ -1,4 +1,4 @@
-import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY_SOURCE_KINDS, createCapabilityDefinition } from './capabilityContracts.js';
+import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY_SOURCE_KINDS, createCapabilityDefinition } from '../../../capabilities/contracts/capabilityContracts.js';
 
 export const CALENDAR_ENGINE_ID = 'calendar';
 export const CALENDAR_DEFINITION_TYPE = 'CalendarDefinitionV1';

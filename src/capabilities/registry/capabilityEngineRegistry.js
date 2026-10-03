@@ -1,4 +1,4 @@
-import { CAPABILITY_AVAILABILITY, CAPABILITY_LIMITS, createCapabilityDefinition, createCapabilityEngineDescriptor } from './capabilityContracts.js';
+import { CAPABILITY_AVAILABILITY, CAPABILITY_LIMITS, createCapabilityDefinition, createCapabilityEngineDescriptor } from '../contracts/capabilityContracts.js';
 
 export class CapabilityEngineRegistry {
   constructor() {

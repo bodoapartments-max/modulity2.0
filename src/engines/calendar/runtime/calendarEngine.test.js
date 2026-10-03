@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { createRecord } from '../../../core/data/record.js';
+import { RECORD_STATUSES } from '../../../core/data/record.js';
+import { createCalendarDefinitionV1 } from '../validation/calendarDefinitionV1.js';
 import { createCalendarEngine } from './calendarEngine.js';
-import { createCalendarDefinitionV1 } from './calendarDefinitionV1.js';
-import { createRecord } from '../data/record.js';
-import { RECORD_STATUSES } from '../data/record.js';
 
 const workspaceId = 'ws-cal';
 

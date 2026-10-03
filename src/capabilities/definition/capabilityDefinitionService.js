@@ -5,10 +5,10 @@
  * Enforces workspace authorization: personal owner or org OWNER/ADMIN.
  */
 
-import { AppError } from '../errors/appError.js';
-import { generateId } from '../utils/generateId.js';
+import { AppError } from '../../core/errors/appError.js';
+import { generateId } from '../../core/utils/generateId.js';
 import { createCapabilityDefinitionDocument, normalizeCapabilityDefinitionUpdates } from './capabilityDefinition.js';
-import { createCapabilitySourceRef } from './capabilityContracts.js';
+import { createCapabilitySourceRef } from '../contracts/capabilityContracts.js';
 
 function canManage(workspace, membership) {
   if (!workspace) return false;

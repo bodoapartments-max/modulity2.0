@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCapabilityDefinitionDocument, normalizeCapabilityDefinitionUpdates } from './capabilityDefinition.js';
-import { CAPABILITY_DEFINITION_STATUSES } from './capabilityContracts.js';
+import { CAPABILITY_DEFINITION_STATUSES } from '../contracts/capabilityContracts.js';
 
 const base = {
   definitionId: 'def-1',

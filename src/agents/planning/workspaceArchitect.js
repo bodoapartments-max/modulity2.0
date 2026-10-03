@@ -1,5 +1,5 @@
 import { AUTOMAT_BOUNDS } from '../automat/automatContracts.js';
-import { createArchitectCapabilityCatalog } from '../../core/capabilities/builtInCapabilityCatalog.js';
+import { createArchitectCapabilityCatalog } from '../../capabilities/registry/builtInCapabilityCatalog.js';
 
 export const WORKSPACE_ARCHITECT_SCHEMA_VERSION = '1.0.0';
 export const WORKSPACE_ARCHITECT_BOUNDS = Object.freeze({ MAX_ITEMS_PER_KIND: 50, MAX_FIELDS_PER_RESOURCE: 20, MAX_CONTEXT_BYTES: 60_000 });

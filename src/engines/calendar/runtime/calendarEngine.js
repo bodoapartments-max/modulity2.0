@@ -11,9 +11,9 @@
  * - Projections are rebuildable from canonical data.
  */
 
-import { CAPABILITY_DEFINITION_STATUSES } from './capabilityContracts.js';
-import { validateCalendarDefinitionV1, CALENDAR_DEFINITION_TYPE } from './calendarDefinitionV1.js';
-import { createCalendarEventProjection } from './calendarProjection.js';
+import { CAPABILITY_DEFINITION_STATUSES } from '../../../capabilities/contracts/capabilityContracts.js';
+import { validateCalendarDefinitionV1, CALENDAR_DEFINITION_TYPE } from '../validation/calendarDefinitionV1.js';
+import { createCalendarEventProjection } from '../domain/calendarProjection.js';
 
 function isValidDateString(value) {
   if (typeof value !== 'string' || !value) return false;
