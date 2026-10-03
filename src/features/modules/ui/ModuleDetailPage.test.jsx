@@ -6,8 +6,8 @@ import { WorkspaceContext } from '../../../app/providers/WorkspaceProvider.jsx';
 import EditModulePage from './EditModulePage.jsx';
 import ModuleDetailPage from './ModuleDetailPage.jsx';
 
-const mocks = vi.hoisted(() => ({ getModule: vi.fn(), updateModule: vi.fn() }));
-vi.mock('../../../infrastructure/services.js', () => ({ default: { module: { getModule: mocks.getModule, updateModule: mocks.updateModule } } }));
+const mocks = vi.hoisted(() => ({ getModule: vi.fn(), updateModule: vi.fn(), activateModule: vi.fn(), seedCoreTypes: vi.fn(), listEntityTypes: vi.fn() }));
+vi.mock('../../../infrastructure/services.js', () => ({ default: { module: { getModule: mocks.getModule, updateModule: mocks.updateModule, activateModule: mocks.activateModule }, entityType: { seedCoreTypes: mocks.seedCoreTypes, listEntityTypes: mocks.listEntityTypes }, entity: { listEntities: vi.fn().mockResolvedValue([]) } } }));
 
 describe('ModuleDetailPage identity boundary', () => {
   it('uses normalized userId without requiring Firebase uid', async () => {
@@ -17,10 +17,15 @@ describe('ModuleDetailPage identity boundary', () => {
   });
 
   it('uses normalized userId when editing without requiring Firebase uid', async () => {
-    mocks.getModule.mockResolvedValue({ moduleId: 'module-1', moduleCode: 'TEST', name: 'Test Module', status: 'DRAFT', version: 1, formSchema: { fields: [] }, recordConfig: { recordType: 'TEST' } });
-    mocks.updateModule.mockResolvedValue(undefined);
+    const draftModule = { moduleId: 'module-1', moduleCode: 'TEST', name: 'Test Module', description: '', category: '', status: 'DRAFT', version: 1, formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'name', label: 'Name', type: 'text', required: true }] }, displayConfig: { listFields: ['name'] }, recordConfig: { recordType: 'TEST' } };
+    mocks.getModule.mockResolvedValue(draftModule);
+    mocks.seedCoreTypes.mockResolvedValue([]);
+    mocks.listEntityTypes.mockResolvedValue([]);
+    mocks.updateModule.mockResolvedValue({ ...draftModule, name: 'Changed Module' });
+    mocks.activateModule.mockResolvedValue({ ...draftModule, name: 'Changed Module', status: 'ACTIVE' });
     render(<MemoryRouter initialEntries={['/app/modules/module-1/edit']}><AuthContext.Provider value={{ user: { userId: 'user-1' } }}><WorkspaceContext.Provider value={{ currentWorkspace: { workspaceId: 'ws-1' } }}><Routes><Route path="/app/modules/:moduleId/edit" element={<EditModulePage />} /><Route path="/app/modules/:moduleId" element={<div>Saved</div>} /></Routes></WorkspaceContext.Provider></AuthContext.Provider></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Save Changes' }));
+    fireEvent.change(await screen.findByDisplayValue('Test Module'), { target: { value: 'Changed Module' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish Module' }));
     await waitFor(() => expect(mocks.updateModule).toHaveBeenCalledWith('ws-1', 'module-1', expect.any(Object), { actorType: 'USER', actorId: 'user-1' }));
   });
 });

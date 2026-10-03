@@ -45,4 +45,8 @@ export function getFieldComponent(fieldType) {
   return FIELD_COMPONENT_MAP[fieldType] || UnsupportedField;
 }
 
+export function listRegisteredFieldTypes() {
+  return Object.freeze(Object.keys(FIELD_COMPONENT_MAP).sort());
+}
+
 export { FIELD_COMPONENT_MAP };

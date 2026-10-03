@@ -270,7 +270,7 @@ export function createFirestoreLedgerEntryRepository(db) {
       }
 
       return { ...entryData, _idempotent: false };
-    });
+    }, { maxAttempts: 50 });
   }
 
   /**

@@ -29,7 +29,7 @@ export const MODULE_STATUSES = Object.freeze({
 /**
  * @typedef {Object} DisplayConfig
  * @property {string} [primaryField] — field key used as primary display in lists
- * @property {string[]} [listFields] — field keys shown in list views (future)
+ * @property {string[]} [listFields] — field keys shown in generic Module Record lists
  */
 
 /**

@@ -221,6 +221,19 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - Type-level Relationship recommendations remain optional UNSUPPORTED planning output
 - Workspace Reset compatibility for plans, generated configuration, and lock state
 
+## Step 10.3 — Generic Module & Form Designer Foundation
+
+**Status:** CLOSED — BROWSER VERIFIED
+
+- Shared visual Designer for create/manual/Automat ModuleDefinition and FormSchema
+- Field palette derived from production Field Registry
+- Add/edit/remove/reorder, select options, EntityReference targets, supported validation, listFields and dirty state
+- Preview through production FormRenderer with no Record creation
+- Existing ModuleService DRAFT/activation/ACTIVE-version publication semantics
+- Historical Records remain bound to immutable Module Versions
+- No generated JSX, parallel form schema, Designer collection, or CapabilityDefinition persistence
+- Future AI and Photo/PDF proposals feed the same Designer draft/schema seam
+
 ## Step 10.2 — Composable Capability Engine Architecture
 
 **Status:** CLOSED — ARCHITECTURE/DEPLOYMENT VERIFIED
@@ -233,7 +246,7 @@ This document lists the planned development milestones. Steps 1–9 are intentio
 - No CapabilityDefinition persistence until the first real Engine milestone
 - Mandatory security, Workspace isolation, bounded configuration, derived-state, failure-isolation, and action-engine trust invariants
 
-### Future candidate: Step 10.3 — Calendar & Scheduling Foundation
+### Future candidate — Calendar & Scheduling Foundation
 
 Not implemented. Must define the first real Capability Engine runtime, trusted persistence/lifecycle, bounded canonical Record projection, and view behavior without Calendar event copies.
 

@@ -363,6 +363,12 @@ Step 9.2 persists/revalidates the reviewed plan through `automatPlan`, binds exp
 
 Automat-created Modules enter the same generic runtime as manual Modules: Module card → schema-driven paginated Record List → canonical Record Detail. Record queries normalize Firestore directions to lowercase, use deterministic document-ID tie-breaking and deployed composite indexes, and never download the Workspace for filtering. See `docs/AUTOMAT_ARCHITECTURE.md` and ADR-0002.
 
+## Step 10.3 — Generic Module & Form Designer
+
+The Designer is the human authoring surface for the existing ModuleDefinition/FormSchema contracts—not a new domain engine or form runtime. Create and edit routes share one bounded Designer draft model, field palette derived from the Field Registry, current-Workspace Entity Type references, displayConfig list fields, deterministic validation, and production FormRenderer preview.
+
+DRAFT edits remain draft; first activation creates immutable Version 1; ACTIVE publication creates the next immutable Module Version. Historical Records retain `moduleId + moduleVersion` and render through immutable snapshots. Manual, Automat, and future import/API authors converge into the same schema and ModuleService. Preview never creates Records. Capability configuration remains independent CapabilityDefinitions. See `MODULE_FORM_DESIGNER.md`.
+
 ## Step 10.2 — Composable Capability Engine Architecture
 
 Modulity now has a versioned contract/registry layer for optional reusable platform capabilities. Capability Engine, Capability Definition, Capability Binding, Capability View, and canonical business data are distinct. Independent declarative Definitions reference typed Workspace-scoped Modules, Entity Types, or Worksets; they never embed executable code or arbitrary database paths.

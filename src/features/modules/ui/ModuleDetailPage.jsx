@@ -196,12 +196,12 @@ export default function ModuleDetailPage() {
             </button>
           )}
 
-          {mod.status === 'DRAFT' && (
+          {mod.status !== 'ARCHIVED' && (
             <Link
               to={`/app/modules/${moduleId}/edit`}
               className="px-4 py-2 border border-neutral-300 text-neutral-600 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-colors"
             >
-              Edit
+              Open Designer
             </Link>
           )}
 

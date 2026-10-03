@@ -100,6 +100,11 @@ describe('ModuleService', () => {
       })).rejects.toThrow('uppercase');
     });
 
+    it('rejects EntityReference targets outside the current Workspace registry', async () => {
+      const guarded = createModuleService({ moduleRepo: repo, entityTypeRepo: { getById: async () => null, getByCode: async () => null } });
+      await expect(guarded.createModule({ workspaceId: 'ws-1', moduleCode: 'CROSS_REF', name: 'Cross Ref', formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'vehicle', label: 'Vehicle', type: 'entity-reference', entityTypeId: 'other-workspace-type', required: true }] }, createdBy: validActor })).rejects.toThrow('not available in this Workspace');
+    });
+
     it('rejects duplicate moduleCode in same workspace', async () => {
       await service.createModule({
         workspaceId: 'ws-1', moduleCode: 'TEST', name: 'Test 1', createdBy: validActor,

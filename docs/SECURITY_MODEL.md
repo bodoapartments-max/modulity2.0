@@ -432,6 +432,15 @@ All new workspace-scoped collections enforce:
 
 ---
 
+## Step 10.3 — Module Designer Security
+
+- Designer create/update uses existing ModuleService and existing Personal-owner / Organization ADMIN-or-OWNER Firestore authorization.
+- Module code, Workspace, creator, identity, and historical version snapshots remain immutable.
+- Designer validation rejects unsupported types/properties, unsafe executable/path keys, duplicate fields/options, invalid listFields, size/bounds violations, and unknown/cross-Workspace Entity Types.
+- ModuleService independently resolves EntityReference target types through the current Workspace Entity Type repository before create/update/activation.
+- Preview uses FormRenderer-local state and never invokes Record creation.
+- No Designer collection, localStorage canonical state, generated JSX, scripts, remote modules, permission grant, or CapabilityDefinition persistence exists.
+
 ## Step 10.2 — Capability Engine Security
 
 - Capability Definitions are configuration, never authority, permission, entitlement, credentials, or arbitrary database access.

@@ -301,6 +301,21 @@ Ledger events are **excluded** from AuditBridge to prevent duplicates.
 4. Add cross-workspace and cross-org negative tests in `tests/rules/`
 5. Document in `docs/SECURITY_MODEL.md`
 
+## Step 10.3 — Generic Module & Form Designer
+
+- User-created forms are canonical declarative FormSchemas, never generated per-form JSX/components.
+- Human Designer, Automat, future Photo/PDF import, and trusted APIs converge into the same ModuleDefinition/FormSchema contracts.
+- Designer is an authoring surface, not FormRenderer, Module Engine, Record Engine, Entity store, or Capability Engine.
+- Preview must use production FormRenderer and must never create a Record.
+- Existing ModuleService/version lifecycle is authoritative: DRAFT edits are mutable, first activation creates v1, ACTIVE schema publication creates the next immutable snapshot.
+- Historical Records must remain readable through their immutable `moduleId + moduleVersion`.
+- EntityReference fields use current-Workspace canonical Core/Domain Entity Types; no paths or duplicate reference systems.
+- Reject executable configuration, scripts, expressions, arbitrary Firestore paths, unsupported fields, invalid options/listFields, and unbounded schemas.
+- Designer does not grant authorization. Existing Personal-owner and Organization ADMIN/OWNER Module Rules remain authoritative.
+- Capability configuration remains independent CapabilityDefinitions; never embed arbitrary capability execution inside Module schemas.
+- Do not create business-specific form/list/detail components when FormRenderer and generic Record runtime suffice.
+- Future importers produce proposed schemas for human Designer review; they do not generate JSX or publish directly.
+
 ## Step 10.2 — Composable Capability Engines
 
 - Entity ≠ Module ≠ Record ≠ Capability Engine. Engine ≠ Definition ≠ Binding ≠ View.

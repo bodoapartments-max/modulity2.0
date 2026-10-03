@@ -28,7 +28,15 @@ import { AppError } from '../core/errors/appError.js';
  * @param {Object} deps
  * @param {import('./moduleRepository.js').ModuleRepository} deps.moduleRepo
  */
-export function createModuleService({ moduleRepo }) {
+export function createModuleService({ moduleRepo, entityTypeRepo = null }) {
+  async function validateEntityTypeReferences(workspaceId, formSchema) {
+    if (!entityTypeRepo) return;
+    const references = [...new Set((formSchema?.fields || []).filter((field) => field.type === 'entity-reference').map((field) => field.entityTypeId))];
+    for (const reference of references) {
+      const entityType = String(reference).startsWith('entityType:') && entityTypeRepo.getByCode ? await entityTypeRepo.getByCode(workspaceId, String(reference).slice('entityType:'.length)) : await entityTypeRepo.getById(workspaceId, reference);
+      if (!entityType) throw new AppError('validation_error', `Entity Type reference is not available in this Workspace: ${reference}`);
+    }
+  }
   /**
    * Creates a new Module in DRAFT status with atomic code reservation.
    */
@@ -70,6 +78,8 @@ export function createModuleService({ moduleRepo }) {
         throw new AppError('validation_error', `Invalid form schema: ${schemaResult.errors.join('; ')}`);
       }
     }
+
+    await validateEntityTypeReferences(workspaceId, formSchema);
 
     const mod = createModule({
       moduleId: generateId(),
@@ -149,6 +159,7 @@ export function createModuleService({ moduleRepo }) {
           throw new AppError('validation_error', `Invalid form schema: ${schemaResult.errors.join('; ')}`);
         }
       }
+      await validateEntityTypeReferences(workspaceId, schema);
     }
 
     // If form schema changes on an ACTIVE module, increment version and create snapshot
@@ -234,6 +245,8 @@ export function createModuleService({ moduleRepo }) {
     if (!schemaResult.valid) {
       throw new AppError('validation_error', `Invalid form schema: ${schemaResult.errors.join('; ')}`);
     }
+
+    await validateEntityTypeReferences(workspaceId, existing.formSchema);
 
     // Create immutable version snapshot
     const snapshot = createModuleVersionSnapshot({

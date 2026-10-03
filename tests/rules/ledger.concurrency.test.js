@@ -126,7 +126,7 @@ async function registerRecordAtomic(db, workspaceId, {
     }
 
     return { ...entryData, _idempotent: false };
-  });
+  }, { maxAttempts: 50 });
 }
 
 beforeAll(async () => {

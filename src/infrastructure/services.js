@@ -159,6 +159,7 @@ function createServices() {
     }),
     module: createModuleService({
       moduleRepo: repositories.modules,
+      entityTypeRepo: repositories.entityTypes,
     }),
     moduleSubmission: createModuleSubmissionService({
       moduleRepo: repositories.modules,

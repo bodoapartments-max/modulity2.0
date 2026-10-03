@@ -2,6 +2,24 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 10.3 — Generic Module & Form Designer Foundation
+
+### Added
+- One responsive generic Module Designer shared by create and edit routes for manual and Automat-generated Modules
+- Registry-derived field palette; add/edit/remove/keyboard reorder, required/help/placeholder, numeric/text constraints, select options, Core/Domain EntityReference targets, and listFields
+- Bounded deterministic Designer draft validation and unsafe executable/path configuration rejection
+- Live preview through production FormRenderer; preview submission never creates canonical Records
+- Save DRAFT / Publish v1 / publish ACTIVE next-version behavior through existing ModuleService
+- ModuleService current-Workspace Entity Type resolution for EntityReference create/update/activation
+- Dirty-state indicators, unload/cancel protection, responsive sections, and future independent CapabilityDefinitions notice
+- Canonical integration test proving Vehicle Inspection v1/v2, EntityReferences, Records, and immutable historical snapshots
+- Ledger registration transaction retry budget increased for high-contention idempotent same-Record registration after full-suite concurrency exposed exhausted default retries
+- `MODULE_FORM_DESIGNER.md` documenting one-schema/multiple-author, future Photo/PDF/AI seams, limits, versioning, and security
+- Authenticated Reset Test Hotel verification: generic Vehicle Inspection Designer/preview/publish/Record flow, canonical Vehicle/Employee references, Automat Reservation v1→v2 edit, historical v1 readability, new v2 Internal Notes Record, and desktop/768px/375px pass
+
+### Persistence
+- Existing Module, Module Version, code reservation, Entity Type, and Record repositories are reused. No Designer/form draft collection, indexes, reset path, or canonical local storage was added.
+
 ## Step 10.2 — Composable Capability Engine Architecture
 
 ### Added

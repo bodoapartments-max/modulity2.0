@@ -101,6 +101,10 @@ Field types: `text`, `number`, `date`, `boolean`, `select`, `entity-reference`, 
 
 An Entity exists once. Modules reference it. Example: Room 214 is referenced by Reservation, Housekeeping, Maintenance and Damage Report modules.
 
+### Module Designer authoring (Step 10.3)
+
+The Designer persists no separate model. In-memory Designer draft → canonical ModuleDefinition/FormSchema → immutable Module Version → canonical Records. `displayConfig.listFields` remains presentation configuration, EntityReference fields point to canonical Entity Types, and preview values are never business data. Manual, Automat, and future imported proposals use the same contracts.
+
 ### Capability architecture (Step 10.2)
 
 CapabilityEngineDescriptor, CapabilityDefinition, CapabilityBinding, and Capability View are not Entity Types, Entities, Modules, or Records. Definitions are versioned declarative configuration referencing typed canonical sources; Views/projections remain derived and rebuildable. Step 10.2 persists none of these contracts, adds no canonical collection, and creates no Calendar event data. See `CAPABILITY_ENGINE_ARCHITECTURE.md`.
