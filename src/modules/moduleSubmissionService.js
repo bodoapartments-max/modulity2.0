@@ -150,8 +150,26 @@ export function createModuleSubmissionService({ moduleRepo, recordService, entit
 
   /**
    * Submits a draft Record (changes status from DRAFT to SUBMITTED).
+   *
+   * With the trusted command boundary configured, this delegates to the
+   * server-authoritative SUBMIT_RECORD command (required because client-side
+   * submission is blocked by Rules — submittedBy is immutable for clients).
+   * The legacy client-side fallback only exists for offline tests.
    */
   async function submitDraft({ workspaceId, recordId, actor }) {
+    if (recordCommand?.submitRecord) {
+      const { record } = await recordCommand.submitRecord({ workspaceId, recordId });
+
+      eventBus.emit(createEvent({
+        eventType: 'module.record_submitted',
+        workspaceId,
+        actor: { type: actor.actorType === 'USER' ? 'user' : 'service', id: actor.actorId },
+        payload: { recordId, moduleId: record.moduleId },
+      }));
+
+      return record;
+    }
+
     const record = await recordService.getRecord(workspaceId, recordId);
     if (!record) {
       throw new AppError('not_found', 'Record not found');

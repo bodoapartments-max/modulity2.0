@@ -53,7 +53,15 @@ import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRunti
 import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
 import { recordCommandClient } from './firebase/recordCommandClient.js';
-import { buildCreateRecordCommand } from '../core/recordCommands/recordCommandContract.js';
+import {
+  buildCreateRecordCommand,
+  buildUpdateDraftCommand,
+  buildSubmitRecordCommand,
+  buildSetPriorityCommand,
+  buildArchiveRecordCommand,
+  buildRestoreRecordCommand,
+  buildCancelRecordCommand,
+} from '../core/recordCommands/recordCommandContract.js';
 import { generateId } from '../core/utils/generateId.js';
 
 function createServices() {
@@ -134,10 +142,30 @@ function createServices() {
     moduleRepo: repositories.modules,
   });
 
+  const executeCommand = (command) => recordCommandClient.execute(command);
+
   const recordCommand = Object.freeze({
     async submit({ workspaceId, moduleId, actor: _actor, values, isDraft = false, operationId = generateId() }) {
-      const command = buildCreateRecordCommand({ operationId, workspaceId, moduleId, values, isDraft });
-      return recordCommandClient.execute(command);
+      return executeCommand(buildCreateRecordCommand({ operationId, workspaceId, moduleId, values, isDraft }));
+    },
+    execute: executeCommand,
+    async updateDraft({ workspaceId, recordId, values, operationId = generateId() }) {
+      return executeCommand(buildUpdateDraftCommand({ operationId, workspaceId, recordId, values }));
+    },
+    async submitRecord({ workspaceId, recordId, operationId = generateId() }) {
+      return executeCommand(buildSubmitRecordCommand({ operationId, workspaceId, recordId }));
+    },
+    async setPriority({ workspaceId, recordId, priority, operationId = generateId() }) {
+      return executeCommand(buildSetPriorityCommand({ operationId, workspaceId, recordId, priority }));
+    },
+    async archiveRecord({ workspaceId, recordId, operationId = generateId() }) {
+      return executeCommand(buildArchiveRecordCommand({ operationId, workspaceId, recordId }));
+    },
+    async restoreRecord({ workspaceId, recordId, operationId = generateId() }) {
+      return executeCommand(buildRestoreRecordCommand({ operationId, workspaceId, recordId }));
+    },
+    async cancelRecord({ workspaceId, recordId, operationId = generateId() }) {
+      return executeCommand(buildCancelRecordCommand({ operationId, workspaceId, recordId }));
     },
   });
 

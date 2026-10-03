@@ -12,13 +12,16 @@ const mocks = vi.hoisted(() => ({
   getModuleVersion: vi.fn(),
   getEntity: vi.fn(),
   listEntities: vi.fn(),
-  updateDraftRecord: vi.fn(),
+  updateDraft: vi.fn(),
+  submitDraft: vi.fn(),
 }));
 vi.mock('../../../infrastructure/services.js', () => ({
   default: {
-    record: { getRecord: mocks.getRecord, updateDraftRecord: mocks.updateDraftRecord },
+    record: { getRecord: mocks.getRecord },
     module: { getModule: mocks.getModule, getModuleVersion: mocks.getModuleVersion },
     entity: { getEntity: mocks.getEntity, listEntities: mocks.listEntities },
+    recordCommand: { updateDraft: mocks.updateDraft },
+    moduleSubmission: { submitDraft: mocks.submitDraft },
   },
 }));
 
@@ -61,7 +64,8 @@ function renderPage(record = draftRecord) {
   mocks.getModuleVersion.mockResolvedValue({ version: 1, formSchema: moduleDef.formSchema });
   mocks.getEntity.mockResolvedValue({ entityId: 'room-1', displayName: 'Room 101' });
   mocks.listEntities.mockResolvedValue([]);
-  mocks.updateDraftRecord.mockResolvedValue({ ...record, updatedAt: '2026-10-03T10:00:00.000Z' });
+  mocks.updateDraft.mockResolvedValue({ record: { ...record, updatedAt: '2026-10-03T10:00:00.000Z' }, operationId: 'op-x', idempotent: false });
+  mocks.submitDraft.mockResolvedValue({ ...record, status: 'SUBMITTED' });
 
   return render(
     <MemoryRouter initialEntries={[`/app/records/${record.recordId}/edit`]}>
@@ -78,8 +82,8 @@ function renderPage(record = draftRecord) {
 }
 
 const lastSave = () => {
-  const call = mocks.updateDraftRecord.mock.calls.at(-1);
-  return { workspaceId: call[0], recordId: call[1], changes: call[2], actor: call[3] };
+  const call = mocks.updateDraft.mock.calls.at(-1)[0];
+  return call;
 };
 
 beforeEach(() => {
@@ -100,49 +104,48 @@ describe('Record Edit — guards', () => {
     renderPage({ ...draftRecord, status: 'SUBMITTED' });
     expect(await screen.findByText(/can no longer be edited/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
-    expect(mocks.updateDraftRecord).not.toHaveBeenCalled();
+    expect(mocks.updateDraft).not.toHaveBeenCalled();
   });
 });
 
 describe('Record Edit — saving', () => {
-  it('manual save updates the same draft with derived entity references, without validation blocking partial drafts', async () => {
+  it('manual save sends current form values through the trusted UPDATE_DRAFT command, without validation blocking partial drafts', async () => {
     renderPage();
     const guestInput = await screen.findByDisplayValue('Draft Guest');
     fireEvent.change(guestInput, { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await screen.findByText(/All changes saved/);
-    const { workspaceId, recordId, changes, actor } = lastSave();
-    expect(workspaceId).toBe('ws-1');
-    expect(recordId).toBe('rec-draft');
-    expect(changes.data.guest).toBeUndefined();
-    expect(changes.entityReferences).toEqual([roomRef]);
-    expect(actor).toEqual({ actorType: 'USER', actorId: 'user-1' });
+    const call = lastSave();
+    expect(call.workspaceId).toBe('ws-1');
+    expect(call.recordId).toBe('rec-draft');
+    expect(call.values.guest).toBeUndefined();
+    expect(call.values.room).toEqual(roomRef);
+    expect(typeof call.operationId).toBe('string');
   });
 
-  it('autosaves debounced changes to the same draft record', async () => {
+  it('autosaves debounced changes through trusted UPDATE_DRAFT to the same draft record', async () => {
     renderPage();
     const guestInput = await screen.findByDisplayValue('Draft Guest');
 
     vi.useFakeTimers();
     fireEvent.change(guestInput, { target: { value: 'Draft Guest Updated' } });
-    expect(mocks.updateDraftRecord).not.toHaveBeenCalled();
+    expect(mocks.updateDraft).not.toHaveBeenCalled();
 
     await act(async () => {
       vi.advanceTimersByTime(1500);
       await Promise.resolve();
     });
 
-    expect(mocks.updateDraftRecord).toHaveBeenCalledTimes(1);
-    expect(lastSave().changes.data.guest).toBe('Draft Guest Updated');
+    expect(mocks.updateDraft).toHaveBeenCalledTimes(1);
+    expect(lastSave().values.guest).toBe('Draft Guest Updated');
     vi.useRealTimers();
     expect(await screen.findByText(/All changes saved/)).toBeInTheDocument();
   });
 
-  it('shows an error state and retry when saving fails', async () => {
+  it('reuses the operationId when retrying an identical failed payload', async () => {
     renderPage();
-    // Force persistance failure AFTER the page mocks have installed their defaults
-    mocks.updateDraftRecord.mockReset();
-    mocks.updateDraftRecord.mockRejectedValue(new Error('permission-denied'));
+    mocks.updateDraft.mockReset();
+    mocks.updateDraft.mockRejectedValueOnce(new Error('permission-denied'));
     const guestInput = await screen.findByDisplayValue('Draft Guest');
     vi.useFakeTimers();
     fireEvent.change(guestInput, { target: { value: 'X' } });
@@ -152,6 +155,42 @@ describe('Record Edit — saving', () => {
     });
     vi.useRealTimers();
     expect(await screen.findByRole('alert')).toHaveTextContent(/Save failed — permission-denied/);
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    const failedOpId = lastSave().operationId;
+
+    mocks.updateDraft.mockResolvedValue({ record: { ...draftRecord }, operationId: failedOpId, idempotent: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await screen.findByText(/All changes saved/);
+    expect(lastSave().operationId).toBe(failedOpId);
+  });
+});
+
+describe('Record Edit — submit', () => {
+  it('submits the draft through the trusted SUBMIT_RECORD path and navigates to the detail view', async () => {
+    renderPage();
+    await screen.findByDisplayValue('Draft Guest');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit record' }));
+    await screen.findByText('Detail');
+    expect(mocks.submitDraft).toHaveBeenCalledTimes(1);
+    expect(mocks.submitDraft.mock.calls[0][0]).toMatchObject({ workspaceId: 'ws-1', recordId: 'rec-draft' });
+  });
+
+  it('flushes pending autosave edits before submitting', async () => {
+    renderPage();
+    const guestInput = await screen.findByDisplayValue('Draft Guest');
+    fireEvent.change(guestInput, { target: { value: 'Final' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit record' }));
+    await screen.findByText('Detail');
+    expect(mocks.updateDraft).toHaveBeenCalledTimes(1);
+    expect(lastSave().values.guest).toBe('Final');
+    expect(mocks.submitDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the server rejection and keeps editing when submit validation fails', async () => {
+    renderPage();
+    mocks.submitDraft.mockRejectedValue(new Error('Guest is required'));
+    await screen.findByDisplayValue('Draft Guest');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit record' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Guest is required/);
+    expect(screen.queryByText('Detail')).toBeNull();
   });
 });

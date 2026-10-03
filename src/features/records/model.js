@@ -1,4 +1,5 @@
 import { formatDisplayValue } from '../../modules/forms/displayFormatter.js';
+import { evaluateRecordAction, RECORD_ACTIONS } from '../../core/recordCommands/recordActionPolicy.js';
 
 export function getRecordBackNavigation(fromModuleId, moduleDefinition) {
   if (moduleDefinition && fromModuleId === moduleDefinition.moduleId) return { to: `/app/modules/${moduleDefinition.moduleId}/records`, label: `Back to ${moduleDefinition.name} Records` };
@@ -61,6 +62,35 @@ export function getRecordPriorityVariant(priority) {
 /** Only DRAFT Records may be edited (RecordService + Firestore Rules agree). */
 export function canEditRecordDraft(record) {
   return record?.status === 'DRAFT';
+}
+
+/**
+ * Centralized Record action discovery for UI. Uses the shared pure Record
+ * Action Policy — server re-evaluates authoritatively on every command.
+ * This decides which action controls to SHOW; it is never authorization.
+ *
+ * @param {Object|null} record
+ * @param {Object|null} mod — the Record's source Module
+ * @param {Object} actorContext — { authenticated, workspaceAccess }
+ * @returns {Array<{ action: string, enabled: boolean, reasonCode: string|null }>}
+ */
+export function getAvailableRecordActions(record, mod, actorContext) {
+  const actions = [
+    RECORD_ACTIONS.EDIT_DRAFT,
+    RECORD_ACTIONS.SUBMIT_RECORD,
+    RECORD_ACTIONS.ARCHIVE_RECORD,
+    RECORD_ACTIONS.RESTORE_RECORD,
+    RECORD_ACTIONS.CANCEL_RECORD,
+  ];
+  return actions.map((action) => {
+    // An already-archived Record must not SHOW "Archive" even though the
+    // command itself is an idempotent no-op on the server.
+    if (action === RECORD_ACTIONS.ARCHIVE_RECORD && record?.status === 'ARCHIVED') {
+      return { action, enabled: false, reasonCode: 'ALREADY_IN_STATE' };
+    }
+    const result = evaluateRecordAction({ actorContext, record, module: mod, action });
+    return { action, enabled: result.allowed, reasonCode: result.reasonCode };
+  });
 }
 
 /**

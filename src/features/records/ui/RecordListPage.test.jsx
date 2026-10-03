@@ -9,14 +9,14 @@ import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js'
 const mocks = vi.hoisted(() => ({
   listModules: vi.fn(),
   queryRecords: vi.fn(),
-  bulkOperation: vi.fn(),
+  archiveRecord: vi.fn(),
   toggleStar: vi.fn(),
 }));
 vi.mock('../../../infrastructure/services.js', () => ({
   default: {
     module: { listModules: mocks.listModules },
     recordQuery: { queryRecords: mocks.queryRecords },
-    recordOperation: { bulkOperation: mocks.bulkOperation },
+    recordCommand: { archiveRecord: mocks.archiveRecord },
     folder: { toggleStar: mocks.toggleStar },
   },
 }));
@@ -129,5 +129,24 @@ describe('global Record List', () => {
     await waitFor(() => {
       expect(lastCall()).toMatchObject({ status: null });
     });
+  });
+});
+
+describe('bulk archive via trusted commands', () => {
+  it('archives each selected record through its own ARCHIVE_RECORD command', async () => {
+    mocks.queryRecords.mockResolvedValue({
+      items: [record('rec-1', 'Guest A'), record('rec-2', 'Guest B')],
+      hasMore: false,
+      nextCursor: null,
+    });
+    mocks.archiveRecord.mockResolvedValue({ record: null, idempotent: false });
+    renderPage();
+    await screen.findByText('Guest A');
+    fireEvent.click(screen.getByLabelText('Select record rec-1'));
+    fireEvent.click(screen.getByLabelText('Select record rec-2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Selected' }));
+    await waitFor(() => expect(mocks.archiveRecord).toHaveBeenCalledTimes(2));
+    expect(mocks.archiveRecord).toHaveBeenCalledWith({ workspaceId: 'workspace-1', recordId: 'rec-1' });
+    expect(mocks.archiveRecord).toHaveBeenCalledWith({ workspaceId: 'workspace-1', recordId: 'rec-2' });
   });
 });

@@ -198,10 +198,11 @@ export default function RecordListPage() {
   const handleBulkArchive = async () => {
     if (selectedIds.size === 0) return;
     try {
-      const actor = { actorType: 'USER', actorId: userId };
-      await services?.recordOperation?.bulkOperation(
-        workspaceId, [...selectedIds], 'archive', {}, actor,
-      );
+      // Bulk archive is a presentation convenience: each Record is archived
+      // through its own trusted ARCHIVE_RECORD command (server-authoritative).
+      for (const recordId of [...selectedIds]) {
+        await services?.recordCommand?.archiveRecord({ workspaceId, recordId });
+      }
       setSelectedIds(new Set());
       workspaceQueryCache.invalidate(`${workspaceId}:widgetResult:`);
       reset();

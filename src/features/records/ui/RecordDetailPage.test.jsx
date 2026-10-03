@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '../../../app/providers/AuthProvider.jsx';
 import { WorkspaceContext } from '../../../app/providers/WorkspaceProvider.jsx';
+import { ToastProvider } from '../../../design-system/index.js';
 import RecordDetailPage from './RecordDetailPage.jsx';
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   getModuleVersion: vi.fn(),
   getEntity: vi.fn(),
   getResourceHistory: vi.fn(),
+  submitRecord: vi.fn(),
+  archiveRecord: vi.fn(),
+  restoreRecord: vi.fn(),
+  cancelRecord: vi.fn(),
 }));
 vi.mock('../../../infrastructure/services.js', () => ({
   default: {
@@ -18,6 +23,12 @@ vi.mock('../../../infrastructure/services.js', () => ({
     module: { getModule: mocks.getModule, getModuleVersion: mocks.getModuleVersion },
     entity: { getEntity: mocks.getEntity },
     audit: { getResourceHistory: mocks.getResourceHistory },
+    recordCommand: {
+      submitRecord: mocks.submitRecord,
+      archiveRecord: mocks.archiveRecord,
+      restoreRecord: mocks.restoreRecord,
+      cancelRecord: mocks.cancelRecord,
+    },
   },
 }));
 
@@ -69,19 +80,24 @@ function renderPage(record, { entity = { entityId: 'room-1', displayName: 'Room 
   mocks.getModuleVersion.mockResolvedValue({ version: 1, formSchema: moduleDef.formSchema });
   mocks.getEntity.mockResolvedValue(entity);
   mocks.getResourceHistory.mockResolvedValue({ items: [] });
+  for (const fn of [mocks.submitRecord, mocks.archiveRecord, mocks.restoreRecord, mocks.cancelRecord]) {
+    fn.mockResolvedValue({ record, operationId: 'op-x', idempotent: false });
+  }
 
   return render(
     <MemoryRouter initialEntries={[`/app/records/${record.recordId}`]}>
       <AuthContext.Provider value={{ user: { userId: 'user-1' } }}>
-        <WorkspaceContext.Provider value={{ currentWorkspace: { workspaceId: 'ws-1', name: 'Reset Test Hotel' } }}>
-          <Routes>
-            <Route path="/app/records/:recordId" element={<RecordDetailPage />} />
-            <Route path="/app/records" element={<div>Records List</div>} />
-            <Route path="/app/records/:recordId/edit" element={<div>Edit Page</div>} />
-            <Route path="/app/modules/:moduleId" element={<div>Module Detail</div>} />
-            <Route path="/app/modules/:moduleId/form" element={<FormProbe />} />
-            <Route path="/app/entities/:entityId" element={<div>Entity Detail</div>} />
-          </Routes>
+        <WorkspaceContext.Provider value={{ currentWorkspace: { workspaceId: 'ws-1', name: 'Reset Test Hotel', type: 'PERSONAL' } }}>
+          <ToastProvider>
+            <Routes>
+              <Route path="/app/records/:recordId" element={<RecordDetailPage />} />
+              <Route path="/app/records" element={<div>Records List</div>} />
+              <Route path="/app/records/:recordId/edit" element={<div>Edit Page</div>} />
+              <Route path="/app/modules/:moduleId" element={<div>Module Detail</div>} />
+              <Route path="/app/modules/:moduleId/form" element={<FormProbe />} />
+              <Route path="/app/entities/:entityId" element={<div>Entity Detail</div>} />
+            </Routes>
+          </ToastProvider>
         </WorkspaceContext.Provider>
       </AuthContext.Provider>
     </MemoryRouter>,
@@ -181,5 +197,46 @@ describe('Record Detail actions', () => {
     URL.createObjectURL = originalCreate;
     URL.revokeObjectURL = originalRevoke;
     clickSpy.mockRestore();
+  });
+});
+
+describe('Record Detail lifecycle actions', () => {
+  it('shows Submit for a DRAFT and calls the trusted SUBMIT_RECORD command', async () => {
+    const draft = makeRecord({ status: 'DRAFT', submittedBy: null, submittedAt: null });
+    mocks.submitRecord.mockResolvedValue({ record: draft, operationId: 'op-x', idempotent: false });
+    renderPage(draft);
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit record' }));
+    expect(mocks.submitRecord).toHaveBeenCalledWith({ workspaceId: 'ws-1', recordId: 'rec-1' });
+  });
+
+  it('hides Submit for submitted records (policy-driven presentation only)', async () => {
+    renderPage(makeRecord());
+    await screen.findByRole('heading', { name: 'Guest A' });
+    expect(screen.queryByRole('button', { name: 'Submit record' })).toBeNull();
+  });
+
+  it('archives only after confirmation and reloads the record view', async () => {
+    renderPage(makeRecord());
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
+    // dialog is open; not executed yet
+    expect(mocks.archiveRecord).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }));
+    expect(mocks.archiveRecord).toHaveBeenCalledWith({ workspaceId: 'ws-1', recordId: 'rec-1' });
+  });
+
+  it('cancels through the confirm dialog via the trusted CANCEL_RECORD command', async () => {
+    renderPage(makeRecord());
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel record' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel record' }));
+    expect(mocks.cancelRecord).toHaveBeenCalledWith({ workspaceId: 'ws-1', recordId: 'rec-1' });
+  });
+
+  it('surfaces trusted server rejections as an inline error', async () => {
+    renderPage(makeRecord({ status: 'DRAFT', submittedBy: null, submittedAt: null }));
+    mocks.submitRecord.mockRejectedValue(new Error('Guest is required'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit record' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Guest is required/);
   });
 });

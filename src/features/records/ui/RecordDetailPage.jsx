@@ -9,12 +9,15 @@
  * duplicates Record data. Print and export read the already-loaded Record.
  *
  * Trust boundary notes:
- * - "Edit draft" updates DRAFT data/entityReferences via the client-side
- *   RecordService path (allowed by Firestore Rules, DRAFT-only).
+ * - "Edit draft" navigates to the DRAFT editor; all draft mutations run
+ *   through the trusted UPDATE_DRAFT command (Step 15).
+ * - Lifecycle actions (Submit/Archive/Restore/Cancel) call trusted commands;
+ *   this page only discovers which buttons to show via the shared pure
+ *   policy — the server re-evaluates authoritatively.
  * - "Create copy" only PREFILLS a Module form; the new Record is created
  *   through the trusted recordCommand CREATE_RECORD path.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
@@ -27,11 +30,24 @@ import {
   getRecordStatusVariant,
   getRecordPriorityVariant,
   formatActorLabel,
-  canEditRecordDraft,
+  getAvailableRecordActions,
   buildRecordCopyValues,
   buildRecordExport,
 } from '../model.js';
-import { Badge, Button } from '../../../design-system/index.js';
+import { RECORD_ACTIONS } from '../../../core/recordCommands/recordActionPolicy.js';
+import { Badge, Button, Dialog, useToast } from '../../../design-system/index.js';
+import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
+import services from '../../../infrastructure/services.js';
+
+function actionToastMessage(action) {
+  switch (action) {
+    case RECORD_ACTIONS.SUBMIT_RECORD: return 'Record submitted';
+    case RECORD_ACTIONS.ARCHIVE_RECORD: return 'Record archived';
+    case RECORD_ACTIONS.RESTORE_RECORD: return 'Record restored';
+    case RECORD_ACTIONS.CANCEL_RECORD: return 'Record cancelled';
+    default: return 'Action completed';
+  }
+}
 
 export default function RecordDetailPage() {
   const { recordId } = useParams();
@@ -42,8 +58,56 @@ export default function RecordDetailPage() {
   const userId = user?.uid || user?.userId;
 
   const workspaceId = currentWorkspace?.workspaceId;
-  const { record, mod, fields, schemaSource, entityNames, loading, error } =
+  const { record, mod, fields, schemaSource, entityNames, loading, error, reload } =
     useRecordWithSchema(workspaceId, recordId);
+
+  // UI action discovery only — the trusted server re-evaluates policy and
+  // lifecycle on every command. selectedAccess is derived from the current
+  // workspace context (Personal owner vs organization member).
+  const actorContext = useMemo(() => ({
+    authenticated: Boolean(user),
+    workspaceAccess: !currentWorkspace
+      ? null
+      : currentWorkspace.type === 'PERSONAL' ? 'PERSONAL_OWNER' : 'ORGANIZATION_MEMBER',
+  }), [user, currentWorkspace]);
+
+  const availableActions = useMemo(
+    () => getAvailableRecordActions(record, mod, actorContext),
+    [record, mod, actorContext],
+  );
+  const actionEnabled = useCallback(
+    (action) => availableActions.find((a) => a.action === action)?.enabled === true,
+    [availableActions],
+  );
+
+  const { showToast } = useToast();
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
+  const runTrustedAction = useCallback(async (action) => {
+    setActionError(null);
+    setActionBusy(true);
+    try {
+      const command = {
+        [RECORD_ACTIONS.SUBMIT_RECORD]: services.recordCommand.submitRecord,
+        [RECORD_ACTIONS.ARCHIVE_RECORD]: services.recordCommand.archiveRecord,
+        [RECORD_ACTIONS.RESTORE_RECORD]: services.recordCommand.restoreRecord,
+        [RECORD_ACTIONS.CANCEL_RECORD]: services.recordCommand.cancelRecord,
+      }[action];
+      await command({ workspaceId, recordId });
+      workspaceQueryCache.invalidate(`${workspaceId}:records:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
+      setConfirmAction(null);
+      showToast({ message: actionToastMessage(action), variant: 'success' });
+      reload();
+    } catch (err) {
+      setActionError(err.message || 'Action failed');
+      setConfirmAction(null);
+    } finally {
+      setActionBusy(false);
+    }
+  }, [workspaceId, recordId, reload, showToast]);
 
   const title = useMemo(
     () => (record ? getRecordDisplayLabel(record, fields, mod) : ''),
@@ -126,10 +190,21 @@ export default function RecordDetailPage() {
 
         {/* Actions — presentation only; hidden in print */}
         <div className="no-print mb-5 flex flex-wrap gap-2">
-          {canEditRecordDraft(record) && (
+          {actionEnabled(RECORD_ACTIONS.EDIT_DRAFT) && (
             <Link to={`/app/records/${record.recordId}/edit`}>
               <Button type="button" variant="primary" size="sm">Edit draft</Button>
             </Link>
+          )}
+          {actionEnabled(RECORD_ACTIONS.SUBMIT_RECORD) && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={actionBusy}
+              onClick={() => runTrustedAction(RECORD_ACTIONS.SUBMIT_RECORD)}
+            >
+              Submit record
+            </Button>
           )}
           {record.moduleId && (
             <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
@@ -142,7 +217,27 @@ export default function RecordDetailPage() {
           <Button type="button" variant="outline" size="sm" onClick={handleExport}>
             Export JSON
           </Button>
+          {actionEnabled(RECORD_ACTIONS.ARCHIVE_RECORD) && (
+            <Button type="button" variant="outline" size="sm" disabled={actionBusy} onClick={() => setConfirmAction(RECORD_ACTIONS.ARCHIVE_RECORD)}>
+              Archive
+            </Button>
+          )}
+          {actionEnabled(RECORD_ACTIONS.RESTORE_RECORD) && (
+            <Button type="button" variant="outline" size="sm" disabled={actionBusy} onClick={() => runTrustedAction(RECORD_ACTIONS.RESTORE_RECORD)}>
+              Restore
+            </Button>
+          )}
+          {actionEnabled(RECORD_ACTIONS.CANCEL_RECORD) && (
+            <Button type="button" variant="danger" size="sm" disabled={actionBusy} onClick={() => setConfirmAction(RECORD_ACTIONS.CANCEL_RECORD)}>
+              Cancel record
+            </Button>
+          )}
         </div>
+        {actionError && (
+          <div className="no-print mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">
+            {actionError}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
@@ -297,6 +392,40 @@ export default function RecordDetailPage() {
           the durable audit entries that exist today.
         </p>
       </div>
+
+      <Dialog
+        open={confirmAction === RECORD_ACTIONS.ARCHIVE_RECORD}
+        onClose={() => setConfirmAction(null)}
+        title="Archive Record"
+      >
+        <p className="text-sm text-neutral-600 mb-5">
+          Archiving hides this Record from active lists. The canonical Record, its history
+          and Ledger references are preserved; archiving is reversible.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setConfirmAction(null)}>Keep</Button>
+          <Button type="button" variant="primary" disabled={actionBusy} onClick={() => runTrustedAction(RECORD_ACTIONS.ARCHIVE_RECORD)}>
+            Archive
+          </Button>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={confirmAction === RECORD_ACTIONS.CANCEL_RECORD}
+        onClose={() => setConfirmAction(null)}
+        title="Cancel Record"
+      >
+        <p className="text-sm text-neutral-600 mb-5">
+          Cancelling marks this Record as cancelled on the trusted server. The Record stays
+          in history; this action is not designed to be reversed.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setConfirmAction(null)}>Back</Button>
+          <Button type="button" variant="danger" disabled={actionBusy} onClick={() => runTrustedAction(RECORD_ACTIONS.CANCEL_RECORD)}>
+            Cancel record
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

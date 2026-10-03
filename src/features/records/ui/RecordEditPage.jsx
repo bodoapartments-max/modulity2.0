@@ -1,31 +1,30 @@
 /**
  * Record Edit — edit an existing DRAFT Record in place.
  *
- * Trust boundary (Step 14 audit finding):
- * - DRAFT data/entityReferences updates are allowed client-side by
- *   Firestore Rules (Record data is frozen once the status leaves DRAFT).
- * - This page uses the existing RecordService.updateDraftRecord path only.
- * - It never creates a new Record, never touches immutable provenance
- *   fields, and marks non-DRAFT Records as read-only.
- * - DRAFT → SUBMITTED is intentionally NOT offered here: Rules keep
- *   `submittedBy` immutable for client updates, so a trusted submit
- *   command is required (Step 15 Record Command/Lifecycle work).
- *
- * Autosave: debounced writes update the SAME DRAFT Record (never creates).
- * Visible states: Unsaved changes → Saving… → Saved · <time> / Save failed.
+ * Trust boundary (Step 15):
+ * - All saves go through the trusted recordCommand UPDATE_DRAFT boundary:
+ *   server auth → workspace authorization → policy (DRAFT-only, ACTIVE
+ *   module) → historical Module Version schema validation → EntityReference
+ *   validation → canonical mutation inside a transaction with the operation
+ *   journal.
+ * - Submit goes through the trusted SUBMIT_RECORD command; the server owns
+ *   the DRAFT → SUBMITTED transition, actor, and timestamps. Full required-
+ *   field validation happens server-side.
+ * - Every save carries a fresh operationId; a RETRY of the exact same
+ *   payload reuses the same operationId (idempotent replay on the server).
  */
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { userActor } from '../../../core/data/actorRef.js';
 import { FormRenderer } from '../../../modules/forms/FormRenderer.jsx';
-import { extractEntityReferences } from '../../../modules/forms/formSchemaValidator.js';
 import services from '../../../infrastructure/services.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 import { useRecordWithSchema } from '../hooks/useRecordWithSchema.js';
 import { canEditRecordDraft, getRecordDisplayLabel } from '../model.js';
-import { Badge } from '../../../design-system/index.js';
+import { Badge, Button } from '../../../design-system/index.js';
+import { generateId } from '../../../core/utils/generateId.js';
 
 const AUTOSAVE_DELAY_MS = 1200;
 
@@ -37,13 +36,25 @@ const SAVE_STATES = {
   ERROR: 'error',
 };
 
+function valuesFingerprint(values) {
+  const stable = (value) => {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+    return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`;
+  };
+  return stable(values || {});
+}
+
 export default function RecordEditPage() {
   const { recordId } = useParams();
+  const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
 
   const workspaceId = currentWorkspace?.workspaceId;
   const userId = user?.uid || user?.userId;
+  // Local actor reference for UI events only — the trusted engine derives
+  // the authoritative identity from Firebase Auth, never from this value.
   const actor = user ? userActor(userId) : null;
 
   const { record, mod, fields, schemaSource, loading, error } =
@@ -57,11 +68,16 @@ export default function RecordEditPage() {
   const [saveState, setSaveState] = useState(SAVE_STATES.IDLE);
   const [saveError, setSaveError] = useState(null);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const debounceRef = useRef(null);
   const latestValues = useRef(null);
+  // Idempotent retry: the last failed attempt keeps its operationId so a
+  // retry replays the same logical operation instead of minting a new one.
+  const lastAttempt = useRef({ operationId: null, fingerprint: null, succeeded: false });
 
   const persist = useCallback(async (values) => {
-    if (!workspaceId || !recordId || !actor) return;
+    if (!workspaceId || !recordId || !userId) return;
     setSaveState(SAVE_STATES.SAVING);
     setSaveError(null);
     try {
@@ -69,11 +85,16 @@ export default function RecordEditPage() {
       for (const [key, val] of Object.entries(values || {})) {
         if (val !== undefined && val !== '') cleanValues[key] = val;
       }
-      const entityReferences = extractEntityReferences(cleanValues, fields);
-      await services?.record?.updateDraftRecord(workspaceId, recordId, {
-        data: cleanValues,
-        entityReferences,
-      }, actor);
+      const fingerprint = valuesFingerprint(cleanValues);
+      let operationId;
+      if (!lastAttempt.current.succeeded && lastAttempt.current.fingerprint === fingerprint && lastAttempt.current.operationId) {
+        operationId = lastAttempt.current.operationId;
+      } else {
+        operationId = generateId();
+      }
+      lastAttempt.current = { operationId, fingerprint, succeeded: false };
+      await services?.recordCommand?.updateDraft({ workspaceId, recordId, values: cleanValues, operationId });
+      lastAttempt.current.succeeded = true;
       workspaceQueryCache.invalidate(`${workspaceId}:records:`);
       workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
       setLastSavedAt(new Date());
@@ -82,7 +103,7 @@ export default function RecordEditPage() {
       setSaveError(err.message || 'Save failed');
       setSaveState(SAVE_STATES.ERROR);
     }
-  }, [workspaceId, recordId, actor, fields]);
+  }, [workspaceId, recordId, userId]);
 
   const handleValuesChange = useCallback((values) => {
     latestValues.current = values;
@@ -98,6 +119,30 @@ export default function RecordEditPage() {
     latestValues.current = values;
     await persist(values);
   }, [persist]);
+
+  const handleSubmit = useCallback(async () => {
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      // Flush any pending edits so SUBMIT evaluates the freshest data.
+      if (latestValues.current && saveState !== SAVE_STATES.SAVED) {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        await persist(latestValues.current);
+        if (lastAttempt.current.succeeded !== true) {
+          setSubmitting(false);
+          return;
+        }
+      }
+      const submitted = await services?.moduleSubmission?.submitDraft({ workspaceId, recordId, actor });
+      workspaceQueryCache.invalidate(`${workspaceId}:records:`);
+      workspaceQueryCache.invalidate(`${workspaceId}:dashboardRecords:`);
+      navigate(`/app/records/${submitted.recordId}`);
+    } catch (err) {
+      setSubmitError(err.message || 'Submission failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [workspaceId, recordId, persist, saveState, navigate]);
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -184,6 +229,25 @@ export default function RecordEditPage() {
             submitLabel="Save changes"
             fieldServices={{ loadEntities: services?.entity?.listEntities }}
           />
+
+          <div className="mt-6 pt-4 border-t border-neutral-200 flex items-center gap-3 flex-wrap">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={submitting || saveState === SAVE_STATES.SAVING}
+            >
+              {submitting ? 'Submitting…' : 'Submit record'}
+            </Button>
+            <p className="text-xs text-neutral-500">
+              Submitting runs full validation on the trusted server and turns this Draft into a submitted Record.
+            </p>
+          </div>
+          {submitError && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">
+              {submitError}
+            </div>
+          )}
         </div>
       )}
     </div>
