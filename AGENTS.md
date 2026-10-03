@@ -213,8 +213,8 @@ Step 5.1 hardened atomicity and concurrency before Step 6 Ledger/Audit:
 |---|---|---|
 | LedgerService | `src/core/ledger/ledgerService.js` | Book management, atomic registration, cancellation |
 | LedgerQueryService | `src/core/ledger/ledgerQueryService.js` | Paginated Ledger queries |
-| AuditService | `src/core/audit/auditService.js` | Durable audit recording and queries |
-| AuditBridge | `src/core/audit/auditBridge.js` | Event Bus → Audit persistence mapping |
+| AuditService | `src/core/audit/auditService.js` | Durable audit READ models + queries (browser read-only) |
+| (removed) AuditBridge | — | Step 16: retired — browsers no longer write Audit evidence |
 
 ### Repositories
 | Repository | Path |
@@ -262,16 +262,14 @@ The idempotency check is now **inside** `registerRecordAtomic()`, within the sam
 ### Audit Ownership Model
 | Owner | Actions |
 |---|---|
-| LedgerService (direct) | ledger.book_created, ledger.entry_registered, ledger.entry_cancelled, ledger.entry_voided, ledger.book_closed |
-| AuditBridge (Event Bus) | record.*, delivery.*, formRequest.* |
-
-Ledger events are **excluded** from AuditBridge to prevent duplicates.
+| Trusted server functions (recordCommand / ledgerCommand) | record.* lifecycle events, ledger.book_created, ledger.entry_registered |
+| (retired in Step 16) browser AuditBridge | was: record.*, delivery.*, formRequest.* — browser-authored delivery/FormRequest lifecycle events currently have NO durable Audit rows until they gain trusted commands |
 
 ### Trusted-Boundary Limitations
 - Sequence allocation is concurrency-safe for honest clients but not tamper-resistant without a trusted backend
 - Audit writes are best-effort; audit failure does not roll back business operations
 - Firestore Rules validate Record/Book existence but cannot validate allocation logic
-- Full trusted audit/ledger requires Cloud Function (future)
+- Step 16 (ADR-0008): Ledger/Audit authoring is now server-only (`ledgerCommand`, transaction-committed audit); Rules deny browser ledger/audit writes and Record linkage writes.
 
 ## Step 2 Architecture Notes
 

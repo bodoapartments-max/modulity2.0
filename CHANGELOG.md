@@ -2,6 +2,37 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 16 — Trusted Ledger & Audit Backend
+
+### Added
+- Trusted `ledgerCommand` callable (europe-west1, contract 1.0.0):
+  - `CREATE_LEDGER_BOOK` — atomic code reservation + book + initial block
+  - `REGISTER_LEDGER_ENTRY` — server-derived sequence, reference number, actor, timestamps, block rollover, Record linkage
+- Shared operation-journal helpers (`functions/src/operationJournal.js`) reused by recordCommand and ledgerCommand
+- Record Detail trusted "Register in Ledger" panel (when an ACTIVE book matches, and status allows)
+- Function-level concurrency tests: 20 same-Record registrations converge to one entry/sequence; 50 distinct Records get unique contiguous sequences with rollover; replay does not re-consume sequences
+- `docs/LEDGER_ARCHITECTURE.md`, `docs/AUDIT_ARCHITECTURE.md`, ADR-0008
+
+### Changed
+- Authoritative Audit evidence (recordCommand + ledgerCommand) now commits **in the same Firestore transaction** as the domain mutation — a trusted mutation cannot commit without its evidence; `_timestamp` is a server timestamp (matches the History query)
+- Audit document ids are deterministic (`op_{operationId}_{action}`) — retries cannot duplicate logical history
+- Legacy browser AuditBridge retired (removed from `bootstrapServices`, file deleted) — browser telemetry can no longer masquerade as canonical Audit
+- Record History continues to read the same durable `auditEntries` collection
+- Ledger book list page and Record Detail survive the rules tightening via read-only browser access
+
+### Security
+- Firestore Rules: browsers may no longer create/update/delete Ledger entries, blocks, books, or ledger code reservations; cannot set Record Ledger linkage; cannot create/update/delete Audit entries. Reads preserved.
+- Admin SDK functions perform explicit authorization (workspace owner / active org member) because they bypass Rules.
+- Trusted cancel/void of Ledger entries and book close stay reserved for a future trusted command (no prior client UX).
+
+### Fixed
+- Trusted server transactions now obey Firestore's reads-before-writes rule (caught by the new concurrency suite)
+- Draft "Create Ledger Book" form can no longer silently no-op when the workspace context is still resolving (submit is disabled until the workspace is ready)
+
+### Known findings
+- FormRequest completion still attempts a client-transaction Record CREATE (rules-blocked since Step 12). DEFERRED: requires its own recipient-scoped trusted command — recorded as follow-up, Rules not weakened.
+- Pre-Step-16 audit entries written by the old server path lack `_timestamp` and won't appear in History orderings (dev data only).
+
 ## Step 15 — Generic Record Actions & Lifecycle Foundation
 
 ### Added

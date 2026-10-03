@@ -131,18 +131,25 @@ Shared journal: `workspaces/{workspaceId}/recordOperations/{operationId}`
 - Journal replay is evaluated BEFORE the current-state policy so a retried
   legitimate operation is never misjudged as an invalid transition.
 
-## Audit / side effects
+## Audit / side effects (updated in Step 16)
 
-- Every trusted mutation appends an Audit entry using the canonical
-  `createAuditEntry` model with the matching action (`record.submitted`,
-  `record.draft_updated`, `record.archived`, `record.unarchived`,
-  `record.priority_changed`, `record.cancelled`, `record.created`).
-- Audit (and the CREATE notification) write to a deterministic document id
-  `op_<operationId>` — recovery retries overwrite instead of duplicate.
-  Side effects are best-effort (post-transaction) and never roll back a
-  committed mutation.
-- Generic notification policy is Step 17; no new notification semantics were
-  added for mutations.
+- Every trusted mutation writes its authoritative Audit entry using the
+  canonical `createAuditEntry` model with the matching action
+  (`record.submitted`, `record.draft_updated`, `record.archived`,
+  `record.unarchived`, `record.priority_changed`, `record.cancelled`,
+  `record.created`).
+- The Audit entry commits in the **SAME Firestore transaction** as the
+  canonical mutation and journal completion — a trusted mutation cannot
+  commit without its evidence.
+- Audit document ids are deterministic: `op_{operationId}_{action}`. Journal
+  replay returns before the mutation, so history is written exactly once.
+  `_timestamp` is a Firestore `serverTimestamp` (that is what the History
+  query orders by).
+- Generic notification policy is Step 17; the CREATE notification remains a
+  best-effort post-transaction write (it is not evidence).
+- The legacy browser AuditBridge was removed; browsers author no Audit.
+
+See `docs/AUDIT_ARCHITECTURE.md` and ADR-0008.
 
 ## Firestore Rules (Step 15 tightening)
 

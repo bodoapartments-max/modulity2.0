@@ -147,6 +147,8 @@ Print output, single-Record exports, and Calendar projections are also views ove
 
 Canonical Record lifecycle mutations execute through trusted Record commands (`recordCommand`). Client UI may request an action, but must never directly author lifecycle state, actor identity, or timestamps. The command implies the transition; the server owns it.
 
+Canonical Audit evidence must be authored by trusted server boundaries. Ledger sequence allocation and immutable registration must never be client-authoritative. Clients may project Ledger/Audit data but must not author immutable evidence.
+
 Records preserve the exact Module version/schema context under which they were created. Updating a Module must not silently reinterpret historical Records.
 
 ## 9. Entity ownership and extensibility
