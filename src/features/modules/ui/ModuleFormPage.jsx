@@ -1,9 +1,14 @@
 /**
  * Module Form — the actual form submission page.
  * Uses the generic FormRenderer to render any Module's form.
+ *
+ * Copy flow: when navigated here with location.state.prefillValues (from
+ * Record Detail → "Create copy"), the form is pre-filled for user review.
+ * Submission still goes exclusively through the trusted recordCommand
+ * CREATE_RECORD path — a NEW Record is always created server-side.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { userActor } from '../../../core/data/actorRef.js';
@@ -13,6 +18,8 @@ import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js'
 
 export default function ModuleFormPage() {
   const { moduleId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const [mod, setMod] = useState(null);
@@ -20,6 +27,10 @@ export default function ModuleFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [formEpoch, setFormEpoch] = useState(0);
+
+  const prefillValues = location.state?.prefillValues || null;
+  const copySourceLabel = location.state?.copySourceLabel || null;
 
   const workspaceId = currentWorkspace?.workspaceId;
   const actor = user ? userActor(user.userId || user.uid) : null;
@@ -117,7 +128,12 @@ export default function ModuleFormPage() {
               View Record
             </Link>
             <button
-              onClick={() => { setSuccess(null); setError(null); }}
+              onClick={() => {
+                setSuccess(null);
+                setError(null);
+                setFormEpoch((epoch) => epoch + 1);
+                if (location.state) navigate(location.pathname, { replace: true, state: null });
+              }}
               className="px-4 py-2 border border-neutral-300 text-neutral-600 rounded-lg text-sm font-medium hover:bg-neutral-50"
             >
               Create Another
@@ -149,6 +165,12 @@ export default function ModuleFormPage() {
           This module is in DRAFT mode. Records created here are for testing purposes.
         </div>
       )}
+      {copySourceLabel && (
+        <div className="p-3 mb-4 bg-primary-50 border border-primary-200 rounded-lg text-sm text-primary-800" role="note">
+          Pre-filled with values copied from “{copySourceLabel}”. Review the values and submit
+          to create a new Record — the original Record is unchanged.
+        </div>
+      )}
 
       {error && (
         <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -164,7 +186,9 @@ export default function ModuleFormPage() {
 
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <FormRenderer
+          key={formEpoch}
           schema={mod.formSchema}
+          initialValues={prefillValues || {}}
           workspaceId={workspaceId}
           onSubmit={handleSubmit}
           onSaveDraft={handleSaveDraft}

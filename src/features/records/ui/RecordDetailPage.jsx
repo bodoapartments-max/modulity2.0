@@ -1,99 +1,80 @@
 /**
- * Record Detail — displays a Module-created Record's data.
+ * Record Detail — displays a canonical Record.
  *
  * CRITICAL INVARIANT: A historical Record must always be rendered using
- * the exact Module Version that created it. This page loads the Module
- * Version snapshot via record.moduleId + record.moduleVersion, NOT the
- * current Module schema.
+ * the exact Module Version that created it (loaded via useRecordWithSchema),
+ * NOT the current Module schema.
  *
- * Entity References are resolved to display names.
+ * This page is a view over the same canonical Record — it never stores or
+ * duplicates Record data. Print and export read the already-loaded Record.
+ *
+ * Trust boundary notes:
+ * - "Edit draft" updates DRAFT data/entityReferences via the client-side
+ *   RecordService path (allowed by Firestore Rules, DRAFT-only).
+ * - "Create copy" only PREFILLS a Module form; the new Record is created
+ *   through the trusted recordCommand CREATE_RECORD path.
  */
-import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
+import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
 import RecordHistory from './RecordHistory.jsx';
-import services from '../../../infrastructure/services.js';
-import { getRecordBackNavigation } from '../model.js';
-
-const STATUS_COLORS = {
-  DRAFT: 'bg-neutral-100 text-neutral-700',
-  SUBMITTED: 'bg-blue-100 text-blue-800',
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-green-200 text-green-900',
-  CANCELLED: 'bg-red-100 text-red-700',
-  ARCHIVED: 'bg-neutral-200 text-neutral-500',
-};
+import { useRecordWithSchema } from '../hooks/useRecordWithSchema.js';
+import {
+  getRecordBackNavigation,
+  getRecordDisplayLabel,
+  getRecordStatusVariant,
+  getRecordPriorityVariant,
+  formatActorLabel,
+  canEditRecordDraft,
+  buildRecordCopyValues,
+  buildRecordExport,
+} from '../model.js';
+import { Badge, Button } from '../../../design-system/index.js';
 
 export default function RecordDetailPage() {
   const { recordId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
-  const [record, setRecord] = useState(null);
-  const [mod, setMod] = useState(null);
-  const [versionSchema, setVersionSchema] = useState(null);
-  const [entityNames, setEntityNames] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const userId = user?.uid || user?.userId;
 
   const workspaceId = currentWorkspace?.workspaceId;
+  const { record, mod, fields, schemaSource, entityNames, loading, error } =
+    useRecordWithSchema(workspaceId, recordId);
 
-  useEffect(() => {
-    if (!workspaceId || !recordId) return;
-    let cancelled = false;
-    setLoading(true);
+  const title = useMemo(
+    () => (record ? getRecordDisplayLabel(record, fields, mod) : ''),
+    [record, fields, mod],
+  );
 
-    services?.record?.getRecord(workspaceId, recordId)
-      .then(async (rec) => {
-        if (cancelled || !rec) return;
-        setRecord(rec);
+  const backNavigation = getRecordBackNavigation(searchParams.get('fromModule'), mod);
 
-        // Load the Module for metadata (name, link)
-        if (rec.moduleId && services?.module) {
-          try {
-            const m = await services.module.getModule(workspaceId, rec.moduleId);
-            if (!cancelled) setMod(m);
+  const handleCopy = useCallback(() => {
+    if (!record?.moduleId) return;
+    const prefillValues = buildRecordCopyValues(record, fields);
+    navigate(`/app/modules/${record.moduleId}/form`, {
+      state: { prefillValues, copySourceLabel: title },
+    });
+  }, [record, fields, navigate, title]);
 
-            // Load the HISTORICAL Module Version schema for rendering
-            // This is the exact schema that was active when the Record was created.
-            if (rec.moduleVersion && services.module.getModuleVersion) {
-              try {
-                const version = await services.module.getModuleVersion(
-                  workspaceId, rec.moduleId, rec.moduleVersion,
-                );
-                if (!cancelled && version) {
-                  setVersionSchema(version);
-                }
-              } catch {
-                // Version snapshot may not exist for pre-4.1 records
-              }
-            }
-          } catch {
-            // Module may not exist or be accessible
-          }
-        }
-
-        // Resolve entity reference display names
-        if (rec.entityReferences?.length > 0 && services?.entity) {
-          const names = {};
-          await Promise.all(
-            rec.entityReferences.map(async (ref) => {
-              try {
-                const entity = await services.entity.getEntity(ref.workspaceId || workspaceId, ref.entityId);
-                if (entity) names[ref.entityId] = entity.displayName;
-              } catch {
-                // Entity may not be accessible
-              }
-            }),
-          );
-          if (!cancelled) setEntityNames(names);
-        }
-      })
-      .catch((err) => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [workspaceId, recordId]);
+  const handleExport = useCallback(() => {
+    if (!record) return;
+    const payload = buildRecordExport(record, fields, {
+      moduleName: mod?.name ?? null,
+      entityNames,
+      currentUserId: userId ?? null,
+    });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `record-${record.recordId}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [record, fields, mod, entityNames, userId]);
 
   if (loading) {
     return (
@@ -114,15 +95,13 @@ export default function RecordDetailPage() {
     );
   }
 
-  // Use historical version schema if available; fall back to current module schema
-  const historicalSchema = versionSchema?.formSchema || mod?.formSchema;
-  const fields = historicalSchema?.fields || [];
-  const schemaSource = versionSchema ? 'historical' : (mod ? 'current' : 'none');
-  const backNavigation = getRecordBackNavigation(searchParams.get('fromModule'), mod);
+  const priorityVariant = getRecordPriorityVariant(record.priority);
 
   return (
     <div className="p-6 max-w-3xl">
-      <Link to={backNavigation.to} className="text-sm text-primary-600 hover:underline mb-4 inline-block">&larr; {backNavigation.label}</Link>
+      <Link to={backNavigation.to} className="no-print text-sm text-primary-600 hover:underline mb-4 inline-block">
+        &larr; {backNavigation.label}
+      </Link>
 
       {error && (
         <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
@@ -130,24 +109,51 @@ export default function RecordDetailPage() {
 
       {/* Record Header */}
       <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">
-              {mod?.name || record.recordType} Record
+        <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-neutral-900 break-words">
+              {title}
             </h1>
-            <p className="text-xs text-neutral-400 font-mono mt-0.5">
+            <p className="text-xs text-neutral-400 font-mono mt-0.5" title={record.recordId}>
               {record.recordId}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[record.status] || ''}`}>
-            {record.status}
-          </span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge variant={getRecordStatusVariant(record.status)}>{record.status}</Badge>
+            {priorityVariant && <Badge variant={priorityVariant}>{record.priority}</Badge>}
+          </div>
+        </div>
+
+        {/* Actions — presentation only; hidden in print */}
+        <div className="no-print mb-5 flex flex-wrap gap-2">
+          {canEditRecordDraft(record) && (
+            <Link to={`/app/records/${record.recordId}/edit`}>
+              <Button type="button" variant="primary" size="sm">Edit draft</Button>
+            </Link>
+          )}
+          {record.moduleId && (
+            <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
+              Create copy
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={() => window.print()}>
+            Print
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={handleExport}>
+            Export JSON
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-neutral-500">Module</span>
-            <p className="font-medium text-neutral-800">{mod?.name || '—'}</p>
+            <p className="font-medium text-neutral-800">
+              {record.moduleId && mod ? (
+                <Link to={`/app/modules/${record.moduleId}`} className="text-primary-600 hover:underline">
+                  {mod.name}
+                </Link>
+              ) : (mod?.name || '—')}
+            </p>
           </div>
           <div>
             <span className="text-neutral-500">Record Type</span>
@@ -159,14 +165,28 @@ export default function RecordDetailPage() {
               <p className="font-medium text-neutral-800">v{record.moduleVersion}</p>
             </div>
           )}
+          {currentWorkspace?.name && (
+            <div>
+              <span className="text-neutral-500">Workspace</span>
+              <p className="font-medium text-neutral-800">{currentWorkspace.name}</p>
+            </div>
+          )}
           <div>
             <span className="text-neutral-500">Created</span>
             <p className="font-medium text-neutral-800">{formatTimestamp(record.createdAt)}</p>
+            <p className="text-xs text-neutral-400">by {formatActorLabel(record.createdBy, userId)}</p>
+          </div>
+          <div>
+            <span className="text-neutral-500">Updated</span>
+            <p className="font-medium text-neutral-800">{formatTimestamp(record.updatedAt)}</p>
           </div>
           {record.submittedAt && (
             <div>
               <span className="text-neutral-500">Submitted</span>
               <p className="font-medium text-neutral-800">{formatTimestamp(record.submittedAt)}</p>
+              {record.submittedBy && (
+                <p className="text-xs text-neutral-400">by {formatActorLabel(record.submittedBy, userId)}</p>
+              )}
             </div>
           )}
         </div>
@@ -185,7 +205,7 @@ export default function RecordDetailPage() {
       </div>
 
       {/* Record Data */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-6">
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-neutral-800 mb-4">Data</h2>
 
         {fields.length > 0 ? (
@@ -220,17 +240,26 @@ export default function RecordDetailPage() {
           <div className="mt-6 pt-4 border-t border-neutral-200">
             <h3 className="text-sm font-semibold text-neutral-700 mb-2">Entity References</h3>
             <div className="space-y-1">
-              {record.entityReferences.map((ref, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="text-neutral-500">{ref.entityTypeId}:</span>
-                  <Link
-                    to={`/app/entities/${ref.entityId}`}
-                    className="text-primary-600 hover:underline font-medium"
-                  >
-                    {entityNames[ref.entityId] || ref.entityId}
-                  </Link>
-                </div>
-              ))}
+              {record.entityReferences.map((ref, i) => {
+                const resolved = entityNames[ref.entityId];
+                return (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="text-neutral-500">{ref.entityTypeId}:</span>
+                    {resolved ? (
+                      <Link
+                        to={`/app/entities/${ref.entityId}`}
+                        className="text-primary-600 hover:underline font-medium"
+                      >
+                        {resolved}
+                      </Link>
+                    ) : (
+                      <span className="text-neutral-500">
+                        {ref.entityId} (unavailable)
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -259,10 +288,14 @@ export default function RecordDetailPage() {
         </div>
       )}
 
-      {/* Record History (Audit Trail) */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-6">
+      {/* Record History (Audit Trail) — from the canonical Audit Service */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-neutral-800 mb-4">History</h2>
         <RecordHistory workspaceId={workspaceId} recordId={recordId} />
+        <p className="no-print mt-3 text-xs text-neutral-400">
+          Full trusted Ledger/Audit backend is a separate roadmap milestone; this view reads
+          the durable audit entries that exist today.
+        </p>
       </div>
     </div>
   );

@@ -16,3 +16,19 @@
     @apply min-h-screen;
   }
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body,
+  #root {
+    background: #fff !important;
+  }
+  #root main {
+    padding: 0 !important;
+  }
+  .print-shell {
+    padding-top: 0 !important;
+  }
+}

@@ -27,10 +27,12 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
-      <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
+      <div className="no-print">
+        <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
+      </div>
 
-      <div className="flex flex-1 pt-16">
-        <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:top-16 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-neutral-200 lg:bg-white">
+      <div className="print-shell flex flex-1 pt-16">
+        <aside className="no-print hidden lg:fixed lg:inset-y-0 lg:left-0 lg:top-16 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-neutral-200 lg:bg-white">
           <Sidebar />
         </aside>
 
@@ -41,7 +43,9 @@ function AppShell() {
         </main>
       </div>
 
-      <MobileDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <div className="no-print">
+        <MobileDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      </div>
     </div>
   );
 }

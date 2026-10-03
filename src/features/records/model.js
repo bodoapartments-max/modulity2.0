@@ -58,6 +58,11 @@ export function getRecordPriorityVariant(priority) {
   return PRIORITY_VARIANTS[priority] || 'default';
 }
 
+/** Only DRAFT Records may be edited (RecordService + Firestore Rules agree). */
+export function canEditRecordDraft(record) {
+  return record?.status === 'DRAFT';
+}
+
 /**
  * Formats an actor reference for display. Cross-user Person profiles are not
  * readable by Firestore Rules (`users/{uid}` is owner-only), so other users
