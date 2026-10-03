@@ -114,5 +114,20 @@ export function useCalendarDefinitions({ workspace, membership, user }) {
     }
   }, [workspace, membership, workspaceId, modules, load, canManage]);
 
-  return { definitions, modules, loading, saving, error, canManage, refresh: load, create, update, setStatus };
+  const remove = useCallback(async (definitionId) => {
+    if (!canManage) throw new Error('Not authorized');
+    setSaving(true);
+    setError(null);
+    try {
+      await services.capabilityDefinition.deleteDefinition({ workspace, membership, definitionId });
+      await load();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [workspace, membership, load, canManage]);
+
+  return { definitions, modules, loading, saving, error, canManage, refresh: load, create, update, remove, setStatus };
 }

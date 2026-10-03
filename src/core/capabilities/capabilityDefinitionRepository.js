@@ -12,6 +12,7 @@
  * @property {function(string, string): Promise<CapabilityDefinition|null>} getById
  * @property {function(string, Object): Promise<CapabilityDefinition[]>} listByWorkspace
  * @property {function(string, string, Object): Promise<CapabilityDefinition>} update
+ * @property {function(string, string): Promise<void>} deleteDefinition
  * @property {function(string, string, string): Promise<CapabilityDefinition[]>} listByEngine
  */
 

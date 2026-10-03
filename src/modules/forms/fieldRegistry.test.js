@@ -14,6 +14,7 @@ describe('getFieldComponent', () => {
       FIELD_TYPES.NUMBER,
       FIELD_TYPES.DATE,
       FIELD_TYPES.DATETIME,
+      FIELD_TYPES.DATE_RANGE,
       FIELD_TYPES.BOOLEAN,
       FIELD_TYPES.SELECT,
       FIELD_TYPES.EMAIL,
@@ -36,7 +37,7 @@ describe('getFieldComponent', () => {
     expect(getFieldComponent('')).toBe(UnsupportedField);
   });
 
-  it('has exactly 12 registered field types', () => {
-    expect(Object.keys(FIELD_COMPONENT_MAP)).toHaveLength(12);
+  it('has exactly 13 registered field types', () => {
+    expect(Object.keys(FIELD_COMPONENT_MAP)).toHaveLength(13);
   });
 });

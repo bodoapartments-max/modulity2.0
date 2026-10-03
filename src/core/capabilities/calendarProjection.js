@@ -10,7 +10,9 @@
  * @typedef {Object} CalendarEventProjection
  * @property {string} recordId
  * @property {string} definitionId
+ * @property {string} definitionName
  * @property {string} moduleId
+ * @property {string} moduleName
  * @property {number|null} moduleVersion
  * @property {string} title
  * @property {string} start — ISO 8601 string
@@ -24,7 +26,9 @@
 export function createCalendarEventProjection({
   recordId,
   definitionId,
+  definitionName = '',
   moduleId,
+  moduleName = '',
   moduleVersion = null,
   title,
   start,
@@ -43,7 +47,9 @@ export function createCalendarEventProjection({
   return Object.freeze({
     recordId,
     definitionId,
+    definitionName: String(definitionName),
     moduleId,
+    moduleName: String(moduleName),
     moduleVersion,
     title: String(title),
     start: String(start),

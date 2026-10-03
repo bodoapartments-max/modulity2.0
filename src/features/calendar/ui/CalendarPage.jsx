@@ -15,6 +15,22 @@ export default function CalendarPage() {
 
   if (calendar.loadingDefinitions) return <PageContainer><LoadingState message="Loading calendars…" /></PageContainer>;
 
+  const activeDefinitionIds = calendar.definitions.map((d) => d.definitionId);
+  const allSelected = activeDefinitionIds.length > 0 && activeDefinitionIds.every((id) => calendar.selectedDefinitionIds.includes(id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      calendar.setSelectedDefinitionIds([]);
+    } else {
+      calendar.setSelectedDefinitionIds([...activeDefinitionIds]);
+    }
+  };
+
+  const handleDayClick = (date) => {
+    calendar.setCurrentDate(date);
+    calendar.setView('day');
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -39,11 +55,13 @@ export default function CalendarPage() {
           <Button size="sm" variant="secondary" onClick={calendar.goToday}>Today</Button>
           <Button size="sm" variant="secondary" onClick={() => calendar.navigate(1)} aria-label="Next period">→</Button>
           <span className="ml-2 text-sm font-medium text-neutral-700" aria-live="polite">
-            {calendar.currentDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+            {calendar.view === 'year'
+              ? calendar.currentDate.getFullYear()
+              : calendar.currentDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {['month', 'week', 'day'].map((v) => (
+          {['year', 'month', 'week', 'day'].map((v) => (
             <button
               key={v}
               onClick={() => calendar.setView(v)}
@@ -58,7 +76,15 @@ export default function CalendarPage() {
       </div>
 
       {calendar.definitions.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${allSelected ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-300' : 'bg-neutral-100 text-neutral-600'}`}
+            aria-pressed={allSelected}
+          >
+            All
+          </button>
           {calendar.definitions.map((def) => {
             const selected = calendar.selectedDefinitionIds.includes(def.definitionId);
             return (
@@ -77,14 +103,19 @@ export default function CalendarPage() {
       )}
 
       <div className="min-h-[400px] rounded-xl border border-neutral-200 bg-white p-4">
-        <CalendarView
-          currentDate={calendar.currentDate}
-          view={calendar.view}
-          events={calendar.events}
-          loading={calendar.loadingEvents}
-          error={calendar.eventsError}
-          onEventClick={(event) => navigate(`/app/records/${event.recordId}`)}
-        />
+        {calendar.selectedDefinitionIds.length === 0 && !calendar.loadingEvents ? (
+          <p className="text-sm text-neutral-500">No calendars selected.</p>
+        ) : (
+          <CalendarView
+            currentDate={calendar.currentDate}
+            view={calendar.view}
+            events={calendar.events}
+            loading={calendar.loadingEvents}
+            error={calendar.eventsError}
+            onEventClick={(event) => navigate(`/app/records/${event.recordId}`)}
+            onDayClick={handleDayClick}
+          />
+        )}
       </div>
     </PageContainer>
   );

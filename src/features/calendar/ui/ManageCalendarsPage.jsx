@@ -12,7 +12,7 @@ import CalendarDefinitionForm from './CalendarDefinitionForm.jsx';
 export default function ManageCalendarsPage() {
   const { currentWorkspace, currentMembership } = useWorkspace();
   const { user } = useAuth();
-  const { definitions, modules, loading, saving, error, canManage, create, update, setStatus } = useCalendarDefinitions({
+  const { definitions, modules, loading, saving, error, canManage, create, update, remove, setStatus } = useCalendarDefinitions({
     workspace: currentWorkspace,
     membership: currentMembership,
     user,
@@ -64,6 +64,7 @@ export default function ManageCalendarsPage() {
                 ) : (
                   <Button size="sm" variant="secondary" loading={saving} onClick={() => setStatus(def.definitionId, 'ACTIVE')}>Activate</Button>
                 )}
+                <Button size="sm" variant="ghost" loading={saving} onClick={() => { if (window.confirm(`Delete calendar "${def.name}"? This cannot be undone.`)) remove(def.definitionId); }}>Delete</Button>
               </div>
             )}
           </div>

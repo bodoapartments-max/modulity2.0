@@ -33,6 +33,13 @@ export function formatDisplayValue(value, field, context = {}) {
     case FIELD_TYPES.DATETIME:
       return formatDateTime(value);
 
+    case FIELD_TYPES.DATE_RANGE: {
+      if (typeof value !== 'object' || value === null) return String(value);
+      const { start, end } = value;
+      if (!start || !end) return String(value);
+      return `${formatDate(start)} – ${formatDate(end)}`;
+    }
+
     case FIELD_TYPES.SELECT: {
       // If options are {value, label} objects, resolve the label
       if (Array.isArray(field.options)) {

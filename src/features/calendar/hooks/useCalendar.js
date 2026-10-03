@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import services from '../../../infrastructure/services.js';
 
 export function useCalendar({ workspace, membership }) {
@@ -15,6 +15,8 @@ export function useCalendar({ workspace, membership }) {
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [eventsError, setEventsError] = useState(null);
+
+  const loadGenerationRef = useRef(0);
 
   const loadDefinitions = useCallback(async () => {
     if (!workspaceId) return;
@@ -39,13 +41,18 @@ export function useCalendar({ workspace, membership }) {
   const windowBounds = useMemo(() => {
     const start = new Date(currentDate);
     const end = new Date(currentDate);
-    if (view === 'month') {
+    if (view === 'year') {
+      start.setMonth(0, 1);
+      end.setMonth(11, 31);
+    } else if (view === 'month') {
       start.setDate(1);
       end.setMonth(end.getMonth() + 1, 0);
     } else if (view === 'week') {
       const day = start.getDay();
-      start.setDate(start.getDate() - day);
-      end.setDate(end.getDate() + (6 - day));
+      // Monday-first: Sunday becomes previous week
+      const offset = day === 0 ? -6 : 1 - day;
+      start.setDate(start.getDate() + offset);
+      end.setDate(start.getDate() + 6);
     } else {
       end.setDate(end.getDate());
     }
@@ -60,22 +67,35 @@ export function useCalendar({ workspace, membership }) {
       setEvents([]);
       return;
     }
+    const generation = loadGenerationRef.current + 1;
+    loadGenerationRef.current = generation;
     setLoadingEvents(true);
     setEventsError(null);
     try {
       const defs = definitions.filter((d) => selectedDefinitionIds.includes(d.definitionId));
       const result = await services.capabilityRuntime.createEngine(defs[0]).projectMultiple(defs, windowBounds);
+      if (loadGenerationRef.current !== generation) return;
       if (!result.ok) {
-        setEventsError(result.errors.map((e) => e.message || e.code).join('; '));
+        const errorLines = result.errors.map((e) => {
+          const prefix = e.definitionName || e.definitionId || 'Calendar';
+          if (e.code === 'INVALID_DEFINITION' && Array.isArray(e.issues)) {
+            return `${prefix}: ${e.issues.map((issue) => issue.message || issue.code).join(', ')}`;
+          }
+          return `${prefix}: ${e.message || e.code}`;
+        });
+        setEventsError(errorLines.join('; '));
         setEvents(result.events || []);
       } else {
         setEvents(result.events);
       }
     } catch (err) {
+      if (loadGenerationRef.current !== generation) return;
       setEventsError(err.message);
       setEvents([]);
     } finally {
-      setLoadingEvents(false);
+      if (loadGenerationRef.current === generation) {
+        setLoadingEvents(false);
+      }
     }
   }, [definitions, selectedDefinitionIds, windowBounds, workspaceId]);
 
@@ -84,7 +104,8 @@ export function useCalendar({ workspace, membership }) {
   const navigate = useCallback((direction) => {
     setCurrentDate((date) => {
       const next = new Date(date);
-      if (view === 'month') next.setMonth(next.getMonth() + direction);
+      if (view === 'year') next.setFullYear(next.getFullYear() + direction);
+      else if (view === 'month') next.setMonth(next.getMonth() + direction);
       else if (view === 'week') next.setDate(next.getDate() + direction * 7);
       else next.setDate(next.getDate() + direction);
       return next;
@@ -100,6 +121,7 @@ export function useCalendar({ workspace, membership }) {
     loadingDefinitions,
     definitionError,
     currentDate,
+    setCurrentDate,
     view,
     setView,
     navigate,

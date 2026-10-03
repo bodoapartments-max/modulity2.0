@@ -8,6 +8,7 @@
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -78,5 +79,10 @@ export function createFirestoreCapabilityDefinitionRepository(db) {
     return mapFromFirestore(snap);
   }
 
-  return { create, getById, listByWorkspace, listByEngine, update };
+  async function deleteDefinition(workspaceId, definitionId) {
+    const ref = definitionDoc(workspaceId, definitionId);
+    await deleteDoc(ref);
+  }
+
+  return { create, getById, listByWorkspace, listByEngine, update, deleteDefinition };
 }

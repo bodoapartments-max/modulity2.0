@@ -3,7 +3,7 @@ import { CAPABILITY_CONTRACT_VERSION, CAPABILITY_DEFINITION_STATUSES, CAPABILITY
 export const CALENDAR_ENGINE_ID = 'calendar';
 export const CALENDAR_DEFINITION_TYPE = 'CalendarDefinitionV1';
 const MAPPING_KEYS = new Set(['titleField', 'startField', 'endField', 'resourceField']);
-const TIME_TYPES = new Set(['date', 'datetime']);
+const TIME_TYPES = new Set(['date', 'datetime', 'date-range']);
 const TITLE_TYPES = new Set(['text', 'textarea', 'select', 'email', 'phone', 'entity-reference']);
 
 export function createCalendarDefinitionV1({ definitionId, workspaceId, sourceRef, mapping, status = CAPABILITY_DEFINITION_STATUSES.DRAFT }) {

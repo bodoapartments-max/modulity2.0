@@ -9,6 +9,7 @@ export function DateTimeField({ field, value, onChange, error, disabled }) {
       <input
         id={fieldId}
         type="datetime-local"
+        lang="en-GB"
         value={inputValue}
         onChange={(e) => {
           const raw = e.target.value;

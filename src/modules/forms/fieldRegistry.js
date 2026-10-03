@@ -13,6 +13,7 @@ import { TextareaField } from './fields/TextareaField.jsx';
 import { NumberField } from './fields/NumberField.jsx';
 import { DateField } from './fields/DateField.jsx';
 import { DateTimeField } from './fields/DateTimeField.jsx';
+import { DateRangeField } from './fields/DateRangeField.jsx';
 import { BooleanField } from './fields/BooleanField.jsx';
 import { SelectField } from './fields/SelectField.jsx';
 import { EmailField } from './fields/EmailField.jsx';
@@ -28,6 +29,7 @@ const FIELD_COMPONENT_MAP = {
   [FIELD_TYPES.NUMBER]: NumberField,
   [FIELD_TYPES.DATE]: DateField,
   [FIELD_TYPES.DATETIME]: DateTimeField,
+  [FIELD_TYPES.DATE_RANGE]: DateRangeField,
   [FIELD_TYPES.BOOLEAN]: BooleanField,
   [FIELD_TYPES.SELECT]: SelectField,
   [FIELD_TYPES.EMAIL]: EmailField,

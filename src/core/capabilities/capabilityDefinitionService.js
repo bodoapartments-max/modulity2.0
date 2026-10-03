@@ -79,6 +79,13 @@ export function createCapabilityDefinitionService({ capabilityDefinitionRepo, mo
     return updateDefinition({ workspace, membership, definitionId, changes: { status } });
   }
 
+  async function deleteDefinition({ workspace, membership, definitionId }) {
+    await assertManageAuthorization(workspace, membership);
+    const existing = await capabilityDefinitionRepo.getById(workspace.workspaceId, definitionId);
+    if (!existing) throw new AppError('not_found', 'Capability definition not found');
+    return capabilityDefinitionRepo.deleteDefinition(workspace.workspaceId, definitionId);
+  }
+
   async function getDefinition(workspace, definitionId) {
     return capabilityDefinitionRepo.getById(workspace.workspaceId, definitionId);
   }
@@ -95,6 +102,7 @@ export function createCapabilityDefinitionService({ capabilityDefinitionRepo, mo
     createDefinition,
     updateDefinition,
     setStatus,
+    deleteDefinition,
     getDefinition,
     listDefinitions,
     listDefinitionsByEngine,

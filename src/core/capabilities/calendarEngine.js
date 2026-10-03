@@ -108,15 +108,28 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     return null;
   }
 
-  async function projectSingleRecord(record, definition, fieldMap, resourceLabels) {
-    const mapping = definition.configuration.mapping;
-    const titleValue = resolveFieldValue(record, mapping, 'titleField');
-    const startValue = resolveFieldValue(record, mapping, 'startField');
-    const endValue = mapping.endField ? resolveFieldValue(record, mapping, 'endField') : null;
-
+  function extractStartEnd(record, mapping, fieldMap) {
+    let startValue = resolveFieldValue(record, mapping, 'startField');
+    let endValue = mapping.endField ? resolveFieldValue(record, mapping, 'endField') : null;
     const startType = fieldMap.start?.type;
     const endType = fieldMap.end?.type;
-    const allDay = startType === 'date' || (endType === 'date' && endValue);
+
+    if (startType === 'date-range' && startValue && typeof startValue === 'object') {
+      endValue = endValue || startValue.end || null;
+      startValue = startValue.start || null;
+    }
+    if (endType === 'date-range' && endValue && typeof endValue === 'object') {
+      endValue = endValue.end || endValue;
+    }
+
+    const allDay = startType === 'date' || startType === 'date-range' || (endType === 'date' && endValue);
+    return { start: startValue, end: normalizeEnd(endValue, allDay), allDay };
+  }
+
+  async function projectSingleRecord(record, definition, source, fieldMap, resourceLabels) {
+    const mapping = definition.configuration.mapping;
+    const titleValue = resolveFieldValue(record, mapping, 'titleField');
+    const { start, end, allDay } = extractStartEnd(record, mapping, fieldMap);
 
     let title;
     if (titleValue === undefined || titleValue === null) {
@@ -127,8 +140,6 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     } else {
       title = String(titleValue);
     }
-    const start = startValue;
-    const end = normalizeEnd(endValue, allDay);
 
     let resourceRef = null;
     if (mapping.resourceField && fieldMap.resource?.type === 'entity-reference') {
@@ -141,7 +152,9 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     return createCalendarEventProjection({
       recordId: record.recordId,
       definitionId: definition.definitionId,
+      definitionName: definition.name || '',
       moduleId: record.moduleId,
+      moduleName: source.moduleCode || '',
       moduleVersion: record.moduleVersion,
       title,
       start,
@@ -153,7 +166,7 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     });
   }
 
-  async function queryRecordsForDefinition(definition, source, options = {}) {
+  async function queryRecordsForDefinition(definition, source, fieldMap, options = {}) {
     const { windowStart, windowEnd, recordStatus, limit = 500 } = options;
 
     // Bounded query by moduleId (indexed). We do not load all workspace records.
@@ -162,11 +175,8 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
 
     if (windowStart && windowEnd) {
       return bounded.filter((record) => {
-        const start = resolveFieldValue(record, definition.configuration.mapping, 'startField');
+        const { start, end } = extractStartEnd(record, definition.configuration.mapping, fieldMap);
         if (!isValidDateString(start)) return false;
-        const end = definition.configuration.mapping.endField
-          ? resolveFieldValue(record, definition.configuration.mapping, 'endField')
-          : null;
         return overlapsWindow(start, end, windowStart, windowEnd);
       });
     }
@@ -177,17 +187,17 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
     const source = await resolveSourceForDefinition(definition);
     const validation = await validateDefinition(definition, source);
     if (!validation.valid) {
-      return { ok: false, error: { code: 'INVALID_DEFINITION', issues: validation.issues }, events: [] };
+      return { ok: false, error: { code: 'INVALID_DEFINITION', definitionId: definition.definitionId, definitionName: definition.name, issues: validation.issues }, events: [] };
     }
 
     try {
       const fieldMap = await buildFieldMap(definition, source);
-      const records = await queryRecordsForDefinition(definition, source, options);
+      const records = await queryRecordsForDefinition(definition, source, fieldMap, options);
       const resourceRefs = [];
       const projections = [];
 
       for (const record of records) {
-        const start = resolveFieldValue(record, definition.configuration.mapping, 'startField');
+        const { start } = extractStartEnd(record, definition.configuration.mapping, fieldMap);
         if (!isValidDateString(start)) continue;
         const mapping = definition.configuration.mapping;
         if (mapping.titleField) {
@@ -205,7 +215,7 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
       const resourceLabels = await resolveResourceLabels(resourceRefs, definition.workspaceId);
 
       for (const record of records) {
-        const projection = await projectSingleRecord(record, definition, fieldMap, resourceLabels);
+        const projection = await projectSingleRecord(record, definition, source, fieldMap, resourceLabels);
         projections.push(projection);
       }
 
@@ -217,7 +227,7 @@ export function createCalendarEngine({ recordRepo, moduleRepo, entityRepo }) {
 
       return { ok: true, events: projections };
     } catch (error) {
-      return { ok: false, error: { code: 'PROJECTION_FAILED', message: error.message }, events: [] };
+      return { ok: false, error: { code: 'PROJECTION_FAILED', definitionId: definition.definitionId, definitionName: definition.name, message: error.message }, events: [] };
     }
   }
 

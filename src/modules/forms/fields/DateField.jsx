@@ -7,6 +7,7 @@ export function DateField({ field, value, onChange, error, disabled }) {
       <input
         id={fieldId}
         type="date"
+        lang="en-GB"
         value={value || ''}
         onChange={(e) => onChange(field.key, e.target.value)}
         disabled={disabled}

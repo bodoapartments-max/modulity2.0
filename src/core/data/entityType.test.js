@@ -222,6 +222,22 @@ describe('entityType', () => {
       expect(validateFieldValue(101, field)).toMatch(/at most 100/);
     });
 
+    // ─── DATE RANGE ───
+    it('accepts valid date range', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-15', end: '2024-03-20' }, field)).toBeNull();
+    });
+
+    it('rejects date range with invalid start', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: true };
+      expect(validateFieldValue({ start: 'invalid', end: '2024-03-20' }, field)).toMatch(/start must be a valid ISO date/);
+    });
+
+    it('rejects date range where start is after end', () => {
+      const field = { key: 'k', label: 'Period', type: 'date-range', required: true };
+      expect(validateFieldValue({ start: '2024-03-20', end: '2024-03-15' }, field)).toMatch(/start date cannot be after end date/);
+    });
+
     // ─── DATE ───
     it('accepts valid ISO date', () => {
       const field = { key: 'k', label: 'Date', type: 'date', required: true };

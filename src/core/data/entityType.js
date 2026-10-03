@@ -26,7 +26,7 @@ export const ENTITY_TYPE_STATUSES = Object.freeze({
  *   text, number, date, boolean, select, entity-reference, file-reference
  *
  * Extended types (usable in Form schemas, not typical for Entity Type schemas):
- *   textarea, email, phone, url, datetime
+ *   textarea, email, phone, url, datetime, date-range
  */
 export const FIELD_TYPES = Object.freeze({
   TEXT: 'text',
@@ -34,6 +34,7 @@ export const FIELD_TYPES = Object.freeze({
   NUMBER: 'number',
   DATE: 'date',
   DATETIME: 'datetime',
+  DATE_RANGE: 'date-range',
   BOOLEAN: 'boolean',
   SELECT: 'select',
   EMAIL: 'email',
@@ -309,6 +310,23 @@ export function validateFieldValue(value, field) {
       }
       if (Number.isNaN(Date.parse(value))) {
         return `${field.label} is not a valid datetime`;
+      }
+      return null;
+    }
+
+    case FIELD_TYPES.DATE_RANGE: {
+      if (typeof value !== 'object' || value === null) {
+        return `${field.label} must be an object with start and end dates`;
+      }
+      const { start, end } = value;
+      if (typeof start !== 'string' || !ISO_DATE_PATTERN.test(start) || Number.isNaN(Date.parse(start))) {
+        return `${field.label} start must be a valid ISO date string (YYYY-MM-DD)`;
+      }
+      if (typeof end !== 'string' || !ISO_DATE_PATTERN.test(end) || Number.isNaN(Date.parse(end))) {
+        return `${field.label} end must be a valid ISO date string (YYYY-MM-DD)`;
+      }
+      if (Date.parse(start) > Date.parse(end)) {
+        return `${field.label} start date cannot be after end date`;
       }
       return null;
     }
