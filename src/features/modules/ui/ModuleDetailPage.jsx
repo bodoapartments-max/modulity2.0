@@ -245,6 +245,7 @@ export default function ModuleDetailPage() {
             onSubmit={() => {}}
             disabled
             submitLabel="Submit (Preview)"
+            fieldServices={{ loadEntities: services.entity.listEntities }}
           />
         </div>
       )}

@@ -170,6 +170,7 @@ export default function ModuleFormPage() {
           onSaveDraft={handleSaveDraft}
           loading={submitting}
           submitLabel="Submit"
+          fieldServices={{ loadEntities: services.entity.listEntities }}
         />
       </div>
     </div>

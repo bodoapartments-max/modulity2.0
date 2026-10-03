@@ -13,6 +13,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { getFieldComponent } from './fieldRegistry.js';
 import { validateFormValues } from './formSchemaValidator.js';
+import { FormFieldServicesProvider } from './FormFieldServicesContext.jsx';
 
 /**
  * @param {Object} props
@@ -34,6 +35,7 @@ export function FormRenderer({
   disabled = false,
   submitLabel = 'Submit',
   loading = false,
+  fieldServices = null,
 }) {
   const [values, setValues] = useState({ ...initialValues });
   const [errors, setErrors] = useState({});
@@ -98,7 +100,8 @@ export function FormRenderer({
   const isDisabled = disabled || loading;
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-1">
+    <FormFieldServicesProvider services={fieldServices}>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-1">
       <div className="flex flex-wrap -mx-1">
         {fields.map((field) => {
           const FieldComponent = getFieldComponent(field.type);
@@ -151,5 +154,6 @@ export function FormRenderer({
         )}
       </div>
     </form>
+    </FormFieldServicesProvider>
   );
 }

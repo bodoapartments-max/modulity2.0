@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FieldWrapper } from './FieldWrapper.jsx';
-import services from '../../../infrastructure/services.js';
+import { useFormFieldServices } from '../FormFieldServicesContext.jsx';
 
 export function EntityReferenceField({ field, value, onChange, error, disabled, workspaceId }) {
+  const fieldServices = useFormFieldServices();
   const fieldId = `field-${field.key}`;
   const [entities, setEntities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -11,9 +12,9 @@ export function EntityReferenceField({ field, value, onChange, error, disabled, 
     if (!workspaceId || !field.entityTypeId) return;
     let cancelled = false;
     setLoading(true);
-    const svc = services?.entity;
-    if (svc) {
-      svc.listEntities(workspaceId, { entityTypeId: field.entityTypeId })
+    const loadEntities = fieldServices?.loadEntities;
+    if (typeof loadEntities === 'function') {
+      loadEntities(workspaceId, { entityTypeId: field.entityTypeId })
         .then((list) => { if (!cancelled) setEntities(list || []); })
         .catch(() => { if (!cancelled) setEntities([]); })
         .finally(() => { if (!cancelled) setLoading(false); });
@@ -21,7 +22,7 @@ export function EntityReferenceField({ field, value, onChange, error, disabled, 
       setLoading(false);
     }
     return () => { cancelled = true; };
-  }, [workspaceId, field.entityTypeId]);
+  }, [workspaceId, field.entityTypeId, fieldServices]);
 
   const selectedEntityId = value?.entityId || '';
 
