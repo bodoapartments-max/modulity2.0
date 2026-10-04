@@ -39,6 +39,7 @@ export function createNotificationService({ notificationRepo }) {
   return {
     async create(params) { return notificationRepo.create(createNotification({ ...params, notificationId: generateId() })); },
     listForUser: notificationRepo.listForUser,
+    listForUserPage: notificationRepo.listForUserPage,
     countUnread: notificationRepo.countUnread,
     markRead(workspaceId, notificationId) { return notificationRepo.updateStatus(workspaceId, notificationId, NOTIFICATION_STATUSES.READ); },
     markUnread(workspaceId, notificationId) { return notificationRepo.updateStatus(workspaceId, notificationId, NOTIFICATION_STATUSES.UNREAD); },

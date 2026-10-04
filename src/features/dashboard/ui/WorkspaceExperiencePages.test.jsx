@@ -10,7 +10,7 @@ import ChatPage from '../../chat/ui/ChatPage.jsx';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 
 const mocks = vi.hoisted(() => ({
-  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(), listConversations: vi.fn(), listModules: vi.fn(),
+  listWorksets: vi.fn(), listWidgets: vi.fn(), listNotifications: vi.fn(), listNotificationsPage: vi.fn(), listConversations: vi.fn(), listModules: vi.fn(),
 }));
 
 vi.mock('../../../infrastructure/services.js', () => ({
@@ -18,7 +18,7 @@ vi.mock('../../../infrastructure/services.js', () => ({
     workset: { list: mocks.listWorksets },
     widget: { listForUser: mocks.listWidgets },
     module: { listModules: mocks.listModules },
-    notification: { listForUser: mocks.listNotifications },
+    notification: { listForUser: mocks.listNotifications, listForUserPage: mocks.listNotificationsPage },
     conversation: { listForUser: mocks.listConversations, listMessages: vi.fn() },
   },
 }));
@@ -40,6 +40,7 @@ describe('Workspace Experience empty states', () => {
     mocks.listWorksets.mockReset().mockResolvedValue([]);
     mocks.listWidgets.mockReset().mockResolvedValue([]);
     mocks.listNotifications.mockReset().mockResolvedValue([]);
+    mocks.listNotificationsPage.mockReset().mockResolvedValue({ items: [], hasMore: false, nextCursor: null });
     mocks.listConversations.mockReset().mockResolvedValue([]);
     mocks.listModules.mockReset().mockResolvedValue([]);
   });
