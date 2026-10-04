@@ -44,6 +44,7 @@ import {
   createNotificationService,
   createWorkspacePreferenceService,
 } from '../core/workspace/workspaceExperienceServices.js';
+import { createModuleCategoryService } from '../core/workspace/moduleCategoryService.js';
 import { createConversationService } from '../core/workspace/conversationService.js';
 import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
 import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';
@@ -220,6 +221,11 @@ function createServices() {
     module: createModuleService({
       moduleRepo: repositories.modules,
       entityTypeRepo: repositories.entityTypes,
+      moduleCategoryRepo: repositories.moduleCategories,
+    }),
+    moduleCategory: createModuleCategoryService({
+      moduleCategoryRepo: repositories.moduleCategories,
+      moduleRepo: repositories.modules,
     }),
     moduleSubmission: createModuleSubmissionService({
       moduleRepo: repositories.modules,
@@ -267,6 +273,7 @@ function createServices() {
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,
       worksetRepo: repositories.worksets,
+      moduleRepo: repositories.modules,
     }),
   };
 }

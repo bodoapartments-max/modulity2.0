@@ -21,6 +21,7 @@ import { createModule, MODULE_STATUSES, validateModuleCode } from './module.js';
 import { createModuleVersionSnapshot } from './moduleVersion.js';
 import { validateFormSchema } from './forms/formSchemaValidator.js';
 import { generateId } from '../core/utils/generateId.js';
+import { generateTechnicalCode, resolveCodeCollision } from '../core/utils/technicalCode.js';
 import { eventBus, createEvent } from '../core/events/eventBus.js';
 import { AppError } from '../core/errors/appError.js';
 
@@ -28,7 +29,7 @@ import { AppError } from '../core/errors/appError.js';
  * @param {Object} deps
  * @param {import('./moduleRepository.js').ModuleRepository} deps.moduleRepo
  */
-export function createModuleService({ moduleRepo, entityTypeRepo = null }) {
+export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleCategoryRepo = null }) {
   async function validateEntityTypeReferences(workspaceId, formSchema) {
     if (!entityTypeRepo) return;
     const references = [...new Set((formSchema?.fields || []).filter((field) => field.type === 'entity-reference').map((field) => field.entityTypeId))];
@@ -42,15 +43,23 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null }) {
    */
   async function createNewModule({
     workspaceId,
-    moduleCode,
+    moduleCode = null, // optional — auto-generated from name when absent (ADR-0012)
     name,
     description = '',
     category = '',
+    categoryId = null,
     formSchema = { schemaVersion: '1.0.0', fields: [] },
     displayConfig = {},
     primaryEntityTypeId = null,
     createdBy,
   }) {
+    // HUMANS PROVIDE BUSINESS MEANING. MODULITY GENERATES TECHNICAL IDENTIFIERS.
+    // moduleCode can be omitted; it is derived deterministically from the name
+    // and made collision-safe within the workspace.
+    if (!moduleCode) {
+      const reserved = moduleRepo.listCodes ? await moduleRepo.listCodes(workspaceId) : [];
+      moduleCode = resolveCodeCollision(generateTechnicalCode(name), reserved);
+    }
     // Validate module code format
     const codeResult = validateModuleCode(moduleCode);
     if (!codeResult.valid) {
@@ -88,6 +97,7 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null }) {
       name,
       description,
       category,
+      categoryId,
       status: MODULE_STATUSES.DRAFT,
       version: 1,
       formSchema,
@@ -149,6 +159,23 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null }) {
     delete safeChanges.moduleCode;
     delete safeChanges.createdBy;
     delete safeChanges.createdAt;
+
+    // Step 17.2 — categoryId is organizational metadata: mutable, must reference
+    // a canonical moduleCategories document of THIS workspace (or null).
+    if (Object.prototype.hasOwnProperty.call(safeChanges, 'categoryId')) {
+      if (safeChanges.categoryId !== null && (typeof safeChanges.categoryId !== 'string' || !safeChanges.categoryId)) {
+        throw new AppError('validation_error', 'categoryId must be a non-empty string or null');
+      }
+      if (safeChanges.categoryId && moduleCategoryRepo) {
+        const category = await moduleCategoryRepo.getById(workspaceId, safeChanges.categoryId);
+        if (!category || category.workspaceId !== workspaceId) {
+          throw new AppError('validation_error', 'categoryId must reference a Module Category of this Workspace');
+        }
+        // Keep the legacy free-text mirror in sync so older views stay readable.
+        safeChanges.category = category.displayName;
+      }
+      if (safeChanges.categoryId === null) safeChanges.category = '';
+    }
 
     // Validate new form schema if provided
     if (safeChanges.formSchema) {

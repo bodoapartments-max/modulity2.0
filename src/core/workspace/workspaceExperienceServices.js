@@ -47,9 +47,61 @@ export function createNotificationService({ notificationRepo }) {
   };
 }
 
-export function createWorkspacePreferenceService({ preferenceRepo, worksetRepo }) {
+export const MODULE_PREFERENCE_VIEW_MODES = Object.freeze({
+  FLAT: 'FLAT',
+  GROUPED: 'GROUPED',
+});
+
+/**
+ * Personal Module presentation preferences — presentation only (ADR-0012).
+ *
+ * Canonical shape (moduleSelection object on userWorkspacePreferences):
+ * {
+ *   selectedModuleIds: string[],   // canonical moduleIds the user wants prominent
+ *   moduleOrder: string[],         // personal ordering over ALL preferred modules
+ *   viewMode: 'FLAT'|'GROUPED'     // grouped by canonical category, or flat
+ *   collapsedCategoryIds: string[] // UI collapse state
+ * }
+ *
+ * INVARIANTS:
+ * - selectedModuleIds ⊆ modules the user could otherwise access (service
+ *   validates against the workspace's Module list; authorization itself is
+ *   NOT decided by this document)
+ * - writing a preference never grants access; hiding never revokes it
+ * - keys are references (moduleIds), NEVER copied Module data
+ */
+export function createWorkspacePreferenceService({ preferenceRepo, worksetRepo, moduleRepo = null }) {
+  async function readSelection(workspaceId, userId) {
+    const pref = await preferenceRepo.get(workspaceId, userId);
+    return pref?.moduleSelection || null;
+  }
+
+  async function writeSelection(workspaceId, userId, partial) {
+    const existing = (await preferenceRepo.get(workspaceId, userId))?.moduleSelection || {};
+    const next = {
+      selectedModuleIds: Array.isArray(partial.selectedModuleIds) ? partial.selectedModuleIds : (existing.selectedModuleIds || []),
+      moduleOrder: Array.isArray(partial.moduleOrder) ? partial.moduleOrder : (existing.moduleOrder || []),
+      viewMode: MODULE_PREFERENCE_VIEW_MODES[partial.viewMode] ? partial.viewMode : (existing.viewMode || MODULE_PREFERENCE_VIEW_MODES.GROUPED),
+      collapsedCategoryIds: Array.isArray(partial.collapsedCategoryIds) ? partial.collapsedCategoryIds : (existing.collapsedCategoryIds || []),
+    };
+
+    // Authorization boundary enforcement — the server/service side proof that
+    // personal preferences can only reference Modules that EXIST in this
+    // workspace. This never grants access; it only keeps the preference clean.
+    if (moduleRepo?.listByWorkspace) {
+      const modules = await moduleRepo.listByWorkspace(workspaceId, 500);
+      const allowed = new Set(modules.map((m) => m.moduleId));
+      next.selectedModuleIds = [...new Set(next.selectedModuleIds)].filter((id) => allowed.has(id));
+      next.moduleOrder = [...new Set(next.moduleOrder)].filter((id) => allowed.has(id));
+    }
+
+    return preferenceRepo.upsert(workspaceId, userId, { moduleSelection: next });
+  }
+
   return {
     get: preferenceRepo.get,
+    getModuleSelection: readSelection,
+    setModuleSelection: writeSelection,
     async setActiveWorkset(workspaceId, userId, worksetId) {
       if (worksetId) {
         const workset = await worksetRepo.getById(workspaceId, worksetId);

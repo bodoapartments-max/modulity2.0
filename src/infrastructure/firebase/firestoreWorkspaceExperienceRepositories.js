@@ -15,8 +15,7 @@ function mapSnapshot(snapshot, idField) {
   };
 }
 
-export function createFirestoreWorksetRepository(db) {
-  const ref = (workspaceId, id) => doc(db, 'workspaces', workspaceId, 'worksets', id);
+export function createFirestoreWorksetRepository(db) {  const ref = (workspaceId, id) => doc(db, 'workspaces', workspaceId, 'worksets', id);
   const col = (workspaceId) => collection(db, 'workspaces', workspaceId, 'worksets');
   return {
     async create(workset) {
@@ -32,6 +31,32 @@ export function createFirestoreWorksetRepository(db) {
     async update(workspaceId, id, changes) {
       await updateDoc(ref(workspaceId, id), { ...changes, _updatedAt: serverTimestamp() });
       return mapSnapshot(await getDoc(ref(workspaceId, id)), 'worksetId');
+    },
+  };
+}
+
+export function createFirestoreModuleCategoryRepository(db) {
+  const ref = (workspaceId, id) => doc(db, 'workspaces', workspaceId, 'moduleCategories', id);
+  const col = (workspaceId) => collection(db, 'workspaces', workspaceId, 'moduleCategories');
+  return {
+    async create(category) {
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...data } = category;
+      await setDoc(ref(category.workspaceId, category.categoryId), { ...data, _createdAt: serverTimestamp(), _updatedAt: serverTimestamp() });
+      return category;
+    },
+    async getById(workspaceId, id) { return mapSnapshot(await getDoc(ref(workspaceId, id)), 'categoryId'); },
+    async getByCode(workspaceId, code) {
+      const snapshot = await getDocs(query(col(workspaceId), where('categoryCode', '==', code), limit(1)));
+      const first = snapshot.docs[0];
+      return first ? mapSnapshot(first, 'categoryId') : null;
+    },
+    async list(workspaceId) {
+      const snapshot = await getDocs(query(col(workspaceId), orderBy('sortOrder', 'asc'), limit(200)));
+      return snapshot.docs.map((item) => mapSnapshot(item, 'categoryId'));
+    },
+    async update(workspaceId, id, changes) {
+      await updateDoc(ref(workspaceId, id), { ...changes, _updatedAt: serverTimestamp() });
+      return mapSnapshot(await getDoc(ref(workspaceId, id)), 'categoryId');
     },
   };
 }

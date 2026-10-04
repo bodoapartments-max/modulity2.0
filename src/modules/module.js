@@ -39,7 +39,11 @@ export const MODULE_STATUSES = Object.freeze({
  * @property {string} moduleCode — stable human/developer-facing code (unique within workspace)
  * @property {string} name — human-readable display name
  * @property {string} description
- * @property {string} category — organizational metadata (e.g. "Operations", "HR")
+ * @property {string} category — organizational metadata (e.g. "Operations", "HR") [LEGACY free text]
+ * @property {string|null} categoryId — canonical Module Category link (ADR-0012).
+ *   When set, the Module's organizational bucket comes from the canonical
+ *   moduleCategories collection; the legacy `category` string stays as the
+ *   historical snapshot for older Modules.
  * @property {string} status — one of MODULE_STATUSES
  * @property {number} version — integer version, incremented on schema changes
  * @property {FormSchema} formSchema — the form definition
@@ -69,6 +73,7 @@ export function createModule({
   name,
   description = '',
   category = '',
+  categoryId = null,
   status = MODULE_STATUSES.DRAFT,
   version = 1,
   formSchema = { schemaVersion: '1.0.0', fields: [] },
@@ -84,6 +89,9 @@ export function createModule({
   if (!workspaceId) throw new Error('workspaceId is required');
   if (!moduleCode) throw new Error('moduleCode is required');
   if (!name) throw new Error('name is required');
+  if (categoryId !== null && (typeof categoryId !== 'string' || !categoryId)) {
+    throw new Error('categoryId must be a non-empty string or null');
+  }
   if (!MODULE_STATUSES[status]) {
     throw new Error(`Invalid module status: ${status}`);
   }
@@ -104,6 +112,7 @@ export function createModule({
     name,
     description,
     category,
+    categoryId,
     status,
     version,
     formSchema: Object.freeze({

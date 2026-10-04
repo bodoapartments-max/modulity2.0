@@ -86,7 +86,7 @@ export function createFirestoreModuleRepository(db) {
   }
 
   async function listByWorkspace(workspaceId, maxResults = 100) {
-    const snap = await getDocs(query(modulesCol(workspaceId), limit(Math.min(maxResults, 100))));
+    const snap = await getDocs(query(modulesCol(workspaceId), limit(Math.min(maxResults, 500))));
     return snap.docs.map(mapFromFirestore);
   }
 
@@ -180,6 +180,16 @@ export function createFirestoreModuleRepository(db) {
     return snap.data();
   }
 
+  /**
+   * Lists all reserved module codes in the workspace (bounded).
+   * Used for deterministic collision-safe technical identifier generation.
+   */
+  async function listCodes(workspaceId, maxResults = 500) {
+    const col = collection(db, 'workspaces', workspaceId, 'moduleCodes');
+    const snap = await getDocs(query(col, limit(Math.min(maxResults, 500))));
+    return snap.docs.map((d) => d.id);
+  }
+
   return {
     getById,
     getByCode,
@@ -192,5 +202,6 @@ export function createFirestoreModuleRepository(db) {
     listVersionSnapshots,
     createModuleWithCodeReservation,
     isCodeReserved,
+    listCodes,
   };
 }

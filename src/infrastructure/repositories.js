@@ -35,6 +35,7 @@ import {
   createFirestoreWidgetRepository,
   createFirestoreNotificationRepository,
   createFirestoreWorkspacePreferenceRepository,
+  createFirestoreModuleCategoryRepository,
 } from './firebase/firestoreWorkspaceExperienceRepositories.js';
 
 function createRepositories() {
@@ -69,6 +70,7 @@ function createRepositories() {
     widgets: createFirestoreWidgetRepository(firebaseDb),
     notifications: createFirestoreNotificationRepository(firebaseDb),
     workspacePreferences: createFirestoreWorkspacePreferenceRepository(firebaseDb),
+    moduleCategories: createFirestoreModuleCategoryRepository(firebaseDb),
     conversations: createFirestoreConversationRepository(firebaseDb),
     reports: createFirestoreReportRepository(firebaseDb),
     capabilityDefinitions: createFirestoreCapabilityDefinitionRepository(firebaseDb),
