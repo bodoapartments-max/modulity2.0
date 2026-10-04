@@ -2,6 +2,23 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 17.1.1 — Configurable Ledger Books & Universal Ledger Sources
+
+### Added
+- Typed declarative `sourceDefinition` on Ledger Books (closed union; v1: `{ type: 'MODULE', moduleId }`) — never arbitrary query config
+- `provisionedBy` (`AUTO`|`USER`) server-derived provenance on books
+- Trusted routing: submissions prefer the USER-configured ACTIVE register for the Module; per-Module AUTO book remains the evidence fallback
+- Deterministic historical backfill on book creation: eligible Records (_createdAt order, ≤1000) register via the ordinary trusted path with `backfill-{opId}-{recordId}` op ids; journal replays continue idempotently
+- Create Ledger Book page: Module source selector, auto-suggested code/prefix, inline trusted errors
+- Contract `ledgerCommand` 1.1.0 (1.0.0 still accepted; additive)
+- Function tests for source validation, forged-source rejection, backfill idempotency/order, routing preference (58 total)
+- UI tests for the configuration page; core contract tests for `ledgerSourceDefinition`
+- Live E2E `tests/e2e/step17_1_1.e2e.spec.js`: hidden auto evidence → configure book → backfill → routing → void stays consumed → reset clean rebuild
+- ADR-0011
+
+### Changed
+- Ledger main page: "Ledger Book" rows (Auto badge), Used/Voided/Remaining counters wording, honest empty state
+
 ## Step 17.1 — Universal Form Ledger & Historical Form Viewer
 
 ### Added

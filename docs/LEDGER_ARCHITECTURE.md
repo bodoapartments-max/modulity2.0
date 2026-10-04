@@ -134,3 +134,52 @@ Form Book. The paper-register invariants hold end-to-end:
   wiped and the register restarts at sequence 1).
 
 Drafts never register; only official submissions consume sequence numbers.
+
+## Step 17.1.1 — Configurable Ledger Books & universal sources
+
+**PRESERVATION ≠ ORGANIZATION.** Evidence is created by the trusted chain
+regardless of whether anyone has configured a visible register; Ledger Books are
+the workspace's intentional organizational views over that evidence.
+
+### Book model additions (single canonical model, no schema split)
+
+- `sourceDefinition` — typed declarative evidence source, closed union.
+  v1: `{ type: 'MODULE', moduleId }` (`src/core/ledger/ledgerSourceDefinition.js`).
+  Never arbitrary collections/fields/operators. A legacy bare `moduleId` on the
+  command payload is normalized to the MODULE source.
+- `provisionedBy` — `AUTO` (internal per-Module fallback) or `USER`
+  (intentionally configured). Server-derived; only the internal engine call
+  (`internal: true`) can produce `AUTO`.
+
+### Registration routing
+
+`ensureModuleLedgerBook` resolves the register for a submitting Module:
+the first ACTIVE USER-provisioned book whose source references the Module WINS;
+otherwise the deterministic AUTO book is found/created as before.
+Composite index used: `ledgerBooks(moduleId, provisionedBy, status)`.
+
+### Trusted historical backfill
+
+Creating a USER book with a source triggers server-side backfill of eligible
+historical evidence:
+
+- Eligible: canonical Records of the Module in SUBMITTED/ACTIVE/COMPLETED.
+- Order: `_createdAt` ascending; bounded paging (100 × max 10 pages).
+- Path: ordinary `REGISTER_LEDGER_ENTRY` with deterministic operation ids
+  `backfill-{opId}-{recordId}` → fresh sequences in the NEW book, full
+  transaction-committed audit, honest actor attribution (the configuring user).
+- Retries/journal replays continue the backfill idempotently; deterministic
+  entry ids prevent any duplicate.
+- Cancelled pre-book history is NOT fabricated into the new register (it keeps
+  its existing evidence); void-after-registration works normally.
+
+### UI
+
+- Ledger main page lists configured + auto books with counters
+  (`Used` = active entries, `Voided` = consumed-forever slots,
+  `Remaining` excludes consumed) and an honest empty state.
+- "New Ledger Book" is a configuration page: Name, Description, Module source
+  selector (non-draft Modules), auto-suggested Ledger Code / Reference Prefix
+  (overridable), Block Size. Validation + inline trusted-server errors.
+- The register page and read-only Historical Form Viewer (exact historical
+  ModuleVersion schema, Prev/Next) are unchanged paths.
