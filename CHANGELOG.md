@@ -2,6 +2,26 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 18 — Workspace Chat & Contextual Conversations (+ Calendar / Records acceptance fixes)
+
+### Added
+- `chatCommand` trusted callable (6 commands) with journal replay, idempotency, deterministic DM/context ids
+- `src/core/chat/chatDomain.js` + `chatCommandContract.js` — canonical Conversation/Message model with typed contextReference
+- `ContextConversationLink` on Record Detail / Entity Detail / Module Detail
+- Notification events `chat.direct_message`, `chat.mentioned`, `chat.context_message` via Step 17 channel
+- Read-state per user for unread indicators
+- Calendar revisit uses day-normalized cache windows (no flash on revisit)
+- Records list waits for module metadata before rendering titles; stable placeholder replaces technical fallback during cold load
+- Rules lock conversations/members/messages/readStates to the chatCommand boundary
+- E2E `step18.e2e.spec.js`: channel creation, messaging, Record context conversation, reset ghost-check
+
+### Deferred (Known Gaps)
+- WORKSPACE-type conversations (GAP-017 — Step 19)
+- Message edit/delete + nested threads (GAP-018 — Step 20.1 review)
+- Restricted context conversations (GAP-019 — Step 20.1 review)
+
+## Step 17.4 — Technical Identifier UX Hardening
+
 ## Step 17.3 — Trusted Entity & Module Administration + Change History
 
 ### Added

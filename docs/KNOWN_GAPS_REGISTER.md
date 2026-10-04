@@ -21,5 +21,10 @@ Statuses: `OPEN`, `DEFERRED_BY_DESIGN`, `SCHEDULED`, `RESOLVED`, `OBSOLETE`.
 | GAP-012 | Roadmap numbering conflict: "17.5 Data Import & Mapping" appeared in earlier docs while authoritative placement is Step 31.1 | 17.2 docs | RESOLVED (17.4) | — | Removed redundant 17.5 row; authoritative placement is 31.1 |
 | GAP-013 | Module Page / View Composition Engine has no final roadmap step | 17.3 area | OPEN | 20.1 decision | Not implemented yet; declarative Module Page Definition planned |
 | GAP-014 | Agent-ready capability contracts not formally standardized across future Engines | 17.4 | OPEN | 21 | Architectural requirement only; no orchestrator now |
+| GAP-015 | Records temporarily exposed technical/fallback titles during module metadata resolution | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: module metadata had no cache slot and row labels rendered a technical fallback before it arrived; fixed by putting module metadata into the workspaceQueryCache and only showing a stable placeholder while cold |
+| GAP-016 | Calendar revisit reloaded visible state even with warmed cache | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: windowBounds keys contained live time-of-day, creating a new cache entry on every revisit; fixed by day-level normalization |
+| GAP-017 | Conversation member add/remove is not yet user-manageable; WORKSPACE-type conversations not implemented | 18 | OPEN | 19 | Membership lifecycle lives next to Step 19 org UX; Workspace broadcast channels can live inside Channels |
+| GAP-018 | Message edit/delete and richer threading (nested replies) deferred | 18 | DEFERRED_BY_DESIGN | 20.1 review | Simple reply-to exists; edit/delete/forking-thread trees explicit skip; messageEditPolicy may evolve later |
+| GAP-019 | Chat member-of conversation reads all workspace context conv — boundary between CONTEXT and restricted-context conversations needs team policy | 18 | OPEN | 20.1 review | Depends on future Record/task restriction policy |
 
 Rule: known gaps never excuse security/data-integrity defects. They pace roadmap-level investments only.
