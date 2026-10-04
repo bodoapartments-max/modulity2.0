@@ -866,18 +866,35 @@ service cloud.firestore {
       }
 
       // ─── Notifications ─────────────────────────────────────
+      // STEP 17: canonical Notifications are authored exclusively by trusted
+      // server boundaries (notificationEngine via trusted commands).
+      // Browsers may read their OWN notifications and flip their OWN
+      // read-state (status/readAt only) — everything else is immutable.
+
       match /notifications/{notificationId} {
         allow read: if canAccessWorkspace()
           && resource.data.recipientUserId == request.auth.uid;
-        allow create: if canAccessWorkspace()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.notificationId == notificationId
-          && isValidClientActor(request.resource.data.createdBy);
+        allow create: if false;
+        // Recipient-owned read-state transitions ONLY. Every other field
+        // (content, context, identity, timestamps) is immutable.
         allow update: if resource.data.recipientUserId == request.auth.uid
-          && fieldUnchanged('workspaceId') && fieldUnchanged('notificationId')
-          && fieldUnchanged('recipientUserId') && fieldUnchanged('type')
-          && fieldUnchanged('resourceType') && fieldUnchanged('resourceId')
-          && fieldUnchanged('createdBy') && fieldUnchanged('_createdAt');
+          && request.resource.data.status in ['UNREAD', 'READ', 'ARCHIVED']
+          && fieldUnchanged('contractVersion')
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('notificationId')
+          && fieldUnchanged('recipientUserId')
+          && fieldUnchanged('type')
+          && fieldUnchanged('eventType')
+          && fieldUnchanged('title')
+          && fieldUnchanged('message')
+          && fieldUnchanged('contextReference')
+          && fieldUnchanged('resourceType')
+          && fieldUnchanged('resourceId')
+          && fieldUnchanged('actionUrl')
+          && fieldUnchanged('priority')
+          && fieldUnchanged('metadata')
+          && fieldUnchanged('createdBy')
+          && fieldUnchanged('_createdAt');
         allow delete: if false;
       }
 

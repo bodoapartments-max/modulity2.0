@@ -28,14 +28,13 @@ import { createModuleSubmissionService } from '../modules/moduleSubmissionServic
 import { createLedgerService } from '../core/ledger/ledgerService.js';
 import { createLedgerQueryService } from '../core/ledger/ledgerQueryService.js';
 import { createAuditService } from '../core/audit/auditService.js';
-import { eventBus } from '../core/events/eventBus.js';
 
 export function bootstrapServices(servicesInstance) {
-  // Step 16: the browser AuditBridge was retired — durable Audit evidence is
-  // authored exclusively by trusted server boundaries (recordCommand,
-  // ledgerCommand, workspaceReset, automatApply). Browsers may only READ
-  // audit entries (Record History). The notification bridge remains.
-  startNotificationBridge(eventBus, servicesInstance.notification);
+  // Step 16/17: browser-side event bridges are retired. Authoritative Audit
+  // and Notification evidence is produced exclusively by trusted server
+  // boundaries (recordCommand, ledgerCommand, workspaceReset, automatApply).
+  // Browser-authored delivery/FormRequest notifications have no trusted
+  // producer yet — documented deferred work (NOTIFICATION_ARCHITECTURE.md).
   return servicesInstance;
 }
 import { createWorksetService } from '../core/workspace/worksetService.js';
@@ -45,7 +44,6 @@ import {
   createNotificationService,
   createWorkspacePreferenceService,
 } from '../core/workspace/workspaceExperienceServices.js';
-import { startNotificationBridge } from '../core/workspace/notificationBridge.js';
 import { createConversationService } from '../core/workspace/conversationService.js';
 import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
 import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';

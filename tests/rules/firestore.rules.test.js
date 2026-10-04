@@ -3527,6 +3527,49 @@ describe('Step 7 workspace experience rules', () => {
     }));
   });
 
+  // ═══════════════════════════════════════════════════════
+  // STEP 17 — trusted Notification boundary
+  // ═══════════════════════════════════════════════════════
+
+  it('denies browser Notification creation entirely (Step 17: server functions author notifications)', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-new'), {
+      notificationId: 'n-new', workspaceId: 'ws-step7', recipientUserId: 'user1',
+      type: 'RECORD_CREATED', title: 'Created', status: 'UNREAD',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+  });
+
+  it('recipient may flip their own read-state only (status/readAt); no content mutation', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n-own'), {
+      notificationId: 'n-own', workspaceId: 'ws-step7', recipientUserId: 'user1',
+      type: 'RECORD_CREATED', title: 'Created', status: 'UNREAD',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+    const db = authedDb('user1');
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-own'), {
+      status: 'READ', _readAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-own'), {
+      title: 'Forged title',
+    }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-own'), {
+      message: 'forged',
+      status: 'READ',
+    }));
+  });
+
+  it('other users may not flip read-state on someone else Notification', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n-foreign'), {
+      notificationId: 'n-foreign', workspaceId: 'ws-step7', recipientUserId: 'user1',
+      type: 'RECORD_CREATED', title: 'Created', status: 'UNREAD',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+    const db = authedDb('user2');
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-foreign'), { status: 'READ' }));
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-step7', 'notifications', 'n-foreign')));
+  });
+
   function reportDefinitionData(overrides = {}) {
     return {
       reportId: 'rep-1', workspaceId: 'ws-step7', name: 'Summary', description: '', status: 'ACTIVE', version: 1,

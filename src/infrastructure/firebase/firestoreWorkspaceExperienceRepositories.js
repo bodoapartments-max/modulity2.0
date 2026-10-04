@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, startAfter,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -73,6 +73,18 @@ export function createFirestoreNotificationRepository(db) {
     async listForUser(workspaceId, userId, pageSize = 25) {
       const snapshot = await getDocs(query(col(workspaceId), where('recipientUserId', '==', userId), orderBy('_createdAt', 'desc'), limit(Math.min(pageSize, 50))));
       return snapshot.docs.map((item) => mapSnapshot(item, 'notificationId'));
+    },
+    // Bounded, cursor-paginated listing for the Notification Center.
+    // Cursor = the last document snapshot of the previous page (opaque to UI state).
+    async listForUserPage(workspaceId, userId, { pageSize = 25, afterSnapshot = null } = {}) {
+      const constraints = [where('recipientUserId', '==', userId), orderBy('_createdAt', 'desc'), limit(Math.min(pageSize, 50) + 1)];
+      if (afterSnapshot) constraints.push(startAfter(afterSnapshot));
+      const snapshot = await getDocs(query(col(workspaceId), ...constraints));
+      const limitValue = Math.min(pageSize, 50);
+      const hasMore = snapshot.docs.length > limitValue;
+      const items = snapshot.docs.slice(0, limitValue).map((item) => mapSnapshot(item, 'notificationId'));
+      const nextCursor = hasMore ? snapshot.docs[limitValue - 1] : null;
+      return { items, hasMore, nextCursor };
     },
     async updateStatus(workspaceId, id, status) {
       await updateDoc(ref(workspaceId, id), { status, _readAt: status === 'READ' ? serverTimestamp() : null });
