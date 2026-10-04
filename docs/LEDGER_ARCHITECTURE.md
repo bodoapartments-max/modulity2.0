@@ -16,8 +16,8 @@ Records. Browsers project Ledger data; only trusted servers author it.
   `ledgerCode` unique per workspace. Server-only writes.
 - **LedgerEntry** (`workspaces/{ws}/ledgerEntries/{id}`) — immutable
   registration: deterministic id `le_{ledgerBookId}_{recordId}`, sequence
-  number, human reference, Record linkage metadata, `entryStatus` (ACTIVE;
-  future CANCELLED/VOIDED come from trusted commands — deferred until then).
+  number, human reference, Record linkage metadata, `entryStatus`
+  (ACTIVE / CANCELLED / VOIDED — set only by trusted server paths).
 
 ## Sequence semantics (preserved from the original design)
 
@@ -102,3 +102,35 @@ This is the ADR-0001 behavior — unchanged by Step 16.
 - Queries remain bounded (`nextSequence` bump is a single-document write).
 - No whole-workspace listeners; Ledger lists/books use paginated repository
   queries.
+
+## Step 17.1 — Universal Form Ledger (auto-registration)
+
+Every official form submission is automatically registered in a per-Module
+Form Book. The paper-register invariants hold end-to-end:
+
+- **Auto-provisioning**: the first trusted `SUBMIT_RECORD` (or non-draft
+  `CREATE_RECORD`) for a Module derives and creates the Module's Form Book on
+  the server (`ensureModuleLedgerBook`, keyed deterministically by Module),
+  then registers the Record via the standard `REGISTER_LEDGER_ENTRY` command
+  with operation id `auto-register-{operationId}` — replays converge to the
+  same entry and never consume a second sequence.
+- **Rename/version safety**: the book is derived from the Module identity at
+  registration time; historical entries and references never change.
+- **Cancellation binding**: a trusted `CANCEL_RECORD` marks the Record's
+  Ledger entries CANCELLED in a post-transaction chain
+  (`cancelLedgerRegistrationForRecord`). Entries are never deleted and the
+  sequence position stays consumed — the same paper-book principle as V1.
+- **Form Books UI** (`src/features/ledger/`): the Form Books list shows the
+  book row (block range, capacity, filled/voided/remaining counters, status);
+  the Book page offers a block strip, status/reference filters and a read-only
+  Historical Form Viewer that renders the Record with the exact Module Version
+  schema and supports Previous/Next navigation through the register.
+- **Composite index**: `(ledgerBookId, ledgerBlockId, sequenceNumber)` on
+  `ledgerEntries` powers the per-block sequence projection.
+- **Reset**: `recordOperations` was added to the workspace reset contract so
+  trusted operation journals cannot survive a reset as ghost data
+  (`tests/rules/ledgerReset.integration.test.js` proves ledgerBooks,
+  ledgerEntries, blocks, codes, records, modules and recordOperations are all
+  wiped and the register restarts at sequence 1).
+
+Drafts never register; only official submissions consume sequence numbers.

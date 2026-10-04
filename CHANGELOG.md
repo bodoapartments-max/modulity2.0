@@ -2,6 +2,22 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 17.1 — Universal Form Ledger & Historical Form Viewer
+
+### Added
+- Server-side auto-registration: trusted `SUBMIT_RECORD` (and non-draft `CREATE_RECORD`) chains `ensureModuleLedgerBook` + `REGISTER_LEDGER_ENTRY` with deterministic operation id `auto-register-{operationId}` — every official submission gets register identity; retries never consume a second sequence
+- Trusted `CANCEL_RECORD` chains `cancelLedgerRegistrationForRecord`: entries become CANCELLED (never deleted), sequence stays consumed
+- Form Books main view: book rows with block, capacity, filled/voided/remaining counters, status
+- Form Book page: block strip, status/reference filters, entries table
+- Read-only Historical Form Viewer (`FormRenderer` readOnly) with Previous/Next navigation through the register, preserving the historical Module Version schema
+- Composite index `(ledgerBookId, ledgerBlockId, sequenceNumber)` on `ledgerEntries`
+- `tests/rules/ledgerReset.integration.test.js` — reset wipes ledgerBooks/blocks/entries/codes/records/modules/recordOperations (no ghost journals)
+- Live E2E `tests/e2e/step17_1.e2e.spec.js` — submit → auto-register → counters → viewer → cancel evidence → reset ghost-free + fresh register from 000001
+- ADR-0010
+
+### Changed
+- Workspace reset contract now also deletes `recordOperations`
+
 ## Step 17 — Generic Notification Capability
 
 ### Added
