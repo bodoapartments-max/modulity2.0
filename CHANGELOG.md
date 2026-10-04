@@ -2,6 +2,29 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 17.2 — Module Organization, Categories & Personal Module Selection
+
+### Added
+- Canonical Module Category model (`moduleCategories`, workspace-scoped, ACTIVE/ARCHIVED) — one taxonomy shared by manual and Automat-generated Modules
+- `categoryId` on Modules; legacy free-text `category` kept as a historical snapshot
+- Personal Module selection preferences on `userWorkspacePreferences` (`moduleSelection`: selected ids, order, viewMode) — validated against real workspace Modules on write
+- My Modules upgrade: search, category filter, grouped/flat toggle, Customize panel with checkbox selection and deterministic order controls
+- Header `All Modules` navigator: grouped authorized discovery over the same canonical category data — ignores personal selection, so hidden-but-authorized Modules remain discoverable
+- Module Designer: canonical category selector with inline "+ New Category"; Module Code field optional and auto-generated from Name
+- `src/core/utils/technicalCode.js` — deterministic technical identifier generation with collision-safe suffixes
+- Automat apply normalizes proposal areas into the canonical category collection (same model as manual UI)
+- Rules for `moduleCategories`; per-user preference isolation negative tests
+- Workspace Reset now also removes `moduleCategories`
+- ADR-0012, MODULE_ORGANIZATION_ARCHITECTURE.md
+- Live E2E `tests/e2e/step17_2.e2e.spec.js` covering category create/assign/auto-code, Uncategorized fallback, personal selection + order + mode persistence across reload, All Modules discovery (hidden-but-authorized stays visible), and reset
+
+### Changed
+- Create Module no longer requires typing a technical code — the platform generates it collision-safely
+- Module Detail Category is a live selector that reassigns organizational grouping without touching Records/Ledger/ModuleVersion history
+
+### Regression
+- Step 17 / 17.1 / 17.1.1 live E2E remain green (17.1 got a viewer fix: FormRenderer actions are now fully unmounted in hideActions mode instead of the `hidden` attribute trap)
+
 ## Step 17.1.1 — Configurable Ledger Books & Universal Ledger Sources
 
 ### Added

@@ -167,6 +167,16 @@ Workset is context, not authorization. Activating Office, Warehouse, Field Insta
 
 Favorite is personal convenience/frequency. Workset is a contextual Module collection. Do not merge them.
 
+Module Category, Module Authorization, and Personal Module Selection are three separate concepts. Never merge them:
+
+1. **Category** (`moduleCategories` + `Module.categoryId) answers "what business area does this Module belong to." It is organizational metadata — it never makes an authorized Module forbidden nor a forbidden Module authorized.
+2. **Authorization** is server-authoritative via Rules and service boundaries; UI visibility is NOT authorization.
+3. **Personal selection** (`userWorkspacePreferences.moduleSelection`) answers "of the Modules I am authorized for, which are prominent in MY view." It can only REDUCE presentation surface — never expose or hide authorization.
+
+`hiddenByUser != permissionDenied`. A hidden-but-authorized Module must remain discoverable (All Modules navigator). See ADR-0012.
+
+Stable technical identifiers (`moduleCode`, `categoryCode`, `ledgerCode`) are IMMUTABLE after creation. Renaming display labels never renames technical identifiers. Codes are generated deterministically from display labels with collision-safe suffixes (`core/utils/technicalCode.js`) — do not parallel-code generators.
+
 ## 11. Multi-Workspace first
 
 Never assume one global company. A User may have a Personal Workspace and memberships in multiple Organizations.

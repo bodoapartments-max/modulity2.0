@@ -273,6 +273,7 @@ The idempotency check is now **inside** `registerRecordAtomic()`, within the sam
 - Step 17 (ADR-0009): generic Notification capability — canonical contract, trusted server engine, deterministic dedupe, IN_APP delivery; browsers can only toggle their own read state.
 - Step 17.1 (ADR-0010): Universal Form Ledger — trusted `SUBMIT_RECORD`/`CREATE_RECORD` auto-registers into a per-Module Form Book; trusted `CANCEL_RECORD` crosses out entries (never deletes); read-only Historical Form Viewer with Prev/Next; reset contract also wipes `recordOperations`.
 - Step 17.1.1 (ADR-0011): Configurable Ledger Books — evidence ≠ organization. `sourceDefinition` (typed, closed union, MODULE v1) + `provisionedBy` on books; USER-configured register wins over the AUTO fallback; trusted deterministic backfill organizes historical evidence; only trusted commands create/modify authoritative Ledger state.
+- Step 17.2 (ADR-0012): Module Categories & Personal Selection — canonical `moduleCategories` shared by manual and Automat paths; `Module.categoryId` link; personal selection/order/viewMode on `userWorkspacePreferences.moduleSelection` validated against real Modules; auto technical code generation (`core/utils/technicalCode.js`); All Modules navigator discovers authorized-hidden Modules; Rule: categories ≠ authorization ≠ personal visibility.
 
 ## Step 2 Architecture Notes
 
