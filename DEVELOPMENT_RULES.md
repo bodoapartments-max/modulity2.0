@@ -149,6 +149,8 @@ Canonical Record lifecycle mutations execute through trusted Record commands (`r
 
 Canonical Audit evidence must be authored by trusted server boundaries. Ledger sequence allocation and immutable registration must never be client-authoritative. Clients may project Ledger/Audit data but must not author immutable evidence.
 
+Canonical Notifications are derived communication artifacts authored only by trusted server boundaries. The Event Bus is a UI mechanism, never the authority for notifications. Clients may flip their own notification read-state and must never forge notification content, identity, recipients, or timestamps. A notification is never business truth and never grants access.
+
 Records preserve the exact Module version/schema context under which they were created. Updating a Module must not silently reinterpret historical Records.
 
 ## 9. Entity ownership and extensibility

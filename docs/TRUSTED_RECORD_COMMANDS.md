@@ -145,8 +145,12 @@ Shared journal: `workspaces/{workspaceId}/recordOperations/{operationId}`
   replay returns before the mutation, so history is written exactly once.
   `_timestamp` is a Firestore `serverTimestamp` (that is what the History
   query orders by).
-- Generic notification policy is Step 17; the CREATE notification remains a
-  best-effort post-transaction write (it is not evidence).
+- The CREATE_notification path runs through the generic notification
+  architecture (`functions/src/notificationEngine.js`): deterministic id
+  `op_{operationId}_{eventType}_{recipientUserId}` — retries cannot
+  duplicate an inbox item; notification failure never invalidates a
+  committed mutation. Generic notification policy lives in
+  Step 17's `docs/NOTIFICATION_ARCHITECTURE.md`.
 - The legacy browser AuditBridge was removed; browsers author no Audit.
 
 See `docs/AUDIT_ARCHITECTURE.md` and ADR-0008.

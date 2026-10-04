@@ -2,6 +2,28 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 17 — Generic Notification Capability
+
+### Added
+- Canonical Notification domain under `src/core/notifications/`:
+  - `notificationContract.js` — versioned contract (1.0.0) with intent validation (no authority fields, no executables), deterministic Notification id per (operationId, eventType, recipient), context-reference model (pointers, never copies)
+  - `notificationPolicy.js` — controlled presentation templates per event
+  - `recipientResolution.js` — `SELF_FROM_ACTOR` / `EXPLICIT_USER` strategies with actor-redundancy opt-out
+  - `deliveryRouter.js` — adapter seam; `IN_APP` implemented, EMAIL/PUSH/WEBHOOK documented future adapters
+- Trusted server `functions/src/notificationEngine.js` — the single creation path for canonical Notifications; recipient workspace access re-verified server-side
+- Function-level tests: creation, read-state-preserving 10× retry dedupe, distinct-operation dual notifications, recipient access control (personal/org/inactive), forged-intent rejection (9 tests)
+- `docs/NOTIFICATION_ARCHITECTURE.md` + ADR-0009
+
+### Changed
+- `recordCommand` now emits Notifications through the generic engine (`record.created`, `record.draft_saved`) instead of ad-hoc post-tx writes
+- Notification Center rewritten: unread/read badges, attention priority badge, bounded cursor pagination (25/page with "Load older"), per-item Mark read, Mark all read, timestamps, deep links, empty/loading/error states
+- `createCanonicalNotification` keeps legacy `type`/`resourceType`/`resourceId` fields for compatibility
+
+### Security
+- Firestore Rules: browsers may no longer CREATE notifications at all; recipients may flip ONLY their own `status`/`readAt`; everything else immutable
+- Legacy browser `notificationBridge` removed (delivery-domain notifications are deferred until delivery gets a trusted command — no forged fill-in)
+- Recipient resolution can never grant access to referenced canonical objects
+
 ## Step 16 — Trusted Ledger & Audit Backend
 
 ### Added
