@@ -1007,10 +1007,10 @@ describe('workspaces/{wsId}/entityTypes/{typeId}', () => {
     await assertFails(getDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type')));
   });
 
-  it('owner can create entity type in personal workspace', async () => {
+  it('Step 17.3 — browsers can no longer create DOMAIN entity types (trusted boundary)', async () => {
     await setupWorkspace('ws-personal', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-personal', 'entityTypes', 'my-type'), {
       typeId: 'my-type', code: 'CUSTOM', name: 'Custom Type',
       category: 'DOMAIN', workspaceId: 'ws-personal', status: 'ACTIVE',
     }));
@@ -1040,7 +1040,7 @@ describe('workspaces/{wsId}/entityTypes/{typeId}', () => {
     }));
   });
 
-  it('DOMAIN entity type can be updated by org admin', async () => {
+  it('Step 17.3 — DOMAIN entity type updates are denied to browsers (trusted boundary)', async () => {
     await setupOrg('org1', {}, [
       { userId: 'owner1', roles: ['OWNER'] },
       { userId: 'admin1', roles: ['ADMIN'] },
@@ -1054,7 +1054,7 @@ describe('workspaces/{wsId}/entityTypes/{typeId}', () => {
       });
     });
     const db = authedDb('admin1');
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-org1', 'entityTypes', 'room-type'), {
       name: 'Hotel Room',
     }));
   });
@@ -1138,17 +1138,25 @@ describe('workspaces/{wsId}/entities/{entityId}', () => {
     await assertFails(getDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent1')));
   });
 
-  it('org member can create entity in org workspace', async () => {
+  it('Step 17.3 — browsers cannot create entities directly (trusted boundary)', async () => {
     await setupOrg('org1', {}, [
       { userId: 'owner1', roles: ['OWNER'] },
       { userId: 'member1', roles: ['MEMBER'] },
     ]);
     await setupWorkspace('ws-org1', { type: 'ORGANIZATION', organizationId: 'org1', name: 'Org WS' });
     const db = authedDb('member1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-org1', 'entities', 'ent-new'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-org1', 'entities', 'ent-new'), {
       entityId: 'ent-new', workspaceId: 'ws-org1', entityTypeId: 'core:vehicle',
       displayName: 'New Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'member1' },
     }));
+  });
+
+  it('Step 17.3 — browser entity updates are denied (trusted boundary)', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'workspaces', 'ws-p', 'entities', 'ent-1'), { entityId: 'ent-1', workspaceId: 'ws-p', entityTypeId: 'core:vehicle', displayName: 'Car', status: 'ACTIVE', createdBy: { actorType: 'USER', actorId: 'user1' } });
+    });
+    await assertFails(updateDoc(doc(authedDb('user1'), 'workspaces', 'ws-p', 'entities', 'ent-1'), { displayName: 'Renamed' }));
   });
 
   it('denies invalid Entity lifecycle status', async () => {
@@ -1561,10 +1569,10 @@ describe('actor identity enforcement', () => {
   });
 
   // ─── Positive: valid actor succeeds ────────────────
-  it('entity creation with valid USER actor succeeds', async () => {
+  it('Step 17.3 — entity creation even with valid USER actor is denied (trusted callable only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-valid'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'entities', 'ent-valid'), {
       entityId: 'ent-valid', workspaceId: 'ws-p', entityTypeId: 'core:vehicle',
       displayName: 'Valid Car', status: 'ACTIVE',
       createdBy: { actorType: 'USER', actorId: 'user1' },
@@ -1622,10 +1630,10 @@ describe('actor identity enforcement', () => {
 describe('modules (workspace-scoped)', () => {
   // ── Personal Workspace ──
 
-  it('personal workspace owner can create a module', async () => {
+  it('Step 17.3 — browsers cannot create Modules (trusted boundary)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'modules', 'mod1'), {
       moduleId: 'mod1',
       workspaceId: 'ws-p',
       moduleCode: 'TEST',
@@ -1673,26 +1681,26 @@ describe('modules (workspace-scoped)', () => {
 
   // ── Organization Workspace ──
 
-  it('org OWNER can create module in org workspace', async () => {
+  it('Step 17.3 — org OWNER cannot create Modules from the browser', async () => {
     await setupOrg('org1', { createdByUserId: 'owner1' }, [
       { userId: 'owner1', roles: ['OWNER'] },
     ]);
     await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
     const db = authedDb('owner1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
       moduleId: 'mod1', workspaceId: 'ws-o', moduleCode: 'TEST', name: 'Test',
       status: 'DRAFT', version: 1, createdBy: { actorType: 'USER', actorId: 'owner1' },
     }));
   });
 
-  it('org ADMIN can create module in org workspace', async () => {
+  it('Step 17.3 — org ADMIN cannot create Modules from the browser', async () => {
     await setupOrg('org1', { createdByUserId: 'owner1' }, [
       { userId: 'owner1', roles: ['OWNER'] },
       { userId: 'admin1', roles: ['ADMIN'] },
     ]);
     await setupWorkspace('ws-o', { type: 'ORGANIZATION', organizationId: 'org1' });
     const db = authedDb('admin1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-o', 'modules', 'mod1'), {
       moduleId: 'mod1', workspaceId: 'ws-o', moduleCode: 'TEST', name: 'Test',
       status: 'DRAFT', version: 1, createdBy: { actorType: 'USER', actorId: 'admin1' },
     }));
@@ -3512,23 +3520,18 @@ describe('Step 7 workspace experience rules', () => {
     await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'unbounded-widget'), { ...base, widgetId: 'unbounded-widget', source: 'RECORDS', display: { limit: 1000 } }));
   });
 
-  it('allows owner Module Category writes and denies cross-workspace writes', async () => {
+  it('Step 17.3 — browsers cannot create Module Categories directly', async () => {
     const db = authedDb('user1');
     const data = { categoryId: 'cat-1', workspaceId: 'ws-step7', displayName: 'Front Office', categoryCode: 'FRONT_OFFICE', description: '', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user1' } };
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-1'), data));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-1'), data));
     await assertFails(setDoc(doc(db, 'workspaces', 'ws-other', 'moduleCategories', 'cat-1'), { ...data, workspaceId: 'ws-other', createdBy: { actorType: 'USER', actorId: 'user1' } }));
   });
 
-  it('denies Module Category actor spoofing and unstable identity mutation', async () => {
-    const db = authedDb('user1');
-    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-spoof'), { categoryId: 'cat-spoof', workspaceId: 'ws-step7', displayName: 'X', categoryCode: 'X_CODE', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user2' } }));
-  });
-
-  it('denies Module Category code/identity update — codes are stable after creation', async () => {
+  it('Step 17.3 — Module Category updates are server-only (identity and code stability)', async () => {
     const db = authedDb('user1');
     await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { categoryId: 'cat-stable', workspaceId: 'ws-step7', displayName: 'Front Office', categoryCode: 'FRONT_OFFICE', description: '', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user1' } }));
     await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { categoryCode: 'CHANGED' }));
-    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { displayName: 'Reception Front Office', updatedAt: '2026-10-04T00:00:00.000Z' }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { displayName: 'Reception Front Office', updatedAt: '2026-10-04T00:00:00.000Z' }));
   });
 
   it('isolates personal Module preferences per user — no cross-user mutation', async () => {

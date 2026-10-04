@@ -46,14 +46,43 @@ describe('generic Entity Management integration', () => {
 
   it('creates and edits canonical Entities through the existing service', async () => {
     await seed();
-    const db = env.authenticatedContext('owner').firestore();
-    const entityRepo = createFirestoreEntityRepository(db);
-    const service = createEntityService({ entityRepo, entityTypeRepo: createFirestoreEntityTypeRepository(db) });
+    // Step 17.3 — entity mutations route through the trusted admin boundary.
+    // In this emulator harness we simulate that boundary by executing the same
+    // writes with securityRulesDisabled (equivalent to the Admin SDK context).
+    const authDb = env.authenticatedContext('owner').firestore();
+    const readRepo = createFirestoreEntityRepository(authDb);
+    // withSecurityRulesDisabled contexts are per-scope; open one per command.
+    const withServer = async (fn) => {
+      let out;
+      await env.withSecurityRulesDisabled(async (ctx) => { out = await fn(ctx.firestore()); });
+      return out;
+    };
+    const adminExecutor = {
+      async execute(commandType, payload) {
+        return withServer(async (serverDb) => {
+          const serverEntityRepo = createFirestoreEntityRepository(serverDb);
+          if (commandType === 'CREATE_ENTITY') {
+            const entity = { entityId: `ent_${Math.random().toString(36).slice(2, 10)}`, workspaceId: payload.workspaceId, entityTypeId: payload.entityTypeId, displayName: payload.name, data: payload.data || {}, status: 'ACTIVE', attachments: [], sourceRecordId: null, schemaVersion: '1.0.0', createdBy: { actorType: 'USER', actorId: 'owner' } };
+            await serverEntityRepo.create(entity);
+            return { result: { entityId: entity.entityId } };
+          }
+          if (commandType === 'UPDATE_ENTITY') {
+            const changes = {};
+            if (payload.displayName !== undefined) changes.displayName = payload.displayName;
+            if (payload.data !== undefined) changes.data = payload.data;
+            await serverEntityRepo.update(payload.workspaceId, payload.resourceId, changes);
+            return { result: { entityId: payload.resourceId } };
+          }
+          throw new Error(`unexpected command ${commandType}`);
+        });
+      },
+    };
+    const service = createEntityService({ entityRepo: readRepo, entityTypeRepo: createFirestoreEntityTypeRepository(authDb), adminCommand: adminExecutor });
     const created = await service.createEntity({ workspaceId: 'workspace-1', entityTypeId: 'room-type', displayName: 'Room 101', data: { roomNumber: '101' }, createdBy: { actorType: 'USER', actorId: 'owner' } });
     const updated = await service.updateEntity('workspace-1', created.entityId, { displayName: 'Room 101A', data: { roomNumber: '101A' } }, { actorType: 'USER', actorId: 'owner' });
     expect(updated.displayName).toBe('Room 101A');
-    expect(await entityRepo.countByType('workspace-1', 'room-type')).toBe(1);
-    expect((await entityRepo.listByType('workspace-1', 'room-type')).map((item) => item.displayName)).toContain('Room 101A');
+    expect(await readRepo.countByType('workspace-1', 'room-type')).toBe(1);
+    expect((await readRepo.listByType('workspace-1', 'room-type')).map((item) => item.displayName)).toContain('Room 101A');
   });
 
   it('denies cross-Workspace Entity listing', async () => {

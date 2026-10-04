@@ -12,6 +12,8 @@ const files = [
   'src/core/analytics/analyticsDefinition.js', 'src/core/analytics/reportDefinition.js',
   'src/core/workspace/widgetDefinition.js', 'src/core/workspace/workset.js', 'src/core/workspace/notification.js',
   'src/core/workspace/moduleCategory.js',
+  'src/core/admin/adminCommandContract.js',
+  'src/core/admin/adminDependencyAnalyzer.js',
   'src/core/utils/technicalCode.js',
   'src/modules/module.js', 'src/modules/forms/formSchemaValidator.js',
   'src/capabilities/contracts/capabilityContracts.js',

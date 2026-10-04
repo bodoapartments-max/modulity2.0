@@ -6,6 +6,7 @@ import { approveAutomatPlan, getAutomatPlan, persistAutomatPlan } from './automa
 import { applyAutomatPlan, getAutomatApplyOperation } from './automatApplyEngine.js';
 import { executeRecordCommand } from './recordCommandEngine.js';
 import { executeLedgerCommand } from './ledgerCommandEngine.js';
+import { executeAdminCommand } from './adminCommandEngine.js';
 
 initializeApp();
 const db = getFirestore();
@@ -49,4 +50,10 @@ export const ledgerCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
   const { command } = request.data || {};
   return executeLedgerCommand(db, { userId: request.auth.uid, command });
+});
+
+export const adminCommand = onCall({ region: 'europe-west1', timeoutSeconds: 120, memory: '512MiB' }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
+  const { command } = request.data || {};
+  return executeAdminCommand(db, { userId: request.auth.uid, command });
 });

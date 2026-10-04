@@ -232,8 +232,14 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
+        // STEP 17.3 — trusted administration: DOMAIN type mutations are
+        // server-only via adminCommand. Core type seeding remains browser-
+        // executable for now (idempotent templates only).
         allow create: if isAuthenticated()
           && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.category == 'CORE'
+          && request.resource.data.typeId is string
+          && request.resource.data.typeId.matches('^core:[a-z-]+$')
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -241,20 +247,7 @@ service cloud.firestore {
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
-
-        allow update: if isAuthenticated()
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('typeId')
-          && fieldUnchanged('category')
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isAdminOrOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          )
-          && resource.data.category != 'CORE';
-
+        allow update: if false;
         allow delete: if false;
       }
 
@@ -271,35 +264,10 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Actor enforcement: client must claim USER + own uid.
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.createdBy != null
-          && isValidClientActor(request.resource.data.createdBy)
-          && request.resource.data.status in ['ACTIVE', 'INACTIVE', 'ARCHIVED']
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
-        allow update: if isAuthenticated()
-          && request.resource.data.status in ['ACTIVE', 'INACTIVE', 'ARCHIVED']
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('entityId')
-          && fieldUnchanged('createdBy')
-          && fieldUnchanged('createdAt')
-          && fieldUnchanged('_createdAt')
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
-
+        // STEP 17.3 — trusted administration: entity mutations are server-
+        // only via adminCommand. Browsers are readers.
+        allow create: if false;
+        allow update: if false;
         allow delete: if false;
       }
 
@@ -431,18 +399,12 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Actor enforcement: createdBy must claim USER + own uid.
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.createdBy != null
-          && isValidClientActor(request.resource.data.createdBy)
-          && (
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
-              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
-            ||
-            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
-              && isAdminOrOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
-          );
+        // STEP 17.3 — trusted administration: Module identity creation is
+        // server-only (adminCommand). Browser update is retained for schema
+        // version publishing (snapshot creation); identity fields stay
+        // immutable here. Archive/restore/metadata edits go through the
+        // trusted boundary and assert the same immutable checks.
+        allow create: if false;
 
         // Update: immutable fields; org users need admin/owner.
         // moduleCode immutable after creation to protect Record references.
@@ -789,19 +751,9 @@ service cloud.firestore {
 
       match /moduleCategories/{categoryId} {
         allow read: if isAuthenticated() && canAccessWorkspace();
-        allow create: if canAccessWorkspace()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.categoryId == categoryId
-          && isValidClientActor(request.resource.data.createdBy)
-          && request.resource.data.categoryCode is string
-          && request.resource.data.categoryCode.size() >= 1
-          && request.resource.data.categoryCode.size() <= 64
-          && request.resource.data.status in ['ACTIVE', 'ARCHIVED'];
-        allow update: if canAccessWorkspace()
-          && fieldUnchanged('categoryCode')
-          && fieldUnchanged('categoryId')
-          && fieldUnchanged('workspaceId')
-          && fieldUnchanged('createdBy');
+        // STEP 17.3 — server-only via adminCommand (trusted administration).
+        allow create: if false;
+        allow update: if false;
         allow delete: if false;
       }
 
