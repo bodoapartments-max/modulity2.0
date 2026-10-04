@@ -66,15 +66,63 @@ function createFakeDb(seed = {}) {
     _docs: docs,
     doc(path) { return makeRef(this, path); },
     collection(path) {
-      return {
+      const filters = [];
+      let orderField = null;
+      let orderDir = 'asc';
+      let limitCount = Infinity;
+      let afterDoc = null;
+      const db = this;
+      const matches = () => {
+        const prefix = `${path}/`;
+        let rows = [...docs.entries()]
+          .filter(([key]) => key.startsWith(prefix) && key.slice(prefix.length).split('/').length === 1)
+          .filter(([, data]) => filters.every(({ field, value }) => {
+            const actual = field.split('.').reduce((acc, key) => (acc ? acc[key] : acc), data);
+            return actual === value;
+          }));
+        if (orderField) {
+          const val = (data) => {
+            const v = data[orderField];
+            if (v && typeof v.toMillis === 'function') return v.toMillis();
+            if (v && typeof v === 'object' && typeof v._seconds === 'number') return v._seconds * 1000;
+            return typeof v === 'number' ? v : Date.parse(v) || 0;
+          };
+          rows.sort((a, b) => { const d = val(a[1]) - val(b[1]); return orderDir === 'desc' ? -d : d; });
+        }
+        if (afterDoc) {
+          const idx = rows.findIndex(([key]) => key === afterDoc.path || key.endsWith(`/${afterDoc.id}`));
+          if (idx >= 0) rows = rows.slice(idx + 1);
+        }
+        return rows.slice(0, limitCount);
+      };
+      const api = {
         path,
-        doc: (id) => makeRef(this, `${path}/${id}`),
+        doc: (id) => makeRef(db, `${path}/${id}`),
         add: async (data) => {
           const id = `gen_${Math.random().toString(36).slice(2, 11)}`;
           docs.set(`${path}/${id}`, clone(normalize(data)));
           return { id };
         },
+        where: (field, op, value) => { filters.push({ field, op, value }); return api; },
+        orderBy: (field, dir = 'asc') => { orderField = field; orderDir = dir; return api; },
+        limit: (n) => { limitCount = n; return api; },
+        startAfter: (snap) => { afterDoc = snap; return api; },
+        async get() {
+          const rows = matches();
+          return {
+            size: rows.length,
+            empty: rows.length === 0,
+            docs: rows.map(([p, data]) => ({
+              id: p.split('/').pop(),
+              path: p,
+              ref: makeRef(db, p),
+              get exists() { return true; },
+              data: () => clone(data),
+            })),
+          };
+        },
       };
+      return api;
     },
   async runTransaction(fn) {
       const release = await mutex();
@@ -108,7 +156,7 @@ function createFakeDb(seed = {}) {
 }
 
 function bookCommand(overrides = {}) {
-  return {
+  const cmd = {
     contractVersion: '1.0.0',
     operationId: 'op-book-1',
     commandType: 'CREATE_LEDGER_BOOK',
@@ -122,6 +170,8 @@ function bookCommand(overrides = {}) {
     },
     ...overrides,
   };
+  cmd.payload = { workspaceId: 'ws-1', ledgerCode: 'RESV', name: 'Reservation Register', description: '', blockSize: 3, ...(overrides.payload || {}) };
+  return cmd;
 }
 
 function registerCommand(recordId, overrides = {}) {
@@ -131,6 +181,16 @@ function registerCommand(recordId, overrides = {}) {
     commandType: 'REGISTER_LEDGER_ENTRY',
     payload: { workspaceId: 'ws-1', ledgerBookId: 'book-1', recordId, ...overrides.payload },
     ...overrides,
+  };
+}
+
+function seedModule(id = 'mod-1', extra = {}) {
+  return {
+    [`workspaces/ws-1/modules/${id}`]: {
+      moduleId: id, workspaceId: 'ws-1', name: 'Vehicle Inspection', moduleCode: 'VEHINS',
+      status: 'ACTIVE', recordConfig: { recordType: 'TEST' },
+      ...extra,
+    },
   };
 }
 
@@ -215,6 +275,121 @@ describe('ledgerCommand — CREATE_LEDGER_BOOK', () => {
       () => executeLedgerCommand(db, { userId: 'user-2', command: bookCommand() }),
       (err) => err.details?.code === 'WORKSPACE_FORBIDDEN',
     );
+  });
+});
+
+describe('ledgerCommand — Step 17.1.1 configurable sources + backfill', () => {
+  it('creates a USER-provisioned book with a MODULE sourceDefinition', async () => {
+    const db = createFakeDb({ ...seedWorkspace(), ...seedModule() });
+    const result = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'mod-1' } } }),
+    });
+    assert.equal(result.book.provisionedBy, 'USER');
+    assert.equal(result.book.sourceDefinition.type, 'MODULE');
+    assert.equal(result.book.sourceDefinition.moduleId, 'mod-1');
+    assert.equal(result.book.moduleId, 'mod-1');
+  });
+
+  it('interprets a legacy bare moduleId as a MODULE source', async () => {
+    const db = createFakeDb({ ...seedWorkspace(), ...seedModule() });
+    const result = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { moduleId: 'mod-1' } }),
+    });
+    assert.equal(result.book.sourceDefinition.type, 'MODULE');
+    assert.equal(result.book.moduleId, 'mod-1');
+  });
+
+  it('rejects a sourceDefinition referencing a non-existent Module', async () => {
+    const db = createFakeDb(seedWorkspace());
+    await assert.rejects(
+      () => executeLedgerCommand(db, {
+        userId: 'user-1',
+        command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'ghost-mod' } } }),
+      }),
+      (err) => err.details?.code === 'COMMAND_INVALID',
+    );
+  });
+
+  it('rejects an unsupported sourceDefinition type at the envelope', async () => {
+    const db = createFakeDb(seedWorkspace());
+    await assert.rejects(
+      () => executeLedgerCommand(db, {
+        userId: 'user-1',
+        command: bookCommand({ payload: { sourceDefinition: { type: 'ARBITRARY_QUERY', collection: 'records' } } }),
+      }),
+      (err) => err.details?.code === 'COMMAND_INVALID',
+    );
+  });
+
+  it('backfills eligible historical evidence in _createdAt order with fresh sequences', async () => {
+    const db = createFakeDb({
+      ...seedWorkspace(),
+      ...seedModule(),
+      ...seedSubmittedRecord('rec-old', { _createdAt: '2026-01-01T10:00:00.000Z' }),
+      ...seedSubmittedRecord('rec-mid', { _createdAt: '2026-02-01T10:00:00.000Z' }),
+      ...seedSubmittedRecord('rec-new', { _createdAt: '2026-03-01T10:00:00.000Z' }),
+      ...seedSubmittedRecord('rec-draft', { status: 'DRAFT', submittedBy: null, _createdAt: '2026-04-01T10:00:00.000Z' }),
+    });
+    const result = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'mod-1' } } }),
+    });
+    assert.deepEqual(result.backfill, { registered: 3, scanned: 4 });
+    const ledgerBookId = result.book.ledgerBookId;
+    const entries = await db.collection(`workspaces/ws-1/ledgerEntries`).
+      where('ledgerBookId', '==', ledgerBookId).orderBy('sequenceNumber', 'asc').get();
+    assert.equal(entries.size, 3);
+    assert.deepEqual(entries.docs.map((d) => d.data().recordId), ['rec-old', 'rec-mid', 'rec-new']);
+    assert.deepEqual(entries.docs.map((d) => d.data().sequenceNumber), [1, 2, 3]);
+    // drafts never become permanent evidence
+    assert.equal(entries.docs.every((d) => d.data().recordId !== 'rec-draft'), true);
+    // every registration carries authoritative audit rows
+    const auditKeys = [...db._docs.keys()].filter((k) => k.includes('auditEntries'));
+    assert.equal(auditKeys.length, 4); // 1 book + 3 entries
+  });
+
+  it('retried book creation converges backfill without double-consuming sequences', async () => {
+    const db = createFakeDb({
+      ...seedWorkspace(),
+      ...seedModule(),
+      ...seedSubmittedRecord('rec-1', { _createdAt: '2026-01-01T10:00:00.000Z' }),
+      ...seedSubmittedRecord('rec-2', { _createdAt: '2026-02-01T10:00:00.000Z' }),
+    });
+    const first = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'mod-1' } } }),
+    });
+    const second = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'mod-1' } } }),
+    });
+    assert.equal(second.idempotent, true);
+    assert.equal(second.backfill.registered, 2, 'backfill re-runs but converges');
+    const block = (await db.doc(`workspaces/ws-1/ledgerBooks/${first.book.ledgerBookId}/blocks/block_1`).get()).data();
+    assert.equal(block.nextSequence, 3, 'no second sequence consumption');
+    const entries = [...db._docs.keys()].filter((k) => k.includes('ledgerEntries'));
+    assert.equal(entries.length, 2);
+  });
+
+  it('ensureModuleLedgerBook prefers a USER-provisioned book over the AUTO fallback', async () => {
+    const db = createFakeDb({ ...seedWorkspace(), ...seedModule() });
+    const created = await executeLedgerCommand(db, {
+      userId: 'user-1',
+      command: bookCommand({ payload: { sourceDefinition: { type: 'MODULE', moduleId: 'mod-1' }, ledgerCode: 'VEHINS' } }),
+    });
+    const { ensureModuleLedgerBook } = await import('./ledgerCommandEngine.js');
+    const resolved = await ensureModuleLedgerBook(db, {
+      workspaceId: 'ws-1',
+      module: { moduleId: 'mod-1', name: 'Vehicle Inspection', moduleCode: 'VEHINS' },
+      userId: 'user-1',
+    });
+    assert.equal(resolved.ledgerBookId, created.book.ledgerBookId, 'trusted registration must route into the configured book');
+    assert.equal(resolved.provisionedBy, 'USER');
+    // no AUTO fallback book was created as a side effect
+    const autoKeys = [...db._docs.keys()].filter((k) => k.includes('lb_auto_'));
+    assert.equal(autoKeys.length, 0);
   });
 });
 

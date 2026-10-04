@@ -23,8 +23,10 @@
  */
 
 import { validateLedgerCode } from './ledgerBook.js';
+import { validateLedgerSourceDefinition } from './ledgerSourceDefinition.js';
 
-export const LEDGER_COMMAND_CONTRACT_VERSION = '1.0.0';
+export const LEDGER_COMMAND_CONTRACT_VERSION = '1.1.0';
+export const SUPPORTED_LEDGER_CONTRACT_VERSIONS = Object.freeze(['1.0.0', '1.1.0']);
 
 export const LEDGER_COMMAND_TYPES = Object.freeze({
   CREATE_LEDGER_BOOK: 'CREATE_LEDGER_BOOK',
@@ -66,7 +68,7 @@ export function validateLedgerCommand(command) {
   if (!command || typeof command !== 'object') {
     return { valid: false, errors: ['Command must be an object'], code: LEDGER_COMMAND_ERROR_CODES.COMMAND_INVALID };
   }
-  if (command.contractVersion !== LEDGER_COMMAND_CONTRACT_VERSION) {
+  if (!SUPPORTED_LEDGER_CONTRACT_VERSIONS.includes(command.contractVersion)) {
     return { valid: false, errors: [`Unsupported contract version: ${command.contractVersion}`], code: LEDGER_COMMAND_ERROR_CODES.UNSUPPORTED_CONTRACT_VERSION };
   }
   if (!command.commandType || !LEDGER_COMMAND_TYPES[command.commandType]) {
@@ -109,6 +111,16 @@ export function validateLedgerCommand(command) {
         errors.push(`payload.${optionalRef} must be a string or null`);
       }
     }
+    // Step 17.1.1 — typed declarative source. Legacy callers may pass a bare
+    // moduleId; it is interpreted as { type: 'MODULE' } by the server.
+    if (payload.sourceDefinition !== undefined && payload.sourceDefinition !== null) {
+      const srcCheck = validateLedgerSourceDefinition(payload.sourceDefinition);
+      if (!srcCheck.valid) {
+        errors.push(...srcCheck.errors.map((e) => `payload.sourceDefinition: ${e}`));
+      } else if (payload.moduleId && srcCheck.value && srcCheck.value.moduleId !== payload.moduleId) {
+        errors.push('payload.moduleId must match sourceDefinition.moduleId when both are provided');
+      }
+    }
   }
 
   if (errors.length) {
@@ -117,12 +129,14 @@ export function validateLedgerCommand(command) {
   return { valid: true, errors: [] };
 }
 
-export function buildCreateLedgerBookCommand({ operationId, workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '' }) {
+export function buildCreateLedgerBookCommand({ operationId, workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', sourceDefinition = undefined }) {
+  const payload = { workspaceId, ledgerCode, name, description, moduleId, recordType, blockSize, referencePrefix };
+  if (sourceDefinition !== undefined && sourceDefinition !== null) payload.sourceDefinition = sourceDefinition;
   return Object.freeze({
     contractVersion: LEDGER_COMMAND_CONTRACT_VERSION,
     operationId,
     commandType: LEDGER_COMMAND_TYPES.CREATE_LEDGER_BOOK,
-    payload: Object.freeze({ workspaceId, ledgerCode, name, description, moduleId, recordType, blockSize, referencePrefix }),
+    payload: Object.freeze(payload),
   });
 }
 

@@ -175,9 +175,9 @@ function createServices() {
   });
 
   const ledgerCommand = Object.freeze({
-    async createBook({ workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', operationId = generateId() }) {
+    async createBook({ workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', sourceDefinition = null, operationId = generateId() }) {
       return ledgerCommandClient.execute(buildCreateLedgerBookCommand({
-        operationId, workspaceId, ledgerCode, name, description, moduleId, recordType, blockSize, referencePrefix,
+        operationId, workspaceId, ledgerCode, name, description, moduleId, recordType, blockSize, referencePrefix, sourceDefinition,
       }));
     },
     async registerEntry({ workspaceId, recordId, ledgerBookId, operationId = generateId() }) {

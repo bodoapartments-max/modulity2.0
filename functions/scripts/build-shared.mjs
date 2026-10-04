@@ -21,6 +21,7 @@ const files = [
   'src/core/ledger/ledgerBook.js',
   'src/core/ledger/ledgerEntry.js',
   'src/core/ledger/ledgerBlock.js',
+  'src/core/ledger/ledgerSourceDefinition.js',
   'src/core/notifications/notificationContract.js',
   'src/core/notifications/notificationPolicy.js',
   'src/core/notifications/recipientResolution.js',

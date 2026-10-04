@@ -20,8 +20,13 @@ import {
   validateLedgerCommand,
   LEDGER_COMMAND_TYPES,
   LEDGER_COMMAND_ERROR_CODES,
+  LEDGER_COMMAND_CONTRACT_VERSION,
 } from './generated/src/core/ledger/ledgerCommandContract.js';
 import { createLedgerBook, formatReferenceNumber } from './generated/src/core/ledger/ledgerBook.js';
+import {
+  LEDGER_SOURCE_TYPES,
+  LEDGER_BOOK_PROVISIONERS,
+} from './generated/src/core/ledger/ledgerSourceDefinition.js';
 import { createAuditEntry } from './generated/src/core/audit/auditEntry.js';
 import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES, AUDIT_SOURCES } from './generated/src/core/audit/auditActions.js';
 import {
@@ -48,6 +53,30 @@ const fail = (code, message, details = {}) => {
 
 /** Record statuses eligible for Ledger registration (unchanged semantics). */
 const REGISTRABLE_STATUSES = ['SUBMITTED', 'ACTIVE', 'COMPLETED'];
+
+/**
+ * Step 17.1.1 — normalize the book's evidence source. A bare `moduleId`
+ * stays supported (contract 1.0.0) and is interpreted as a MODULE source.
+ * The sourceDefinition object is the typed declarative form.
+ */
+function normalizeSourceDefinition(payload) {
+  if (payload.sourceDefinition) return payload.sourceDefinition;
+  if (payload.moduleId) return { type: LEDGER_SOURCE_TYPES.MODULE, moduleId: payload.moduleId };
+  return null;
+}
+
+/**
+ * Server-authoritative source validation: the referenced canonical source
+ * must exist in this workspace (Admin SDK bypasses Rules, so re-verify here).
+ * Currently the only supported source is a Module.
+ */
+async function validateSourceReferences(db, { workspaceId, sourceDefinition }) {
+  if (!sourceDefinition) return;
+  if (sourceDefinition.type === LEDGER_SOURCE_TYPES.MODULE) {
+    const modSnap = await db.doc(`workspaces/${workspaceId}/modules/${sourceDefinition.moduleId}`).get();
+    if (!modSnap.exists) fail(CODES.COMMAND_INVALID, 'sourceDefinition references a Module that does not exist in this workspace.');
+  }
+}
 
 function recordDoc(db, workspaceId, recordId) {
   return db.doc(`workspaces/${workspaceId}/records/${recordId}`);
@@ -116,14 +145,14 @@ function writeAuditInTransaction(transaction, db, workspaceId, { operationId, ac
   });
 }
 
-export async function executeLedgerCommand(db, { userId, command }) {
+export async function executeLedgerCommand(db, { userId, command, internal = false }) {
   if (!userId) fail(CODES.UNAUTHENTICATED, 'Authentication required.');
 
   const envelope = validateLedgerCommand(command);
   if (!envelope.valid) fail(envelope.code || CODES.COMMAND_INVALID, envelope.errors.join('; '));
 
   if (command.commandType === LEDGER_COMMAND_TYPES.CREATE_LEDGER_BOOK) {
-    return executeCreateLedgerBook(db, { userId, command });
+    return executeCreateLedgerBook(db, { userId, command, internal });
   }
   if (command.commandType === LEDGER_COMMAND_TYPES.REGISTER_LEDGER_ENTRY) {
     return executeRegisterLedgerEntry(db, { userId, command });
@@ -151,11 +180,27 @@ function deriveAutoLedgerCode(moduleId) {
 const AUTO_REGISTER_DEFAULT_BLOCK_SIZE = 100;
 
 /**
- * Finds or creates (server-atomically) the Form Book for a Module.
+ * Finds or creates (server-atomically) the register for a Module.
+ *
+ * Step 17.1.1 routing: an intentionally USER-provisioned ACTIVE book whose
+ * sourceDefinition matches the Module WINS; the per-Module AUTO book is only
+ * a fallback so evidence always has a home even before anyone configures one.
  * Book identity never depends on display text — a Module rename or a new
  * Module version keeps the same logical book.
  */
 export async function ensureModuleLedgerBook(db, { workspaceId, module, userId }) {
+  // Prefer the workspace's intentionally configured register for this Module.
+  const configuredSnap = await db.collection(`workspaces/${workspaceId}/ledgerBooks`)
+    .where('moduleId', '==', module.moduleId)
+    .where('provisionedBy', '==', LEDGER_BOOK_PROVISIONERS.USER)
+    .where('status', '==', 'ACTIVE')
+    .limit(1)
+    .get();
+  if (!configuredSnap.empty) {
+    const docSnap = configuredSnap.docs[0];
+    return { ...docSnap.data(), ledgerBookId: docSnap.id };
+  }
+
   const ledgerBookId = deriveAutoLedgerBookId(module.moduleId);
   const snap = await bookDoc(db, workspaceId, ledgerBookId).get();
   if (snap.exists) return { ...snap.data(), ledgerBookId };
@@ -173,6 +218,7 @@ export async function ensureModuleLedgerBook(db, { workspaceId, module, userId }
       referencePrefix: module.moduleCode || null,
       moduleId: module.moduleId,
     }),
+    internal: true,
   });
   return result.book;
 }
@@ -225,9 +271,14 @@ export async function cancelLedgerRegistrationForRecord(db, { workspaceId, recor
   return { cancelled };
 }
 
-async function executeCreateLedgerBook(db, { userId, command }) {
+async function executeCreateLedgerBook(db, { userId, command, internal = false }) {
   const p = command.payload;
   await loadWorkspaceAndAuthorize(db, p.workspaceId, userId);
+  const sourceDefinition = normalizeSourceDefinition(p);
+  await validateSourceReferences(db, { workspaceId: p.workspaceId, sourceDefinition });
+  // provisionedBy is NEVER a client claim: internal AUTO books come only from
+  // the trusted per-Module fallback path inside this engine.
+  const provisionedBy = internal ? LEDGER_BOOK_PROVISIONERS.AUTO : LEDGER_BOOK_PROVISIONERS.USER;
   const fingerprint = computeOperationFingerprint(userId, command);
   const workspaceId = p.workspaceId;
   const ledgerBookId = deriveLedgerBookId(command.operationId);
@@ -239,7 +290,16 @@ async function executeCreateLedgerBook(db, { userId, command }) {
   });
   if (peek) {
     const bookSnap = await bookDoc(db, workspaceId, ledgerBookId).get();
-    return { book: bookSnap.exists ? { ...bookSnap.data(), ledgerBookId } : null, operationId: command.operationId, idempotent: true };
+    const book = bookSnap.exists ? { ...bookSnap.data(), ledgerBookId } : null;
+    // Backfill is deterministic/idempotent — a replay continues it so a
+    // previously interrupted creation converges without duplicate sequences.
+    let backfill = null;
+    if (book && sourceDefinition && !internal) {
+      backfill = await backfillLedgerSource(db, {
+        workspaceId, ledgerBookId, sourceDefinition, userId, operationId: command.operationId,
+      }).catch(() => null);
+    }
+    return backfill ? { book, operationId: command.operationId, idempotent: true, backfill } : { book, operationId: command.operationId, idempotent: true };
   }
 
   const opRef = operationDoc(db, workspaceId, command.operationId);
@@ -285,8 +345,10 @@ async function executeCreateLedgerBook(db, { userId, command }) {
       ledgerCode: p.ledgerCode,
       name: p.name,
       description: p.description || '',
-      moduleId: p.moduleId || null,
+      moduleId: sourceDefinition?.type === LEDGER_SOURCE_TYPES.MODULE ? sourceDefinition.moduleId : (p.moduleId || null),
       recordType: p.recordType || null,
+      sourceDefinition,
+      provisionedBy,
       blockSize: p.blockSize || 100,
       referencePrefix: p.referencePrefix || p.ledgerCode,
       createdBy: actor,
@@ -354,13 +416,93 @@ async function executeCreateLedgerBook(db, { userId, command }) {
 
   if (result.replay) {
     const bookSnap = await bookDoc(db, workspaceId, ledgerBookId).get();
-    return { book: bookSnap.exists ? { ...bookSnap.data(), ledgerBookId } : null, operationId: command.operationId, idempotent: true };
+    const book = bookSnap.exists ? { ...bookSnap.data(), ledgerBookId } : null;
+    let backfill = null;
+    if (book && sourceDefinition && !internal) {
+      backfill = await backfillLedgerSource(db, {
+        workspaceId, ledgerBookId, sourceDefinition, userId, operationId: command.operationId,
+      }).catch(() => null);
+    }
+    return backfill ? { book, operationId: command.operationId, idempotent: true, backfill } : { book, operationId: command.operationId, idempotent: true };
   }
   if (result.inProgress) {
     fail(CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
   }
 
+  // Step 17.1.1 — deterministic historical backfill. An intentionally
+  // configured book organizes EXISTING eligible evidence: eligible Records
+  // submitted before the book existed are registered in _createdAt order via
+  // ordinary REGISTER_LEDGER_ENTRY executions (server-derived sequence,
+  // journal + transaction-committed Audit rows). Op ids are deterministic so
+  // a retried backfill converges and never consumes a second sequence;
+  // already-registered Records converge to their deterministic entry id.
+  if (sourceDefinition && !internal && !result.replay) {
+    try {
+      const summary = await backfillLedgerSource(db, {
+        workspaceId,
+        ledgerBookId,
+        sourceDefinition,
+        userId,
+        operationId: command.operationId,
+      });
+      return { book: result.book, operationId: command.operationId, idempotent: false, backfill: summary };
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('ledger source backfill failed', err?.message || err);
+    }
+  }
+
   return { book: result.book, operationId: command.operationId, idempotent: false };
+}
+
+const BACKFILL_PAGE_SIZE = 100;
+const BACKFILL_MAX_PAGES = 10; // bounded: at most 1000 historical records per creation
+
+/**
+ * Registers eligible historical evidence into a newly configured book.
+ * Never fabricates: only canonical Records in REGISTRABLE_STATUSES, ordered
+ * by their canonical _createdAt, get register identity; cancelled/trashed
+ * history keeps its existing evidence untouched.
+ */
+async function backfillLedgerSource(db, { workspaceId, ledgerBookId, sourceDefinition, userId, operationId }) {
+  if (sourceDefinition.type !== LEDGER_SOURCE_TYPES.MODULE) return { registered: 0, scanned: 0 };
+  let scanned = 0;
+  let registered = 0;
+  let cursor = null;
+  for (let page = 0; page < BACKFILL_MAX_PAGES; page += 1) {
+    let q = db.collection(`workspaces/${workspaceId}/records`)
+      .where('moduleId', '==', sourceDefinition.moduleId)
+      .orderBy('_createdAt', 'asc')
+      .limit(BACKFILL_PAGE_SIZE);
+    if (cursor) q = q.startAfter(cursor);
+    const snap = await q.get();
+    if (snap.empty) break;
+    for (const recSnap of snap.docs) {
+      const rec = recSnap.data();
+      scanned += 1;
+      cursor = recSnap;
+      if (!REGISTRABLE_STATUSES.includes(rec.status)) continue;
+      if (rec.workspaceId !== workspaceId) continue;
+      try {
+        const result = await executeLedgerCommand(db, {
+          userId,
+          command: {
+            contractVersion: LEDGER_COMMAND_CONTRACT_VERSION,
+            operationId: `backfill-${operationId}-${recSnap.id}`,
+            commandType: LEDGER_COMMAND_TYPES.REGISTER_LEDGER_ENTRY,
+            payload: { workspaceId, recordId: recSnap.id, ledgerBookId },
+          },
+        });
+        void result;
+        registered += 1;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`ledger backfill failed for record ${recSnap.id}:`, err?.message || err);
+      }
+    }
+    if (snap.size < BACKFILL_PAGE_SIZE) break;
+  }
+  return { registered, scanned };
 }
 
 function planEndSequence(blockSize) {

@@ -9,6 +9,8 @@
  * @module core/ledger/ledgerBook
  */
 
+import { validateLedgerSourceDefinition } from './ledgerSourceDefinition.js';
+
 export const LEDGER_BOOK_STATUSES = Object.freeze({
   ACTIVE: 'ACTIVE',
   CLOSED: 'CLOSED',
@@ -28,6 +30,13 @@ export const NUMBERING_STRATEGIES = Object.freeze({
  * @property {string} description
  * @property {string|null} moduleId — optional Module scope
  * @property {string|null} recordType — optional Record Type scope
+ * @property {Object|null} sourceDefinition — typed declarative evidence source
+ *   (Step 17.1.1). v1: { type: 'MODULE', moduleId }. Server-validated; never
+ *   arbitrary queries. Legacy books may have moduleId/recordType set without
+ *   a sourceDefinition — the server treats moduleId as the Module source.
+ * @property {'AUTO'|'USER'} provisionedBy — who provisioned the register:
+ *   AUTO = server per-Module fallback book, USER = intentionally configured
+ *   Ledger Book (Step 17.1.1). Server-derived; never a client authority claim.
  * @property {string} status
  * @property {string} numberingStrategy
  * @property {number} blockSize — entries per block (e.g. 25, 50, 100, 500, 1000)
@@ -58,6 +67,8 @@ export function createLedgerBook({
   createdBy,
   createdAt,
   updatedAt,
+  sourceDefinition = null,
+  provisionedBy = 'USER',
   closedAt = null,
   closedBy = null,
 }) {
@@ -65,6 +76,14 @@ export function createLedgerBook({
   if (!workspaceId) throw new Error('workspaceId is required');
   if (!ledgerCode) throw new Error('ledgerCode is required');
   if (!name) throw new Error('name is required');
+  if (!['USER', 'AUTO'].includes(provisionedBy)) {
+    throw new Error(`Invalid provisionedBy: ${provisionedBy}`);
+  }
+  if (sourceDefinition !== null) {
+    const check = validateLedgerSourceDefinition(sourceDefinition);
+    if (!check.valid) throw new Error(`Invalid sourceDefinition: ${check.errors.join('; ')}`);
+    sourceDefinition = check.value;
+  }
   if (!LEDGER_BOOK_STATUSES[status]) {
     throw new Error(`Invalid ledger book status: ${status}`);
   }
@@ -87,6 +106,8 @@ export function createLedgerBook({
     description,
     moduleId,
     recordType,
+    sourceDefinition,
+    provisionedBy,
     status,
     numberingStrategy,
     blockSize,

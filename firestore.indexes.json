@@ -245,6 +245,15 @@
       ]
     },
     {
+      "collectionGroup": "ledgerBooks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "moduleId", "order": "ASCENDING" },
+        { "fieldPath": "provisionedBy", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "widgetDefinitions",
       "queryScope": "COLLECTION",
       "fields": [
