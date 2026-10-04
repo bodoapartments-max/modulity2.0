@@ -9,6 +9,7 @@ import { userActor } from '../../../core/data/actorRef.js';
 import { FormRenderer } from '../../../modules/forms/FormRenderer.jsx';
 import services from '../../../infrastructure/services.js';
 import AdminActions from '../../admin/ui/AdminActions.jsx';
+import ContextConversationLink from '../../chat/ui/ContextConversationLink.jsx';
 
 const STATUS_COLORS = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
@@ -177,6 +178,10 @@ export default function ModuleDetailPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-neutral-100">
+          <ContextConversationLink
+            contextReference={workspaceId ? { type: 'MODULE', id: moduleId, workspaceId } : null}
+            label="Discuss"
+          />
           <Link
             to={`/app/modules/${moduleId}/records`}
             className="px-4 py-2 border border-primary-300 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors"

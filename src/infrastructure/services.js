@@ -46,6 +46,7 @@ import {
 } from '../core/workspace/workspaceExperienceServices.js';
 import { createModuleCategoryService } from '../core/workspace/moduleCategoryService.js';
 import { createConversationService } from '../core/workspace/conversationService.js';
+import { chatCommandClient } from './firebase/chatCommandClient.js';
 import { createAnalyticsExecutionService } from '../core/analytics/analyticsExecutionService.js';
 import { createWidgetExecutionService } from '../core/analytics/widgetExecutionService.js';
 import { createReportService } from '../core/analytics/reportService.js';
@@ -257,7 +258,7 @@ function createServices() {
     report: reportSvc,
     analyticsExecution: analyticsExecutionSvc,
     notification: notificationSvc,
-    conversation: createConversationService({ conversationRepo: repositories.conversations }),
+    conversation: createConversationService({ conversationRepo: repositories.conversations, chatCommand: chatCommandClient }),
     capabilityDefinition: createCapabilityDefinitionService({
       capabilityDefinitionRepo: repositories.capabilityDefinitions,
       moduleRepo: repositories.modules,

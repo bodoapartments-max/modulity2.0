@@ -36,6 +36,21 @@ export const NOTIFICATION_TEMPLATES = Object.freeze({
     priority: NOTIFICATION_PRIORITIES.NORMAL,
     messageFor: () => 'Your Record was submitted.',
   }),
+  [NOTIFICATION_EVENT_TYPES.CHAT_DIRECT_MESSAGE]: Object.freeze({
+    title: 'New message',
+    priority: NOTIFICATION_PRIORITIES.ATTENTION,
+    messageFor: () => 'A direct message is waiting in Chat.',
+  }),
+  [NOTIFICATION_EVENT_TYPES.CHAT_MENTIONED]: Object.freeze({
+    title: 'Mentioned in Chat',
+    priority: NOTIFICATION_PRIORITIES.ATTENTION,
+    messageFor: () => 'Someone mentioned you in a workspace conversation.',
+  }),
+  [NOTIFICATION_EVENT_TYPES.CHAT_CONTEXT_MESSAGE]: Object.freeze({
+    title: 'Context conversation update',
+    priority: NOTIFICATION_PRIORITIES.NORMAL,
+    messageFor: () => 'Activity in a business-context conversation.',
+  }),
 });
 
 const DEFAULT_ACTION = '/app/notifications';

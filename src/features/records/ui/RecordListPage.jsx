@@ -13,6 +13,7 @@ import RecordListToolbar from './RecordListToolbar.jsx';
 import RecordTable from './RecordTable.jsx';
 import { Button, EmptyState, ErrorState, Pagination, Tabs } from '../../../design-system/index.js';
 import { workspaceQueryCache, workspaceQueryKey } from '../../../core/cache/workspaceQueryCache.js';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import {
   filterRecordsBySearch,
   getRecordDisplayLabel,
@@ -45,7 +46,13 @@ export default function RecordListPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [modules, setModules] = useState([]);
+
+  // Module metadata is needed to render human-facing Record labels — it must
+  // never arrive after the Records themselves show technical fallbacks.
+  const moduleLoader = useCallback(() => services?.module?.listModules(workspaceId), [workspaceId]);
+  const { data: modules = [], initialLoading: modulesLoading } = useWorkspaceQuery({
+    workspaceId, resource: 'modules:for-record-titles', loader: moduleLoader, enabled: Boolean(workspaceId),
+  });
 
   // Read filters from URL search params
   const bucket = searchParams.get('bucket') || 'ALL';
@@ -63,18 +70,9 @@ export default function RecordListPage() {
   }) : null, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sort.value, fromDate, toDate]);
 
   const moduleById = useMemo(
-    () => Object.fromEntries(modules.map((mod) => [mod.moduleId, mod])),
+    () => Object.fromEntries((modules || []).map((mod) => [mod.moduleId, mod])),
     [modules],
   );
-
-  useEffect(() => {
-    if (!workspaceId || !services?.module?.listModules) return;
-    let cancelled = false;
-    services.module.listModules(workspaceId)
-      .then((list) => { if (!cancelled) setModules(Array.isArray(list) ? list : []); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [workspaceId]);
 
   const labelFor = useCallback(
     (record) => getRecordDisplayLabel(
@@ -228,7 +226,9 @@ export default function RecordListPage() {
           onClick={(event) => event.stopPropagation()}
           className="font-medium text-neutral-900 hover:text-primary-600"
         >
-          {labelFor(record)}
+          {modulesLoading && !moduleById[record.moduleId] ? (
+            <span className="inline-block min-w-32 animate-pulse rounded bg-neutral-100 text-transparent select-none" aria-hidden="true">Loading&nbsp;label</span>
+          ) : labelFor(record)}
         </Link>
       ),
     },
@@ -236,7 +236,12 @@ export default function RecordListPage() {
       key: 'module',
       label: 'Module',
       scope: 'SYSTEM',
-      render: (record) => moduleById[record.moduleId]?.name || record.recordType || '—',
+      render: (record) => {
+        if (modulesLoading && !moduleById[record.moduleId]) {
+          return <span className="inline-block min-w-16 animate-pulse rounded bg-neutral-100 text-transparent select-none" aria-hidden="true">…</span>;
+        }
+        return moduleById[record.moduleId]?.name || record.recordType || '—';
+      },
     },
     { key: 'status', label: 'Status', scope: 'SYSTEM' },
     { key: 'priority', label: 'Priority', scope: 'SYSTEM' },

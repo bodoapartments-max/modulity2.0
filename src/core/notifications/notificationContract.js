@@ -41,6 +41,9 @@ export const NOTIFICATION_EVENT_TYPES = Object.freeze({
   RECORD_CREATED: 'record.created',
   RECORD_DRAFT_SAVED: 'record.draft_saved',
   RECORD_SUBMITTED: 'record.submitted',
+  CHAT_DIRECT_MESSAGE: 'chat.direct_message',
+  CHAT_MENTIONED: 'chat.mentioned',
+  CHAT_CONTEXT_MESSAGE: 'chat.context_message',
 });
 
 /**

@@ -22,11 +22,12 @@ describe('Conversation domain', () => {
 });
 
 describe('Conversation service', () => {
-  it('checks membership before sending or listing messages', async () => {
+  it('blocks all mutations without the trusted chat boundary', async () => {
     const conversationRepo = { isMember: vi.fn().mockResolvedValue(false), createMessage: vi.fn(), listMessages: vi.fn() };
     const service = createConversationService({ conversationRepo });
-    await expect(service.sendMessage({ workspaceId: 'ws1', conversationId: 'c1', senderUserId: 'user-1', content: 'Hi' })).rejects.toThrow('membership');
-    await expect(service.listMessages('ws1', 'c1', 'user-1')).rejects.toThrow('membership');
+    // senderUserId is gone from the client API — server derives it. Membership
+    // is enforced by the trusted chatCommand boundary, not by the client repo.
+    await expect(service.sendMessage({ workspaceId: 'ws1', conversationId: 'c1', content: 'Hi' })).rejects.toThrow(/trusted command boundary|Message identity/);
     expect(conversationRepo.createMessage).not.toHaveBeenCalled();
   });
 });

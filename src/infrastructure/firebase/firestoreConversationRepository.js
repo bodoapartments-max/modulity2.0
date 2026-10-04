@@ -62,5 +62,20 @@ export function createFirestoreConversationRepository(db) {
     await setDoc(memberRef(member.workspaceId, member.conversationId, member.userId), { ...member, _joinedAt: serverTimestamp() });
   }
 
-  return { create, getById, listForUser, isMember, createMessage, listMessages, addMember };
+  const readStateRef = (workspaceId, conversationId, userId) => doc(db, 'workspaces', workspaceId, 'conversations', conversationId, 'readStates', userId);
+
+  async function getReadState(workspaceId, conversationId, userId) {
+    const snapshot = await getDoc(readStateRef(workspaceId, conversationId, userId));
+    return snapshot.exists() ? snapshot.data() : null;
+  }
+
+  async function listReadStates(workspaceId, conversationIds, userId) {
+    const states = {};
+    for (const conversationId of conversationIds) {
+      states[conversationId] = await getReadState(workspaceId, conversationId, userId);
+    }
+    return states;
+  }
+
+  return { create, getById, listForUser, isMember, createMessage, listMessages, addMember, getReadState, listReadStates };
 }

@@ -18,6 +18,7 @@ import { RELATIONSHIP_OBJECT_TYPES } from '../../../core/data/relationship.js';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
 import { orderedEntityDataFields } from '../../../shared/presentation/entityPresentation.js';
 import AdminActions from '../../admin/ui/AdminActions.jsx';
+import ContextConversationLink from '../../chat/ui/ContextConversationLink.jsx';
 
 function EntityDetailPage() {
   const { entityId } = useParams();
@@ -99,6 +100,11 @@ function EntityDetailPage() {
         title={entity.displayName}
         description={entityType ? `${entityType.name} (${entityType.code})` : entity.entityTypeId}
         action={<div className="flex flex-wrap gap-2"><Link to={`/app/entities/${entity.entityId}/edit`} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white">Edit</Link><Button variant="ghost" onClick={() => navigate(backPath)}>Back</Button></div>}
+      />
+
+      <ContextConversationLink
+        contextReference={entity && workspaceId ? { type: 'ENTITY', id: entityId, workspaceId } : null}
+        label="Discuss"
       />
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -37,6 +37,7 @@ import {
 import { RECORD_ACTIONS } from '../../../core/recordCommands/recordActionPolicy.js';
 import { Badge, Button, Dialog, useToast } from '../../../design-system/index.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
+import ContextConversationLink from '../../chat/ui/ContextConversationLink.jsx';
 import services from '../../../infrastructure/services.js';
 
 function actionToastMessage(action) {
@@ -232,6 +233,11 @@ export default function RecordDetailPage() {
               Cancel record
             </Button>
           )}
+
+          <ContextConversationLink
+            contextReference={record && workspaceId ? { type: 'RECORD', id: record.recordId, workspaceId } : null}
+            label="Discuss"
+          />
         </div>
         {actionError && (
           <div className="no-print mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">

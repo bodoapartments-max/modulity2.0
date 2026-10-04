@@ -53,7 +53,12 @@ export function useCalendar({ workspace, membership }) {
     }
     start.setDate(start.getDate() - 7);
     end.setDate(end.getDate() + 7);
-    return { start: start.toISOString(), end: end.toISOString() };
+    // Day-level normalization: the LIVE time-of-day would create a new cache
+    // key on every visit, forcing a full event reload whenever the user
+    // navigates away and back. Dates alone define the window.
+    const dayStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const dayEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+    return { start: dayStart.toISOString(), end: dayEnd.toISOString() };
   }, [currentDate, view]);
 
   const selectedIds = useMemo(() => {
