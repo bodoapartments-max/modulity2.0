@@ -7,6 +7,7 @@ import { applyAutomatPlan, getAutomatApplyOperation } from './automatApplyEngine
 import { executeRecordCommand } from './recordCommandEngine.js';
 import { executeLedgerCommand } from './ledgerCommandEngine.js';
 import { executeAdminCommand } from './adminCommandEngine.js';
+import { executeChatCommand } from './chatCommandEngine.js';
 
 initializeApp();
 const db = getFirestore();
@@ -56,4 +57,10 @@ export const adminCommand = onCall({ region: 'europe-west1', timeoutSeconds: 120
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
   const { command } = request.data || {};
   return executeAdminCommand(db, { userId: request.auth.uid, command });
+});
+
+export const chatCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60, memory: '512MiB' }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
+  const { command } = request.data || {};
+  return executeChatCommand(db, { userId: request.auth.uid, command });
 });
