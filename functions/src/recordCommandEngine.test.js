@@ -32,6 +32,9 @@ function makeRef(db, path) {
     async set(data) {
       db._docs.set(path, clone(data));
     },
+    async update(data) {
+      db._docs.set(path, { ...(db._docs.get(path) || {}), ...clone(data) });
+    },
     collection(db2, id) { return makeRef(db2, `${path}/${id}`); },
     doc(id) { return makeRef(db, `${path}/${id}`); },
     parent: null,
@@ -81,8 +84,24 @@ function createFakeDb(seed = {}) {
   const db = {
     _docs: docs,
     doc(path) { return makeRef(db, path); },
-    collection(path) {
+    batch() {
+      const writes = [];
       return {
+        set(ref, data) { writes.push({ path: ref.path, op: 'set', data }); },
+        update(ref, data) { writes.push({ path: ref.path, op: 'update', data }); },
+        delete(ref) { writes.push({ path: ref.path, op: 'delete', data: null }); },
+        async commit() {
+          for (const w of writes) {
+            if (w.op === 'set') docs.set(w.path, clone(normalizeServerTimestamps(w.data)));
+            else if (w.op === 'update') docs.set(w.path, { ...docs.get(w.path), ...clone(normalizeServerTimestamps(w.data)) });
+            else if (w.op === 'delete') docs.delete(w.path);
+          }
+        },
+      };
+    },
+    collection(path) {
+      const filters = [];
+      const api = {
         path,
         doc: (id) => makeRef(db, `${path}/${id}`),
         add: async (data) => {
@@ -90,7 +109,39 @@ function createFakeDb(seed = {}) {
           docs.set(`${path}/${id}`, clone(normalizeServerTimestamps(data)));
           return { id };
         },
+        where(field, op, value) {
+          filters.push({ field, op, value });
+          return api;
+        },
+        limit() { return api; },
+        async get() {
+          const prefix = `${path}/`;
+          const matches = [...docs.entries()]
+            .filter(([key]) => key.startsWith(prefix) || key === path)
+            .filter(([, data]) => filters.every(({ field, value }) => {
+              const actual = field.split('.').reduce((acc, key) => (acc ? acc[key] : acc), data);
+              return actual === value;
+            }))
+            .map(([p, data]) => ({
+              id: p.split('/').pop(),
+              path: p,
+              get exists() { return true; },
+              data: () => clone(data),
+            }));
+          return {
+            size: matches.length,
+            empty: matches.length === 0,
+            docs: matches.map((m) => ({
+              id: m.id,
+              path: m.path,
+              ref: makeRef(db, m.path),
+              get exists() { return true; },
+              data: () => clone(docs.get(m.path)),
+            })),
+          };
+        },
       };
+      return api;
     },
     async runTransaction(fn) {
       const release = await mutex();
@@ -424,15 +475,19 @@ describe('SUBMIT_RECORD trusted command', () => {
     );
   });
 
-  it('replays the same SUBMIT operation idempotently without a second transition', async () => {
+  it('replays the same SUBMIT operation idempotently without duplicating audit evidence', async () => {
     const db = createFakeDb(seedWithDraft());
     const cmd = makeMutationCommand('SUBMIT_RECORD');
     const first = await executeRecordCommand(db, { userId: 'user-1', command: cmd });
+    const auditAfterFirst = [...db._docs.keys()].filter((k) => k.includes('auditEntries'));
     const second = await executeRecordCommand(db, { userId: 'user-1', command: cmd });
+    const auditAfterSecond = [...db._docs.keys()].filter((k) => k.includes('auditEntries'));
     assert.equal(second.idempotent, true);
     assert.equal(second.record.recordId, first.record.recordId);
-    const auditDocs = [...db._docs.keys()].filter((k) => k.includes('auditEntries'));
-    assert.equal(auditDocs.length, 1, 'audit side effect must be deduplicated by operation identity');
+    // One logical operation may emit MULTIPLE distinct audit events (record.submitted,
+    // ledger.book_created, ledger.entry_registered) — but retry must not add any.
+    assert.equal(auditAfterSecond.length, auditAfterFirst.length, 'audit side effects must be deduplicated by operation identity');
+    assert.ok(auditAfterFirst.some((k) => k.includes('record.submitted')));
   });
 
   it('handles 10 concurrent identical SUBMIT requests as one transition', async () => {
@@ -493,5 +548,107 @@ describe('trusted lifecycle/operational commands', () => {
       }),
       (err) => err.details?.code === 'INVALID_RECORD_STATE',
     );
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// STEP 17.1 — Universal Form Ledger integration
+// ═══════════════════════════════════════════════════════
+
+describe('universal Form Ledger integration', () => {
+  function entryKeys(db) {
+    return [...db._docs.keys()].filter((k) => k.includes('ledgerEntries'));
+  }
+  function bookKeys(db) {
+    return [...db._docs.keys()].filter((k) => k.includes('ledgerBooks/') && !k.includes('/blocks/'));
+  }
+
+  it('submitted CREATE automatically provisions the Module Form Book and registers the Record', async () => {
+    const db = createFakeDb(seed());
+    const result = await executeRecordCommand(db, {
+      userId: 'user-1',
+      command: makeCommand({ payload: { ...makeCommand().payload, values: { summary: 'Ledger form' } } }),
+    });
+    const entries = entryKeys(db);
+    assert.equal(entries.length, 1);
+    const entry = db._docs.get(entries[0]);
+    assert.equal(entry.recordId, result.record.recordId);
+    assert.equal(entry.sequenceNumber, 1);
+    assert.ok(entry.referenceNumber.startsWith('TEST_MOD-'), `reference starts with module code, got ${entry.referenceNumber}`);
+    assert.equal(entry.registeredBy.actorId, 'user-1');
+
+    // Record linkage written by the trusted backend
+    const stored = (await db.doc(`workspaces/ws-1/records/${result.record.recordId}`).get()).data();
+    assert.equal(stored.ledgerEntryId, entry.ledgerEntryId);
+    assert.equal(stored.referenceNumber, entry.referenceNumber);
+
+    // Book is scoped to the record's module
+    const books = bookKeys(db);
+    assert.equal(books.length, 1);
+    assert.equal(db._docs.get(books[0]).moduleId, 'mod-1');
+  });
+
+  it('draft CREATE does NOT register anything', async () => {
+    const db = createFakeDb(seed());
+    await executeRecordCommand(db, {
+      userId: 'user-1',
+      command: makeCommand({ payload: { ...makeCommand().payload, isDraft: true, values: {} } }),
+    });
+    assert.equal(entryKeys(db).length, 0);
+    assert.equal(bookKeys(db).length, 0);
+  });
+
+  it('retry of the same submission yields exactly one book + one entry', async () => {
+    const db = createFakeDb(seed());
+    const cmd = makeCommand();
+    await executeRecordCommand(db, { userId: 'user-1', command: cmd });
+    await executeRecordCommand(db, { userId: 'user-1', command: cmd });
+    await executeRecordCommand(db, { userId: 'user-1', command: cmd });
+    assert.equal(bookKeys(db).length, 1);
+    assert.equal(entryKeys(db).length, 1);
+  });
+
+  it('SUBMIT_RECORD of a draft auto-registers; CANCEL_RECORD voids the entry without deleting it', async () => {
+    const db = createFakeDb(seedWithDraft());
+    await executeRecordCommand(db, { userId: 'user-1', command: makeMutationCommand('SUBMIT_RECORD') });
+    assert.equal(entryKeys(db).length, 1);
+    const entryPath = entryKeys(db)[0];
+    assert.equal(db._docs.get(entryPath).entryStatus, 'ACTIVE');
+
+    await executeRecordCommand(db, { userId: 'user-1', command: makeMutationCommand('CANCEL_RECORD', {}, { operationId: 'op-mut-9' }) });
+    const entry = db._docs.get(entryPath);
+    assert.equal(entry.entryStatus, 'CANCELLED');
+    assert.ok(entry.cancelledAt, 'cancel provenance must be written');
+    assert.ok(entry.sequenceNumber, 'sequence position is NEVER reused');
+  });
+
+  it('a second Module gets its own book; same module new version stays in the same book', async () => {
+    const db = createFakeDb({
+      'workspaces/ws-1': { workspaceId: 'ws-1', type: 'PERSONAL', ownerUserId: 'user-1' },
+      'workspaces/ws-1/modules/mod-1': {
+        moduleId: 'mod-1', workspaceId: 'ws-1', status: 'ACTIVE', version: 1,
+        moduleCode: 'TEST_MOD',
+        formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'summary', label: 'Summary', type: 'text', required: true }] },
+      },
+      'workspaces/ws-1/modules/mod-1/versions/1': {
+        moduleId: 'mod-1', workspaceId: 'ws-1', version: 1,
+        formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'summary', label: 'Summary', type: 'text', required: true }] },
+      },
+      'workspaces/ws-1/modules/mod-2': {
+        moduleId: 'mod-2', workspaceId: 'ws-1', status: 'ACTIVE', version: 1,
+        moduleCode: 'OTHER_MOD',
+        formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'summary', label: 'Summary', type: 'text', required: true }] },
+      },
+      'workspaces/ws-1/modules/mod-2/versions/1': {
+        moduleId: 'mod-2', workspaceId: 'ws-1', version: 1,
+        formSchema: { schemaVersion: '1.0.0', fields: [{ key: 'summary', label: 'Summary', type: 'text', required: true }] },
+      },
+    });
+    await executeRecordCommand(db, { userId: 'user-1', command: makeCommand({ operationId: 'op-a', payload: { workspaceId: 'ws-1', moduleId: 'mod-1', values: { summary: 'A' } } }) });
+    await executeRecordCommand(db, { userId: 'user-1', command: makeCommand({ operationId: 'op-b', payload: { workspaceId: 'ws-1', moduleId: 'mod-2', values: { summary: 'B' } } }) });
+    assert.equal(bookKeys(db).length, 2);
+    const codes = bookKeys(db).map((k) => db._docs.get(k).moduleId).sort();
+    assert.deepEqual(codes, ['mod-1', 'mod-2']);
+    assert.equal(entryKeys(db).length, 2);
   });
 });

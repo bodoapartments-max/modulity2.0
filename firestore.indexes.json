@@ -203,6 +203,15 @@
       ]
     },
     {
+      "collectionGroup": "ledgerEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ledgerBookId", "order": "ASCENDING" },
+        { "fieldPath": "ledgerBlockId", "order": "ASCENDING" },
+        { "fieldPath": "sequenceNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "auditEntries",
       "queryScope": "COLLECTION",
       "fields": [

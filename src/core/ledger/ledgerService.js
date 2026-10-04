@@ -325,6 +325,10 @@ export function createLedgerService({
     return ledgerBookRepo.listByWorkspace(workspaceId);
   }
 
+  async function listBlocks(workspaceId, ledgerBookId) {
+    return ledgerBookRepo.listBlocks(workspaceId, ledgerBookId);
+  }
+
   async function getEntry(workspaceId, ledgerEntryId) {
     return ledgerEntryRepo.getById(workspaceId, ledgerEntryId);
   }
@@ -345,6 +349,7 @@ export function createLedgerService({
     closeBook,
     getBook,
     listBooks,
+    listBlocks,
     getEntry,
     getEntryByRecord,
     getEntriesForRecord,

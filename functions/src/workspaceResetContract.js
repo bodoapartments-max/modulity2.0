@@ -2,6 +2,10 @@ export const RESET_MODES = Object.freeze({ WORKSPACE_DATA_RESET: 'WORKSPACE_DATA
 
 export const WORKSPACE_RESET_RESOURCES = Object.freeze([
   { resource: 'records', collection: 'records', strategy: 'RECURSIVE_DELETE' },
+  // Trusted Record/Ledger operation journals — test operations must not
+  // ghost across a Workspace Reset. Top-level surviving operation-proof
+  // documents live OUTSIDE the workspace (workspaceResetAudits) and stay.
+  { resource: 'recordOperations', collection: 'recordOperations', strategy: 'RECURSIVE_DELETE' },
   { resource: 'domainEntityTypes', collection: 'entityTypes', strategy: 'DOMAIN_ONLY' },
   { resource: 'entities', collection: 'entities', strategy: 'RECURSIVE_DELETE' },
   { resource: 'relationships', collection: 'relationships', strategy: 'RECURSIVE_DELETE' },

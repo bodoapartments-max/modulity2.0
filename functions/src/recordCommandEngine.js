@@ -23,6 +23,7 @@ import {
 } from './generated/src/core/audit/auditActions.js';
 import { NOTIFICATION_EVENT_TYPES } from './generated/src/core/notifications/notificationContract.js';
 import { processNotificationIntent } from './notificationEngine.js';
+import { autoRegisterRecordInLedger, cancelLedgerRegistrationForRecord } from './ledgerCommandEngine.js';
 import {
   OPERATION_STATUS,
   OPERATION_LEASE_MS,
@@ -343,6 +344,26 @@ async function executeCreateRecordCommand(db, { userId, command }) {
     // Notification delivery failure must not invalidate the Record.
   }
 
+  // Universal Form Ledger (Step 17.1): submitted official forms are
+  // automatically registered into the Module's Form Book. Drafts are NOT
+  // registered. Deterministic per record-operation — retries converge.
+  if (!isDraft) {
+    try {
+      await autoRegisterRecordInLedger(db, {
+        workspaceId,
+        record: result.record,
+        module,
+        userId,
+        operationId: command.operationId,
+      });
+    } catch (err) {
+      // Registration must not invalidate the canonical Record. A later replay
+      // of this same command replays the chain deterministically.
+      // eslint-disable-next-line no-console
+      console.error('ledger auto-registration failed', err?.message || err);
+    }
+  }
+
   return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };
 }
 
@@ -530,6 +551,30 @@ async function executeRecordMutationCommand(db, { userId, command }) {
 
   if (result.status === OPERATION_STATUS.PROCESSING) {
     fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
+  }
+
+  // Universal Form Ledger (Step 17.1): official submissions auto-register;
+  // cancellations void the Ledger entry without erasing it.
+  try {
+    if (commandType === RECORD_COMMAND_TYPES.SUBMIT_RECORD && record.moduleId && module?.status === 'ACTIVE') {
+      await autoRegisterRecordInLedger(db, {
+        workspaceId,
+        record: result.record,
+        module,
+        userId,
+        operationId: command.operationId,
+      });
+    } else if (commandType === RECORD_COMMAND_TYPES.CANCEL_RECORD) {
+      await cancelLedgerRegistrationForRecord(db, {
+        workspaceId,
+        recordId,
+        userId,
+        cancellationReason: 'Record cancelled',
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('ledger chained operation failed', err?.message || err);
   }
 
   return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };

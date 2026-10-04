@@ -131,6 +131,100 @@ export async function executeLedgerCommand(db, { userId, command }) {
   fail(CODES.UNSUPPORTED_COMMAND, `Command ${command.commandType} is not implemented.`);
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Step 17.1 — Universal Form Ledger orchestration.
+// Trusted automatic provisioning + registration used by recordCommand.
+// Manual-Designer Modules and Automat-created Modules converge here because
+// EVERY canonical Record flows through recordCommand.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Deterministic automatic book identity for a Module: stable across renames. */
+export function deriveAutoLedgerBookId(moduleId) {
+  return `lb_auto_${moduleId}`;
+}
+
+function deriveAutoLedgerCode(moduleId) {
+  return `AUTO_${createHash('sha256').update(String(moduleId)).digest('hex').slice(0, 16).toUpperCase()}`;
+}
+
+/** Default automatic Form Book capacity (V1 paper-book metaphor, 100/block). */
+const AUTO_REGISTER_DEFAULT_BLOCK_SIZE = 100;
+
+/**
+ * Finds or creates (server-atomically) the Form Book for a Module.
+ * Book identity never depends on display text — a Module rename or a new
+ * Module version keeps the same logical book.
+ */
+export async function ensureModuleLedgerBook(db, { workspaceId, module, userId }) {
+  const ledgerBookId = deriveAutoLedgerBookId(module.moduleId);
+  const snap = await bookDoc(db, workspaceId, ledgerBookId).get();
+  if (snap.exists) return { ...snap.data(), ledgerBookId };
+
+  const { buildCreateLedgerBookCommand } = await import('./generated/src/core/ledger/ledgerCommandContract.js');
+  const result = await executeLedgerCommand(db, {
+    userId,
+    command: buildCreateLedgerBookCommand({
+      operationId: `auto-book-${workspaceId}-${module.moduleId}`,
+      workspaceId,
+      ledgerCode: deriveAutoLedgerCode(module.moduleId),
+      name: `${module.name} Register`,
+      blockSize: AUTO_REGISTER_DEFAULT_BLOCK_SIZE,
+      // Human-readable prefix: the canonical moduleCode (e.g. ROOMINS-2026-000043)
+      referencePrefix: module.moduleCode || null,
+      moduleId: module.moduleId,
+    }),
+  });
+  return result.book;
+}
+
+/**
+ * Automatically registers a canonical submitted Record into its Module's
+ * Form Book. Called AFTER the canonical Record mutation commits
+ * (post-transaction chaining). Deterministic per record-operation: replays
+ * converge to the same entry and never consume a second sequence.
+ */
+export async function autoRegisterRecordInLedger(db, { workspaceId, record, module, userId, operationId }) {
+  const book = await ensureModuleLedgerBook(db, { workspaceId, module, userId });
+  const { buildRegisterLedgerEntryCommand } = await import('./generated/src/core/ledger/ledgerCommandContract.js');
+  const result = await executeLedgerCommand(db, {
+    userId,
+    command: buildRegisterLedgerEntryCommand({
+      operationId: `auto-register-${operationId}`,
+      workspaceId,
+      recordId: record.recordId,
+      ledgerBookId: book.ledgerBookId,
+    }),
+  });
+  return result.entry;
+}
+
+/**
+ * Marks Ledger entries for a cancelled Record as CANCELLED (never deleted).
+ * Sequence positions stay consumed — paper-book principle. Post-transaction
+ * chaining after a trusted CANCEL_RECORD.
+ */
+export async function cancelLedgerRegistrationForRecord(db, { workspaceId, recordId, userId, cancellationReason = null }) {
+  const snap = await db.collection(`workspaces/${workspaceId}/ledgerEntries`)
+    .where('recordId', '==', recordId)
+    .limit(10)
+    .get();
+  const batch = db.batch();
+  let cancelled = 0;
+  for (const entryDocSnap of snap.docs) {
+    const entry = entryDocSnap.data();
+    if (entry.entryStatus !== 'ACTIVE') continue;
+    batch.update(entryDocSnap.ref, {
+      entryStatus: 'CANCELLED',
+      cancelledAt: FieldValue.serverTimestamp(),
+      cancelledBy: { actorType: 'USER', actorId: userId },
+      cancellationReason: cancellationReason || 'Record cancelled',
+    });
+    cancelled += 1;
+  }
+  if (cancelled > 0) await batch.commit();
+  return { cancelled };
+}
+
 async function executeCreateLedgerBook(db, { userId, command }) {
   const p = command.payload;
   await loadWorkspaceAndAuthorize(db, p.workspaceId, userId);
