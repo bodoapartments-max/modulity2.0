@@ -27,6 +27,7 @@ import { FormFieldServicesProvider } from './FormFieldServicesContext.jsx';
  * @param {boolean} [props.disabled] — disable all fields
  * @param {string} [props.submitLabel] — label for submit button
  * @param {boolean} [props.loading] — show loading state
+ * @param {boolean} [props.hideActions] — render fields only (read-only viewer mode)
  */
 export function FormRenderer({
   schema,
@@ -40,6 +41,7 @@ export function FormRenderer({
   submitLabel = 'Submit',
   loading = false,
   fieldServices = null,
+  hideActions = false,
 }) {
   const [values, setValues] = useState({ ...initialValues });
   const [errors, setErrors] = useState({});
@@ -142,7 +144,7 @@ export function FormRenderer({
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-4">
+      <div className="flex items-center gap-3 pt-4" hidden={hideActions}>
         <button
           type="submit"
           disabled={isDisabled}
