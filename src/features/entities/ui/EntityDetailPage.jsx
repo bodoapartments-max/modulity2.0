@@ -17,6 +17,7 @@ import Spinner from '../../../design-system/components/Spinner/Spinner.jsx';
 import { RELATIONSHIP_OBJECT_TYPES } from '../../../core/data/relationship.js';
 import { formatDisplayValue } from '../../../modules/forms/displayFormatter.js';
 import { orderedEntityDataFields } from '../../../shared/presentation/entityPresentation.js';
+import AdminActions from '../../admin/ui/AdminActions.jsx';
 
 function EntityDetailPage() {
   const { entityId } = useParams();
@@ -30,6 +31,7 @@ function EntityDetailPage() {
   const [entityNames, setEntityNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const workspaceId = currentWorkspace?.workspaceId;
 
@@ -169,6 +171,23 @@ function EntityDetailPage() {
           </p>
         </Card>
       </div>
+
+      {/* Step 17.3 — trusted administration: rename, archive, restore, delete */}
+      <AdminActions
+        resourceLabel={`Entity "${entity.displayName}"`}
+        status={entity.status}
+        busy={actionBusy}
+        onRename={async (newName) => {
+          setActionBusy(true);
+          try { await services.entity.updateEntity(workspaceId, entityId, { displayName: newName }, null); await loadDetail(); } catch (err) { setError(err.message); } finally { setActionBusy(false); }
+        }}
+        onArchive={async () => { setActionBusy(true); try { await services.entity.archiveEntity(workspaceId, entityId, null); await loadDetail(); } catch (err) { setError(err.message); } finally { setActionBusy(false); } }}
+        onRestore={async () => { setActionBusy(true); try { await services.entity.restoreEntity(workspaceId, entityId); await loadDetail(); } catch (err) { setError(err.message); } finally { setActionBusy(false); } }}
+        onDelete={async () => {
+          setActionBusy(true);
+          try { await services.entity.deleteEntity(workspaceId, entityId); navigate(backPath); } catch (err) { setError(err.message); setActionBusy(false); }
+        }}
+      />
     </PageContainer>
   );
 }

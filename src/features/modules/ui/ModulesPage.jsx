@@ -115,7 +115,7 @@ function CustomizePanel({ modules, prefs, onChange, onClose }) {
 export default function ModulesPage() {
   const { currentWorkspace, activeWorkset, activateWorkset, loading: workspaceLoading, error: workspaceError } = useWorkspace();
   const { user } = useAuth();
-  const userId = user?.uid || user?.userId;
+  const userId = user?.userId;
   const workspaceId = currentWorkspace?.workspaceId;
 
   const [search, setSearch] = useState('');

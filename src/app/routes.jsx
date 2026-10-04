@@ -32,6 +32,8 @@ const LedgerListPage = lazy(() => import('../features/ledger/ui/LedgerListPage.j
 const LedgerBookPage = lazy(() => import('../features/ledger/ui/LedgerBookPage.jsx'));
 const CreateLedgerBookPage = lazy(() => import('../features/ledger/ui/CreateLedgerBookPage.jsx'));
 const LedgerEntryDetailPage = lazy(() => import('../features/ledger/ui/LedgerEntryDetailPage.jsx'));
+const AdminHistoryPage = lazy(() => import('../features/admin/ui/AdminHistoryPage.jsx'));
+const ModuleCategoriesPage = lazy(() => import('../features/admin/ui/ModuleCategoriesPage.jsx'));
 const WorksetsPage = lazy(() => import('../features/worksets/ui/WorksetsPage.jsx'));
 const CreateWorksetPage = lazy(() => import('../features/worksets/ui/CreateWorksetPage.jsx'));
 const WorksetDetailPage = lazy(() => import('../features/worksets/ui/WorksetDetailPage.jsx'));
@@ -86,6 +88,8 @@ export default function AppRoutes() {
       <Route path="ledger/new" element={<CreateLedgerBookPage />} />
       <Route path="ledger/:ledgerBookId" element={<LedgerBookPage />} />
       <Route path="ledger/:ledgerBookId/entry/:ledgerEntryId" element={<LedgerEntryDetailPage />} />
+      <Route path="admin-history" element={<AdminHistoryPage />} />
+      <Route path="module-categories" element={<ModuleCategoriesPage />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
   );

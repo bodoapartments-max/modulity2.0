@@ -15,13 +15,18 @@ import { generateTechnicalCode, resolveCodeCollision } from '../utils/technicalC
 import { createModuleCategory, MODULE_CATEGORY_STATUSES } from './moduleCategory.js';
 import { AppError } from '../errors/appError.js';
 
-export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) {
+export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo, adminCommand = null }) {
   async function listCategories(workspaceId) {
     return moduleCategoryRepo.list(workspaceId);
   }
 
   async function createCategory(workspaceId, { displayName, description = '', sortOrder = 0 }, actor) {
     if (!displayName?.trim()) throw new AppError('validation_error', 'Category name is required');
+    if (adminCommand) {
+      void actor;
+      const result = await adminCommand.execute('CREATE_MODULE_CATEGORY', { workspaceId, displayName, description, sortOrder });
+      return moduleCategoryRepo.getById(workspaceId, result.result.categoryId);
+    }
     const existing = await moduleCategoryRepo.list(workspaceId);
     const candidate = createModuleCategory({
       categoryId: `cat_${generateId()}`,
@@ -37,6 +42,16 @@ export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) 
   }
 
   async function renameCategory(workspaceId, categoryId, { displayName, description, sortOrder }, actor) {
+    if (adminCommand) {
+      void actor;
+      await adminCommand.execute('UPDATE_MODULE_CATEGORY', {
+        workspaceId, resourceId: categoryId,
+        ...(displayName !== undefined ? { displayName } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(sortOrder !== undefined ? { sortOrder } : {}),
+      });
+      return moduleCategoryRepo.getById(workspaceId, categoryId);
+    }
     const existing = await moduleCategoryRepo.getById(workspaceId, categoryId);
     if (!existing) throw new AppError('not_found', 'Category not found');
     if (displayName !== undefined && !displayName?.trim()) {
@@ -53,6 +68,10 @@ export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) 
   }
 
   async function archiveCategory(workspaceId, categoryId) {
+    if (adminCommand) {
+      await adminCommand.execute('ARCHIVE_MODULE_CATEGORY', { workspaceId, resourceId: categoryId });
+      return moduleCategoryRepo.getById(workspaceId, categoryId);
+    }
     const existing = await moduleCategoryRepo.getById(workspaceId, categoryId);
     if (!existing) throw new AppError('not_found', 'Category not found');
     return moduleCategoryRepo.update(workspaceId, categoryId, {
@@ -62,6 +81,10 @@ export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) 
   }
 
   async function unarchiveCategory(workspaceId, categoryId) {
+    if (adminCommand) {
+      await adminCommand.execute('RESTORE_MODULE_CATEGORY', { workspaceId, resourceId: categoryId });
+      return moduleCategoryRepo.getById(workspaceId, categoryId);
+    }
     const existing = await moduleCategoryRepo.getById(workspaceId, categoryId);
     if (!existing) throw new AppError('not_found', 'Category not found');
     return moduleCategoryRepo.update(workspaceId, categoryId, {
@@ -80,6 +103,12 @@ export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) 
     return createCategory(workspaceId, { displayName: trimmed }, actor);
   }
 
+  async function deleteCategory(workspaceId, categoryId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('DELETE_MODULE_CATEGORY', { workspaceId, resourceId: categoryId });
+    return { deleted: true };
+  }
+
   void moduleRepo; // reserved for future admin surfaces (category usage counts)
 
   return {
@@ -88,6 +117,7 @@ export function createModuleCategoryService({ moduleCategoryRepo, moduleRepo }) 
     renameCategory,
     archiveCategory,
     unarchiveCategory,
+    deleteCategory,
     ensureCategoryByDisplayName,
   };
 }

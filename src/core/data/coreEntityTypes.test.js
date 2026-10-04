@@ -3,11 +3,11 @@ import { CORE_ENTITY_TYPES, getCoreEntityType } from './coreEntityTypes.js';
 import { ENTITY_TYPE_CATEGORIES, ENTITY_TYPE_STATUSES } from './entityType.js';
 
 describe('coreEntityTypes', () => {
-  const standardCodes = ['PERSON', 'EMPLOYEE', 'CUSTOMER', 'SUPPLIER', 'VEHICLE', 'EQUIPMENT', 'LOCATION', 'DOCUMENT'];
+  const standardCodes = ['PERSON', 'EMPLOYEE', 'CUSTOMER', 'SUPPLIER', 'VEHICLE', 'EQUIPMENT', 'LOCATION', 'DOCUMENT', 'CONTACT'];
 
-  it('defines all 8 core types', () => {
+  it('defines all 9 core types (including CONTACT from Step 17.3)', () => {
     const codes = CORE_ENTITY_TYPES.map((t) => t.code);
-    expect(CORE_ENTITY_TYPES).toHaveLength(8);
+    expect(CORE_ENTITY_TYPES).toHaveLength(9);
     expect(codes).toEqual(expect.arrayContaining(standardCodes));
   });
 

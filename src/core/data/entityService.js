@@ -14,11 +14,15 @@ import { eventBus, createEvent } from '../events/eventBus.js';
 import { AppError } from '../errors/appError.js';
 
 /**
+ * Step 17.3: mutating paths may route through the trusted admin command
+ * boundary. When `adminCommand` is supplied, create/update/lifecycle calls
+ * execute on the trusted server and reads stay on the Firestore repos.
  * @param {Object} deps
  * @param {import('./entityRepository.js').EntityRepository} deps.entityRepo
  * @param {import('./entityTypeRepository.js').EntityTypeRepository} deps.entityTypeRepo
+ * @param {Object} [deps.adminCommand]
  */
-export function createEntityService({ entityRepo, entityTypeRepo }) {
+export function createEntityService({ entityRepo, entityTypeRepo, adminCommand = null }) {
   /**
    * Creates a new Entity after validating against its EntityType schema.
    * Entity Type must exist and be ACTIVE.
@@ -38,6 +42,11 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
       if (!validation.valid) {
         throw new AppError('validation_error', 'Entity data validation failed', validation.errors);
       }
+    }
+
+    if (adminCommand) {
+      const result = await adminCommand.execute('CREATE_ENTITY', { workspaceId, entityTypeId, name: displayName, data });
+      return entityRepo.getById(workspaceId, result.result.entityId);
     }
 
     const entity = createEntity({
@@ -71,6 +80,18 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
    * Updates an Entity. If data changes, re-validates against Entity Type schema.
    */
   async function updateEntity(workspaceId, entityId, changes, actor) {
+    if (adminCommand) {
+      void actor;
+      const { workspaceId: _ws, entityId: _eid, entityTypeId: _et, createdBy: _cb, createdAt: _ca, ...rest } = changes;
+      const payload = { workspaceId, resourceId: entityId };
+      if (rest.displayName !== undefined || rest.data !== undefined) {
+        await adminCommand.execute('UPDATE_ENTITY', { ...payload, displayName: rest.displayName, data: rest.data });
+      }
+      if (rest.status === 'ARCHIVED') await adminCommand.execute('ARCHIVE_ENTITY', payload);
+      else if (rest.status === 'ACTIVE') await adminCommand.execute('RESTORE_ENTITY', payload);
+      else if (rest.status !== undefined) throw new AppError('validation_error', `Unsupported trusted Entity status transition: ${rest.status}`);
+      return entityRepo.getById(workspaceId, entityId);
+    }
     const existing = await entityRepo.getById(workspaceId, entityId);
     if (!existing) {
       throw new AppError('not_found', 'Entity not found');
@@ -119,6 +140,20 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     return entityRepo.query(workspaceId, filters);
   }
 
+  async function restoreEntity(workspaceId, entityId) {
+    if (adminCommand) {
+      await adminCommand.execute('RESTORE_ENTITY', { workspaceId, resourceId: entityId });
+      return entityRepo.getById(workspaceId, entityId);
+    }
+    return updateEntity(workspaceId, entityId, { status: ENTITY_STATUSES.ACTIVE }, { actorType: 'USER', actorId: 'service' });
+  }
+
+  async function deleteEntity(workspaceId, entityId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Entity delete requires the trusted administration boundary');
+    await adminCommand.execute('DELETE_ENTITY', { workspaceId, resourceId: entityId });
+    return { deleted: true };
+  }
+
   /**
    * Resolves a single entity reference, enforcing workspace isolation and type integrity.
    * Verifies: workspace match, entity existence, entityTypeId match.
@@ -159,6 +194,8 @@ export function createEntityService({ entityRepo, entityTypeRepo }) {
     getEntity,
     updateEntity,
     archiveEntity,
+    restoreEntity,
+    deleteEntity,
     listEntities,
     resolveEntityReference,
     resolveEntityReferences,

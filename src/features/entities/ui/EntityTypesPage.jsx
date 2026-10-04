@@ -23,6 +23,7 @@ import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import { ENTITY_FIELD_TYPES, FIELD_TYPES } from '../../../core/data/entityType.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 import { sortEntityTypes } from '../../../shared/presentation/entityPresentation.js';
+import { generateTechnicalCode } from '../../../core/utils/technicalCode.js';
 
 function EntityTypesPage() {
   const { currentWorkspace, loading: workspaceLoading, error: workspaceError } = useWorkspace();
@@ -66,9 +67,13 @@ function EntityTypesPage() {
     e.preventDefault();
     setActionError(null);
     try {
+      // Humans provide business meaning; Modulity derives technical codes.
+      const resolvedCode = formData.code.trim()
+        ? formData.code.toUpperCase().replace(/\s+/g, '_')
+        : generateTechnicalCode(formData.name);
       await services.entityType.createDomainEntityType({
         workspaceId,
-        code: formData.code.toUpperCase().replace(/\s+/g, '_'),
+        code: resolvedCode,
         name: formData.name,
         description: formData.description,
         fields: formData.fields.filter((field) => field.key && field.label).map((field) => ({ key: field.key, label: field.label, type: field.type, required: field.required, ...(field.type === FIELD_TYPES.SELECT ? { options: field.optionsText.split(',').map((option) => option.trim()).filter(Boolean) } : {}), ...(field.type === FIELD_TYPES.ENTITY_REFERENCE ? { entityTypeId: field.entityTypeId } : {}) })),
@@ -123,7 +128,7 @@ function EntityTypesPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="type-code">Code</Label>
-                <Input id="type-code" value={formData.code} onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))} placeholder="e.g. ROOM" required />
+                <Input id="type-code" value={formData.code} onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))} placeholder="Auto-generated from the name if left empty" />
               </div>
               <div>
                 <Label htmlFor="type-name">Name</Label>

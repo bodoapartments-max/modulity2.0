@@ -29,7 +29,7 @@ import { AppError } from '../core/errors/appError.js';
  * @param {Object} deps
  * @param {import('./moduleRepository.js').ModuleRepository} deps.moduleRepo
  */
-export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleCategoryRepo = null }) {
+export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleCategoryRepo = null, adminCommand = null }) {
   async function validateEntityTypeReferences(workspaceId, formSchema) {
     if (!entityTypeRepo) return;
     const references = [...new Set((formSchema?.fields || []).filter((field) => field.type === 'entity-reference').map((field) => field.entityTypeId))];
@@ -53,6 +53,19 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleC
     primaryEntityTypeId = null,
     createdBy,
   }) {
+    // Step 17.3 — module CREATION goes through the trusted administration
+    // boundary when available: server generates identity, code, timestamps
+    // and commits the durable Audit entry in one operation.
+    if (adminCommand) {
+      const result = await adminCommand.execute('CREATE_MODULE', {
+        workspaceId, name, description,
+        categoryId: categoryId ?? undefined,
+        formSchema, displayConfig, primaryEntityTypeId: primaryEntityTypeId ?? undefined,
+        moduleCode: moduleCode || undefined,
+      });
+      return moduleRepo.getById(workspaceId, result.result.moduleId);
+    }
+
     // HUMANS PROVIDE BUSINESS MEANING. MODULITY GENERATES TECHNICAL IDENTIFIERS.
     // moduleCode can be omitted; it is derived deterministically from the name
     // and made collision-safe within the workspace.
@@ -144,6 +157,23 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleC
    * ACTIVE: schema change → increment version + create immutable snapshot.
    */
   async function updateModule(workspaceId, moduleId, changes, actor) {
+    // Step 17.3 — metadata administration (incl. rename + category) is trusted.
+    // Schema/version changes stay on the existing client path (spec §19).
+    const metadataKeys = ['name', 'description', 'categoryId'];
+    const touchesMetadata = metadataKeys.some((k) => Object.prototype.hasOwnProperty.call(changes, k));
+    if (adminCommand && touchesMetadata) {
+      const payload = { workspaceId, resourceId: moduleId };
+      for (const key of metadataKeys) if (changes[key] !== undefined) payload[key] = changes[key];
+      await adminCommand.execute('UPDATE_MODULE_METADATA', payload);
+      const metadataResult = await moduleRepo.getById(workspaceId, moduleId);
+      const restChanges = { ...changes };
+      for (const key of metadataKeys) delete restChanges[key];
+      restChanges.category = undefined;
+      if (!restChanges.formSchema && !restChanges.displayConfig && restChanges.primaryEntityTypeId === undefined) {
+        return metadataResult;
+      }
+      return updateModule(workspaceId, moduleId, restChanges, actor);
+    }
     const existing = await moduleRepo.getById(workspaceId, moduleId);
     if (!existing) {
       throw new AppError('not_found', 'Module not found');
@@ -341,8 +371,14 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleC
   /**
    * Archives a Module. Preserves for historical Record interpretation.
    * Module code reservation is NOT released — codes are never reused.
+   * Step 17.3: route through the trusted boundary when available.
    */
   async function archiveModule(workspaceId, moduleId, actor) {
+    if (adminCommand) {
+      void actor;
+      await adminCommand.execute('ARCHIVE_MODULE', { workspaceId, resourceId: moduleId });
+      return moduleRepo.getById(workspaceId, moduleId);
+    }
     const existing = await moduleRepo.getById(workspaceId, moduleId);
     if (!existing) {
       throw new AppError('not_found', 'Module not found');
@@ -370,6 +406,21 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleC
    * Retrieves a specific Module Version snapshot.
    * Used for historical Record interpretation.
    */
+  /**
+   * Restore from ARCHIVED (Step 17.3 — trusted boundary).
+   */
+  async function restoreModule(workspaceId, moduleId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('RESTORE_MODULE', { workspaceId, resourceId: moduleId });
+    return moduleRepo.getById(workspaceId, moduleId);
+  }
+
+  async function deleteModule(workspaceId, moduleId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('DELETE_MODULE', { workspaceId, resourceId: moduleId });
+    return { deleted: true };
+  }
+
   async function getModuleVersion(workspaceId, moduleId, version) {
     if (!moduleRepo.getVersionSnapshot) return null;
     return moduleRepo.getVersionSnapshot(workspaceId, moduleId, version);
@@ -392,6 +443,8 @@ export function createModuleService({ moduleRepo, entityTypeRepo = null, moduleC
     activateModule,
     deactivateModule,
     archiveModule,
+    restoreModule,
+    deleteModule,
     getModuleVersion,
     listModuleVersions,
   };

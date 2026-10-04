@@ -53,6 +53,23 @@ export const AUDIT_ACTIONS = Object.freeze({
   ENTITY_UPDATED: 'entity.updated',
   ENTITY_ARCHIVED: 'entity.archived',
 
+  // Step 17.3 — trusted administration
+  ENTITY_TYPE_CREATED: 'entity_type.created',
+  ENTITY_TYPE_UPDATED: 'entity_type.updated',
+  ENTITY_TYPE_ARCHIVED: 'entity_type.archived',
+  ENTITY_TYPE_RESTORED: 'entity_type.restored',
+  ENTITY_TYPE_DELETED: 'entity_type.deleted',
+  ENTITY_RESTORED: 'entity.restored',
+  ENTITY_DELETED: 'entity.deleted',
+  MODULE_UPDATED: 'module.updated',
+  MODULE_RESTORED: 'module.restored',
+  MODULE_DELETED: 'module.deleted',
+  MODULE_CATEGORY_CREATED: 'module_category.created',
+  MODULE_CATEGORY_UPDATED: 'module_category.updated',
+  MODULE_CATEGORY_ARCHIVED: 'module_category.archived',
+  MODULE_CATEGORY_RESTORED: 'module_category.restored',
+  MODULE_CATEGORY_DELETED: 'module_category.deleted',
+
   AUTOMAT_PLAN_APPLIED: 'automat.plan.applied',
 });
 
@@ -80,6 +97,7 @@ export const AUDIT_RESOURCE_TYPES = Object.freeze({
   MODULE: 'MODULE',
   ENTITY: 'ENTITY',
   ENTITY_TYPE: 'ENTITY_TYPE',
+  MODULE_CATEGORY: 'MODULE_CATEGORY',
   AUTOMAT_PLAN: 'AUTOMAT_PLAN',
 });
 

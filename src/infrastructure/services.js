@@ -55,6 +55,7 @@ import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtI
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
 import { recordCommandClient } from './firebase/recordCommandClient.js';
 import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
+import { adminCommandClient } from './firebase/adminCommandClient.js';
 import {
   buildCreateRecordCommand,
   buildUpdateDraftCommand,
@@ -79,6 +80,7 @@ function createServices() {
   const entitySvc = createEntityService({
     entityRepo: repositories.entities,
     entityTypeRepo: repositories.entityTypes,
+    adminCommand: adminCommandClient,
   });
 
   const recordSvc = createRecordService({
@@ -208,6 +210,7 @@ function createServices() {
     }),
     entityType: createEntityTypeService({
       entityTypeRepo: repositories.entityTypes,
+      adminCommand: adminCommandClient,
     }),
     entity: entitySvc,
     relationship: createRelationshipService({
@@ -222,10 +225,12 @@ function createServices() {
       moduleRepo: repositories.modules,
       entityTypeRepo: repositories.entityTypes,
       moduleCategoryRepo: repositories.moduleCategories,
+      adminCommand: adminCommandClient,
     }),
     moduleCategory: createModuleCategoryService({
       moduleCategoryRepo: repositories.moduleCategories,
       moduleRepo: repositories.modules,
+      adminCommand: adminCommandClient,
     }),
     moduleSubmission: createModuleSubmissionService({
       moduleRepo: repositories.modules,
@@ -235,6 +240,7 @@ function createServices() {
     }),
     recordCommand,
     ledgerCommand,
+    adminCommand: adminCommandClient,
     recordQuery: recordQuerySvc,
     recordOperation: recordOpSvc,
     delivery: deliverySvc,

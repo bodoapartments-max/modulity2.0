@@ -15,6 +15,24 @@ import { ENTITY_TYPE_CATEGORIES, ENTITY_TYPE_STATUSES } from './entityType.js';
  */
 export const CORE_ENTITY_TYPES = Object.freeze([
   {
+    typeId: 'core:contact',
+    code: 'CONTACT',
+    name: 'Contact',
+    category: ENTITY_TYPE_CATEGORIES.CORE,
+    description: 'A business contact who is NOT a platform User — e.g. supplier, customer, or project contact.',
+    icon: 'address-book',
+    status: ENTITY_TYPE_STATUSES.ACTIVE,
+    schemaVersion: '1.0.0',
+    fields: [
+      { key: 'name', label: 'Name', type: 'text', required: true },
+      { key: 'companyName', label: 'Company', type: 'text', required: false },
+      { key: 'role', label: 'Role / Function', type: 'text', required: false },
+      { key: 'email', label: 'Email', type: 'text', required: false },
+      { key: 'phone', label: 'Phone', type: 'text', required: false },
+      { key: 'notes', label: 'Notes', type: 'textarea', required: false },
+    ],
+  },
+  {
     typeId: 'core:person',
     code: 'PERSON',
     name: 'Person',

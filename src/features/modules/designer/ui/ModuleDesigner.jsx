@@ -44,7 +44,7 @@ export default function ModuleDesigner({ moduleId = null }) {
       const created = await services.moduleCategory.createCategory(
         workspaceId,
         { displayName: name },
-        userActor(user?.uid || user?.userId),
+        userActor(user?.userId),
       );
       setCategories((current) => [...current, created]);
       designer.changeMetadata({ categoryId: created.categoryId });

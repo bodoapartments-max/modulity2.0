@@ -16,7 +16,7 @@ import { AppError } from '../errors/appError.js';
  * @param {Object} deps
  * @param {import('./entityTypeRepository.js').EntityTypeRepository} deps.entityTypeRepo
  */
-export function createEntityTypeService({ entityTypeRepo }) {
+export function createEntityTypeService({ entityTypeRepo, adminCommand = null }) {
   /**
    * Seeds all Core Entity Types into a workspace (idempotent).
    */
@@ -31,6 +31,13 @@ export function createEntityTypeService({ entityTypeRepo }) {
    * Core types cannot be created by users — they are seeded.
    */
   async function createDomainEntityType({ workspaceId, code, name, description = '', icon = '', fields = [], actor }) {
+    if (adminCommand) {
+      void actor;
+      const existing = await entityTypeRepo.getByCode(workspaceId, code);
+      if (existing) throw new AppError('conflict', `Entity type with code "${code}" already exists`);
+      const result = await adminCommand.execute('CREATE_ENTITY_TYPE', { workspaceId, name, description, icon, fields });
+      return entityTypeRepo.getById(workspaceId, result.result.typeId);
+    }
     const existing = await entityTypeRepo.getByCode(workspaceId, code);
     if (existing) {
       throw new AppError('conflict', `Entity type with code "${code}" already exists`);
@@ -87,6 +94,12 @@ export function createEntityTypeService({ entityTypeRepo }) {
    * Core Entity Types cannot be modified by users.
    */
   async function updateEntityType(workspaceId, typeId, changes, actor) {
+    if (adminCommand) {
+      void actor;
+      const { workspaceId: _ws, typeId: _t, category: _c, createdAt: _ca, ...rest } = changes;
+      await adminCommand.execute('UPDATE_ENTITY_TYPE', { workspaceId, resourceId: typeId, ...rest });
+      return entityTypeRepo.getById(workspaceId, typeId);
+    }
     const existing = await entityTypeRepo.getById(workspaceId, typeId);
     if (!existing) {
       throw new AppError('not_found', 'Entity type not found');
@@ -120,6 +133,24 @@ export function createEntityTypeService({ entityTypeRepo }) {
     return updated;
   }
 
+  async function archiveEntityType(workspaceId, typeId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('ARCHIVE_ENTITY_TYPE', { workspaceId, resourceId: typeId });
+    return entityTypeRepo.getById(workspaceId, typeId);
+  }
+
+  async function restoreEntityType(workspaceId, typeId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('RESTORE_ENTITY_TYPE', { workspaceId, resourceId: typeId });
+    return entityTypeRepo.getById(workspaceId, typeId);
+  }
+
+  async function deleteEntityType(workspaceId, typeId) {
+    if (!adminCommand) throw new AppError('forbidden', 'Requires the trusted administration boundary');
+    await adminCommand.execute('DELETE_ENTITY_TYPE', { workspaceId, resourceId: typeId });
+    return { deleted: true };
+  }
+
   return {
     seedCoreTypes,
     createDomainEntityType,
@@ -128,5 +159,8 @@ export function createEntityTypeService({ entityTypeRepo }) {
     listEntityTypes,
     listByCategory,
     updateEntityType,
+    archiveEntityType,
+    restoreEntityType,
+    deleteEntityType,
   };
 }

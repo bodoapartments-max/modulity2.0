@@ -2,12 +2,13 @@
  * Module Detail — shows module info, actions, and preview.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { userActor } from '../../../core/data/actorRef.js';
 import { FormRenderer } from '../../../modules/forms/FormRenderer.jsx';
 import services from '../../../infrastructure/services.js';
+import AdminActions from '../../admin/ui/AdminActions.jsx';
 
 const STATUS_COLORS = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
@@ -20,6 +21,7 @@ export default function ModuleDetailPage() {
   const { moduleId } = useParams();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [mod, setMod] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -230,6 +232,22 @@ export default function ModuleDetailPage() {
             </Link>
           )}
 
+          {mod.status === 'ARCHIVED' && (
+            <button
+              onClick={async () => {
+                setActionLoading(true);
+                try {
+                  await services.module.restoreModule(workspaceId, moduleId);
+                  await loadModule();
+                } catch (err) { setError(err.message); } finally { setActionLoading(false); }
+              }}
+              disabled={actionLoading}
+              className="px-4 py-2 border border-green-500 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors disabled:opacity-50"
+            >
+              Restore
+            </button>
+          )}
+
           <button
             onClick={() => setShowPreview(!showPreview)}
             className="px-4 py-2 border border-neutral-300 text-neutral-600 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-colors"
@@ -237,6 +255,35 @@ export default function ModuleDetailPage() {
             {showPreview ? 'Hide Preview' : 'Preview Form'}
           </button>
         </div>
+
+        {/* Step 17.3 — trusted administration actions (rename / delete via dependency check) */}
+        <AdminActions
+          resourceLabel={`Module "${mod.name}"`}
+          status={mod.status}
+          busy={actionLoading}
+          onRename={async (newName) => {
+            setActionLoading(true);
+            try {
+              await services.module.updateModule(workspaceId, moduleId, { name: newName }, actor);
+              await loadModule();
+            } catch (err) { setError(err.message); } finally { setActionLoading(false); }
+          }}
+          onArchive={handleArchive}
+          onRestore={async () => {
+            setActionLoading(true);
+            try {
+              await services.module.restoreModule(workspaceId, moduleId);
+              await loadModule();
+            } catch (err) { setError(err.message); } finally { setActionLoading(false); }
+          }}
+          onDelete={async () => {
+            setActionLoading(true);
+            try {
+              await services.module.deleteModule(workspaceId, moduleId);
+              navigate('/app/modules');
+            } catch (err) { setError(err.message); setActionLoading(false); }
+          }}
+        />
       </div>
 
       {/* Form Schema Summary */}
