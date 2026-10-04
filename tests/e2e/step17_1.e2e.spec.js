@@ -137,7 +137,7 @@ test.describe('Step 17.1 — universal Form Ledger & historical form viewer', ()
 
     // Full state removed: Form Books view is empty again
     await page.goto('/app/ledger');
-    await expect(page.locator('text=No form books yet')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('text=No Ledger Books have been configured yet')).toBeVisible({ timeout: 20_000 });
 
     // Clean reuse: fresh module + submission → sequence restarts at …000001
     const moduleId2 = await createModule(page, { name: `E2E 171 After Reset ${stamp}`, code: `E171B${stamp}`.toUpperCase().slice(0, 24) });

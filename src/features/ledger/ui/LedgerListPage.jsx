@@ -70,11 +70,16 @@ export default function LedgerListPage() {
   const columns = useMemo(() => [
     {
       key: 'book',
-      header: 'Form Book',
+      header: 'Ledger Book',
       render: (row) => (
-        <Link to={`/app/ledger/${row.book.ledgerBookId}`} className="font-medium text-neutral-900 hover:text-primary-600">
-          {row.book.name}
-        </Link>
+        <div>
+          <Link to={`/app/ledger/${row.book.ledgerBookId}`} className="font-medium text-neutral-900 hover:text-primary-600">
+            {row.book.name}
+          </Link>
+          {row.book.provisionedBy === 'AUTO' && (
+            <span className="ml-2 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">Auto</span>
+          )}
+        </div>
       ),
     },
     {
@@ -86,8 +91,8 @@ export default function LedgerListPage() {
     },
     { key: 'capacity', header: 'Capacity', render: (row) => row.counters.capacity },
     {
-      key: 'filled',
-      header: 'Filled',
+      key: 'used',
+      header: 'Used',
       render: (row) => <span className="font-semibold text-green-700">{row.counters.filled}</span>,
     },
     {
@@ -130,12 +135,13 @@ export default function LedgerListPage() {
     <PageContainer>
       <PageHeader
         title="Ledger"
-        description="Permanent register of official forms in this workspace."
+        description="Permanent numbered registers of official forms in this workspace."
         action={<Link to="/app/ledger/new"><Button>New Ledger Book</Button></Link>}
       />
       <p className="mb-4 text-xs text-neutral-500">
-        Submitted operational forms are registered automatically. Sequences are never reused;
-        voided forms stay in the book.
+        Official form submissions are preserved as trusted Ledger evidence automatically.
+        Ledger Books are the registers you configure to organize that history —
+        sequences are never reused and voided forms stay visible.
       </p>
       <DataGrid
         columns={columns}
@@ -143,13 +149,13 @@ export default function LedgerListPage() {
         rowKey={(row) => row.book.ledgerBookId}
         loading={loading}
         error={error}
-        emptyMessage="No form books yet"
-        emptyDescription="Submit an official form through a Module and its Form Book will appear here automatically."
-        ariaLabel="Form books"
+        emptyMessage="No Ledger Books have been configured yet"
+        emptyDescription="Official form history is preserved by the trusted Ledger where supported. Configure a Ledger Book to organize that history into a named register."
+        ariaLabel="Ledger books"
       />
       {rows.length > 0 && (
         <p className="mt-3 text-xs text-neutral-400">
-          Showing {rows.length} form book{rows.length === 1 ? '' : 's'} · counters refresh on this page load
+          Showing {rows.length} ledger book{rows.length === 1 ? '' : 's'} · counters refresh on this page load
         </p>
       )}
     </PageContainer>
