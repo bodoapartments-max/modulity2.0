@@ -21,7 +21,8 @@ import {
   AUDIT_RESOURCE_TYPES,
   AUDIT_SOURCES,
 } from './generated/src/core/audit/auditActions.js';
-import { NOTIFICATION_STATUSES, createNotification } from './generated/src/core/workspace/notification.js';
+import { NOTIFICATION_EVENT_TYPES } from './generated/src/core/notifications/notificationContract.js';
+import { processNotificationIntent } from './notificationEngine.js';
 import {
   OPERATION_STATUS,
   OPERATION_LEASE_MS,
@@ -326,28 +327,20 @@ async function executeCreateRecordCommand(db, { userId, command }) {
     fail(RECORD_COMMAND_ERROR_CODES.OPERATION_IN_PROGRESS, 'The same operation is already being processed.');
   }
 
-  // Best-effort notification mirroring the existing Event Bus notification bridge
+  // Derived Notification via the generic notification architecture:
+  // deterministic id per (operation, event, recipient) — retries cannot
+  // duplicate it, and it never invalidates the canonical Record.
   try {
-    const actor = { actorType: 'USER', actorId: userId };
-    const notification = createNotification({
-      notificationId: `op_${command.operationId}`,
+    await processNotificationIntent(db, {
+      eventType: isDraft ? NOTIFICATION_EVENT_TYPES.RECORD_DRAFT_SAVED : NOTIFICATION_EVENT_TYPES.RECORD_CREATED,
       workspaceId,
-      recipientUserId: userId,
-      type: isDraft ? 'RECORD_DRAFT_SAVED' : 'RECORD_CREATED',
-      title: isDraft ? 'Draft saved' : 'Record created',
-      message: `Record ${recordId.slice(0, 8)}… was ${isDraft ? 'saved as draft' : 'created'}`,
-      resourceType: 'RECORD',
-      resourceId: recordId,
-      actionUrl: `/app/records/${recordId}`,
-      createdBy: actor,
-      status: NOTIFICATION_STATUSES.UNREAD,
-    });
-    await db.doc(`workspaces/${workspaceId}/notifications/op_${command.operationId}`).set({
-      ...notification,
-      _createdAt: FieldValue.serverTimestamp(),
+      actorUserId: userId,
+      operationId: command.operationId,
+      contextReference: { type: 'RECORD', id: recordId, workspaceId },
+      metadata: { moduleId, moduleVersion: module.version },
     });
   } catch {
-    // Notification is best-effort.
+    // Notification delivery failure must not invalidate the Record.
   }
 
   return { record: result.record, operationId: command.operationId, idempotent: result.idempotent };
