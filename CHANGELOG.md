@@ -2,6 +2,23 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 17.3 — Trusted Entity & Module Administration + Change History
+
+### Added
+- `adminCommand` callable with versioned contract covering 20 typed commands:
+  Entity Type, Entity, Module, Module Category lifecycle (create / update / archive / restore / delete)
+- Typed, closed-registry dependency analyzer blocking hard Deletes with human-readable reasons
+- Server-generated technical identifiers for all admin creates (`technicalCode.js` collision-safe strategy)
+- Durable before/after Audit on every admin mutation, committed in the same transaction; history outlives deleted documents
+- CONTACT Core Entity Type (`core:contact`) — business contact, never an auth principal
+- UI: `AdminActions` shared strip, `AdminHistoryPage` with filters + before/after diff view, `ModuleCategoriesPage`, admin-wired Entity Type/Entity/Module pages
+- Function suite for the trusted engine (13 tests: authorization, forge-rejection, lifecycle idempotency, dependency blocking, retry dedupe, CONTACT)
+
+### Changed
+- Core services route mutations through trusted commands while keeping repo reads; signatures preserved for all callers
+- Browsers can no longer create Modules, entity Types, Entities, or Module Categories directly; existing Rules now enforce server-only administration writes
+- Legacy/pre-17.3 objects remain fully usable; history starts at 17.3 (no fabricated legacy audit)
+
 ## Step 17.2 — Module Organization, Categories & Personal Module Selection
 
 ### Added
