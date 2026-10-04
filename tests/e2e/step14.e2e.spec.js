@@ -49,8 +49,6 @@ test.describe('Step 14 Record UX hardening', () => {
     await page.waitForSelector('#designer-name', { timeout: 10_000 });
     await page.fill('#designer-name', moduleName);
     await page.fill('#designer-code', moduleCode);
-    await page.fill('#designer-category', 'E2E');
-
     await page.click('button:has-text("Add Text")');
     await page.click('button:has-text("Add Date Range")');
     const labels = page.getByLabel('Label');

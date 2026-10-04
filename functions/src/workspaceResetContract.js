@@ -12,6 +12,7 @@ export const WORKSPACE_RESET_RESOURCES = Object.freeze([
   { resource: 'fileMetadata', collection: 'files', strategy: 'RECURSIVE_DELETE' },
   { resource: 'modules', collection: 'modules', strategy: 'RECURSIVE_DELETE' },
   { resource: 'moduleCodes', collection: 'moduleCodes', strategy: 'RECURSIVE_DELETE' },
+  { resource: 'moduleCategories', collection: 'moduleCategories', strategy: 'RECURSIVE_DELETE' },
   { resource: 'deliveries', collection: 'deliveries', strategy: 'RECURSIVE_DELETE' },
   { resource: 'formRequests', collection: 'formRequests', strategy: 'RECURSIVE_DELETE' },
   { resource: 'folders', collection: 'folders', strategy: 'RECURSIVE_DELETE' },

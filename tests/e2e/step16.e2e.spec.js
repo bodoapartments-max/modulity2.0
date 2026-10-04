@@ -61,7 +61,6 @@ test.describe('Step 16 — trusted Ledger & Audit backend', () => {
     await page.waitForSelector('#designer-name', { timeout: 10_000 });
     await page.fill('#designer-name', moduleName);
     await page.fill('#designer-code', moduleCode);
-    await page.fill('#designer-category', 'E2E');
     await page.click('button:has-text("Add Text")');
     await page.getByLabel('Label').nth(0).fill('Title');
     await page.click('button:has-text("Publish Module")');

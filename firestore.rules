@@ -781,6 +781,30 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ─── Module Categories ────────────────────────────────
+      // Path: workspaces/{workspaceId}/moduleCategories/{categoryId}
+      // Canonical organizational grouping. User AND Automat authored; cross-
+      // workspace references are denied by the workspaceId/pattern checks.
+      // categoryCode/categoryId/workspaceId stay immutable (Rule 6, ADR-0012).
+
+      match /moduleCategories/{categoryId} {
+        allow read: if isAuthenticated() && canAccessWorkspace();
+        allow create: if canAccessWorkspace()
+          && request.resource.data.workspaceId == workspaceId
+          && request.resource.data.categoryId == categoryId
+          && isValidClientActor(request.resource.data.createdBy)
+          && request.resource.data.categoryCode is string
+          && request.resource.data.categoryCode.size() >= 1
+          && request.resource.data.categoryCode.size() <= 64
+          && request.resource.data.status in ['ACTIVE', 'ARCHIVED'];
+        allow update: if canAccessWorkspace()
+          && fieldUnchanged('categoryCode')
+          && fieldUnchanged('categoryId')
+          && fieldUnchanged('workspaceId')
+          && fieldUnchanged('createdBy');
+        allow delete: if false;
+      }
+
       // ─── Worksets ─────────────────────────────────────────
       match /worksets/{worksetId} {
         allow read: if isAuthenticated() && (

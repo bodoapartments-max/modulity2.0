@@ -7,6 +7,8 @@ import { createWorkset } from './generated/src/core/workspace/workset.js';
 import { createWidgetDefinition } from './generated/src/core/workspace/widgetDefinition.js';
 import { createReportDefinition } from './generated/src/core/analytics/reportDefinition.js';
 import { createAuditEntry } from './generated/src/core/audit/auditEntry.js';
+import { createModuleCategory } from './generated/src/core/workspace/moduleCategory.js';
+import { generateTechnicalCode } from './generated/src/core/utils/technicalCode.js';
 import { createNotification } from './generated/src/core/workspace/notification.js';
 import { validateAutomatBuildPlan } from './generated/src/agents/automat/buildPlanValidator.js';
 import { assertPlanApprovable } from './generated/src/agents/automat/automatApplyContract.js';
@@ -45,14 +47,45 @@ function resolveFields(fields, references) {
   return fields.map((field) => field.type === 'entity-reference' ? { ...field, entityTypeId: references[field.entityTypeId] || field.entityTypeId } : { ...field });
 }
 
+/**
+ * Step 17.2 — canonical Module Category resolution for Automat applies.
+ * Finds an existing workspace category by generated code; otherwise creates a
+ * new server-authored category. Deterministic: the same area code always
+ * resolves to the same canonical category within the workspace.
+ */
+async function ensureModuleCategoryResource(db, workspaceId, areaName) {
+  const code = generateTechnicalCode(areaName);
+  const existing = await findOne(db, `workspaces/${workspaceId}/moduleCategories`, 'categoryCode', code);
+  if (existing) return { id: existing.categoryId || existing.id, action: 'REUSED' };
+  const categoryId = `cat_${code.toLowerCase()}`;
+  const value = createModuleCategory({
+    categoryId,
+    workspaceId,
+    displayName: areaName.trim(),
+    categoryCode: code,
+    description: '',
+    status: 'ACTIVE',
+    createdBy: internalActor,
+  });
+  await db.doc(`workspaces/${workspaceId}/moduleCategories/${categoryId}`).create({
+    ...cleanTimestamps(value),
+    _createdAt: FieldValue.serverTimestamp(),
+    _updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { id: categoryId, action: 'CREATED' };
+}
+
 async function createModuleResource(db, workspaceId, proposal, references) {
   const existing = await findOne(db, `workspaces/${workspaceId}/modules`, 'moduleCode', proposal.moduleCode);
   if (existing) return { id: existing.id, action: 'REUSED' };
+  // Step 17.2 — normalize the proposal's area into the canonical category
+  // model. Automat uses the SAME moduleCategories collection as manual UI.
+  const categoryId = proposal.category ? (await ensureModuleCategoryResource(db, workspaceId, proposal.category)).id : null;
   const id = idFor('mod', proposal.moduleCode);
   const formSchema = { ...proposal.formSchema, fields: resolveFields(proposal.formSchema.fields, references) };
   const formResult = validateFormSchema(formSchema);
   if (!formResult.valid) fail('RESOURCE_CREATE_FAILED', `Invalid Module Form Schema: ${proposal.moduleCode}`);
-  const value = createModule({ moduleId: id, workspaceId, moduleCode: proposal.moduleCode, name: proposal.name, description: proposal.description || '', category: proposal.category || '', status: 'ACTIVE', version: 1, formSchema, recordConfig: { recordType: proposal.recordType || proposal.moduleCode }, displayConfig: proposal.displayConfig || {}, primaryEntityTypeId: proposal.primaryEntityTypeRef ? references[proposal.primaryEntityTypeRef] || null : null, createdBy: internalActor });
+  const value = createModule({ moduleId: id, workspaceId, moduleCode: proposal.moduleCode, name: proposal.name, description: proposal.description || '', category: proposal.category || '', categoryId, status: 'ACTIVE', version: 1, formSchema, recordConfig: { recordType: proposal.recordType || proposal.moduleCode }, displayConfig: proposal.displayConfig || {}, primaryEntityTypeId: proposal.primaryEntityTypeRef ? references[proposal.primaryEntityTypeRef] || null : null, createdBy: internalActor });
   const moduleDocument = cleanTimestamps(value);
   const moduleRef = db.doc(`workspaces/${workspaceId}/modules/${id}`);
   const codeRef = db.doc(`workspaces/${workspaceId}/moduleCodes/${proposal.moduleCode}`);

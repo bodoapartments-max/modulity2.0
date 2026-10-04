@@ -17,8 +17,7 @@ async function createModule(page, { name, code }) {
   await page.waitForSelector('#designer-name', { timeout: 10_000 });
   await page.fill('#designer-name', name);
   await page.fill('#designer-code', code);
-  await page.fill('#designer-category', 'E2E');
-  await page.click('button:has-text("Add Text")');
+    await page.click('button:has-text("Add Text")');
   const labels = page.getByLabel('Label');
   await labels.nth(0).fill('Title');
   await page.click('button:has-text("Publish Module")');

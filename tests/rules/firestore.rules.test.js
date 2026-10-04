@@ -3512,6 +3512,32 @@ describe('Step 7 workspace experience rules', () => {
     await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'widgetDefinitions', 'unbounded-widget'), { ...base, widgetId: 'unbounded-widget', source: 'RECORDS', display: { limit: 1000 } }));
   });
 
+  it('allows owner Module Category writes and denies cross-workspace writes', async () => {
+    const db = authedDb('user1');
+    const data = { categoryId: 'cat-1', workspaceId: 'ws-step7', displayName: 'Front Office', categoryCode: 'FRONT_OFFICE', description: '', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user1' } };
+    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-1'), data));
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-other', 'moduleCategories', 'cat-1'), { ...data, workspaceId: 'ws-other', createdBy: { actorType: 'USER', actorId: 'user1' } }));
+  });
+
+  it('denies Module Category actor spoofing and unstable identity mutation', async () => {
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-spoof'), { categoryId: 'cat-spoof', workspaceId: 'ws-step7', displayName: 'X', categoryCode: 'X_CODE', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user2' } }));
+  });
+
+  it('denies Module Category code/identity update — codes are stable after creation', async () => {
+    const db = authedDb('user1');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { categoryId: 'cat-stable', workspaceId: 'ws-step7', displayName: 'Front Office', categoryCode: 'FRONT_OFFICE', description: '', status: 'ACTIVE', sortOrder: 0, createdBy: { actorType: 'USER', actorId: 'user1' } }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { categoryCode: 'CHANGED' }));
+    await assertSucceeds(updateDoc(doc(db, 'workspaces', 'ws-step7', 'moduleCategories', 'cat-stable'), { displayName: 'Reception Front Office', updatedAt: '2026-10-04T00:00:00.000Z' }));
+  });
+
+  it('isolates personal Module preferences per user — no cross-user mutation', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1'), { workspaceId: 'ws-step7', userId: 'user1', moduleSelection: { selectedModuleIds: ['m1'], moduleOrder: ['m1'], viewMode: 'GROUPED' } }));
+    await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1')));
+    await assertFails(getDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1')));
+    await assertFails(updateDoc(doc(authedDb('user2'), 'workspaces', 'ws-step7', 'userWorkspacePreferences', 'user1'), { moduleSelection: { selectedModuleIds: [], moduleOrder: [], viewMode: 'FLAT' } }));
+  });
+
   it('isolates Notifications to the recipient', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'ws-step7', 'notifications', 'n1'), { notificationId: 'n1', workspaceId: 'ws-step7', recipientUserId: 'user1', type: 'RECORD_SENT', title: 'Sent', status: 'UNREAD', createdBy: { actorType: 'USER', actorId: 'user2' } }));
     await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-step7', 'notifications', 'n1')));
