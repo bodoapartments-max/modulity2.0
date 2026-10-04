@@ -179,6 +179,10 @@ Stable technical identifiers (`moduleCode`, `categoryCode`, `ledgerCode`) are IM
 
 Protected administration is server-authoritative (ADR-0013): Entity Type, Entity, Module, Module Category create/update/archive/restore/delete run through the trusted `adminCommand` callable only. Hard delete requires a passing typed dependency check. Every administrative mutation writes durable before/after audit evidence in the same transaction. Browser writes to those collections are denied by Rules.
 
+Background refresh never shifts layout (Step 17.4): do not render transient "Refreshing…" labels that resize/mutate the list; stale-while-revalidate via the workspace query cache. Calendar navigations must show previously valid state instantly while refreshing silently.
+
+Known gaps are tracked in `docs/KNOWN_GAPS_REGISTER.md`. A milestone may close with a documented non-blocking gap, never with an undocumented one.
+
 ## 11. Multi-Workspace first
 
 Never assume one global company. A User may have a Personal Workspace and memberships in multiple Organizations.
