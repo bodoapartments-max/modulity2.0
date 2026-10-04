@@ -108,8 +108,9 @@ test.describe('Step 17.2 — Module categories & personal module selection', () 
     await page.goto('/app/modules');
     const toggleBtn = page.locator('button[aria-pressed]').filter({ hasText: /Group by category|Flat list/ });
     await toggleBtn.click(); // toggle to FLAT
-    await page.waitForTimeout(1500); // preference persist before reload
-    await expect(page.locator('button[aria-pressed="false"]')).toBeVisible({ timeout: 5_000 });
+    // Preference persists server-side; wait for the local state to reflect and then prove it after reload
+    await expect(page.locator('button[aria-pressed="false"]')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(3000); // write settles
     await page.reload();
     // reload must come back FLAT — prove persistence
     await expect(page.locator('button[aria-pressed="false"]')).toBeVisible({ timeout: 15_000 });

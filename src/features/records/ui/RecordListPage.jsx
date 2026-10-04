@@ -42,7 +42,6 @@ export default function RecordListPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -94,8 +93,7 @@ export default function RecordListPage() {
       setLoading(false);
       return;
     }
-    if (background) setRefreshing(true);
-    else setLoading(true);
+    if (!background) setLoading(true);
     setError(null);
     try {
       const result = await services?.recordQuery?.queryRecords({
@@ -122,7 +120,6 @@ export default function RecordListPage() {
       setError(err.message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [workspaceId, userId, bucket, statusFilter, priorityFilter, moduleFilter, sort.sortField, sort.sortDirection, fromDate, toDate, cacheKey]);
 
@@ -327,8 +324,6 @@ export default function RecordListPage() {
         selectedCount={selectedIds.size}
         onBulkArchive={handleBulkArchive}
       />
-
-      {refreshing && <p className="mb-2 text-xs text-neutral-400">Refreshing…</p>}
 
       {renderBody()}
 

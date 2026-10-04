@@ -18,6 +18,7 @@ import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import services from '../../../infrastructure/services.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
+import { generateTechnicalCode } from '../../../core/utils/technicalCode.js';
 
 function suggestPrefix(text) {
   return String(text || '')
@@ -81,13 +82,16 @@ export default function CreateLedgerBookPage() {
     setSaving(true);
     setError(null);
     try {
+      // Humans provide business meaning; the system generates the technical
+      // identifier. If the user typed one it is honored; otherwise derived.
+      const resolvedCode = ledgerCode.trim() ? ledgerCode.toUpperCase() : generateTechnicalCode(name);
       const result = await services?.ledgerCommand?.createBook({
         workspaceId,
-        ledgerCode: ledgerCode.toUpperCase(),
+        ledgerCode: resolvedCode,
         name,
         description,
         blockSize: parseInt(blockSize, 10) || 100,
-        referencePrefix: referencePrefix.toUpperCase() || ledgerCode.toUpperCase(),
+        referencePrefix: referencePrefix.toUpperCase() || resolvedCode,
         sourceDefinition: sourceModuleId ? { type: 'MODULE', moduleId: sourceModuleId } : null,
       });
       const book = result?.book;
@@ -166,18 +170,17 @@ export default function CreateLedgerBookPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1" htmlFor="lb-code">Ledger Code *</label>
+          <label className="block text-sm font-medium text-neutral-700 mb-1" htmlFor="lb-code">Ledger Code</label>
           <input
             id="lb-code"
             type="text"
             value={ledgerCode}
             onChange={(e) => { setCodeTouched(true); setLedgerCode(e.target.value.toUpperCase()); }}
-            required
             pattern="[A-Z][A-Z0-9_]*"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm font-mono focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
-            placeholder="VEHICLE_INSPECTION"
+            placeholder="Auto-generated from the Name when left empty"
           />
-          <p className="text-xs text-neutral-400 mt-1">Uppercase letters, digits, underscores. Must start with a letter.</p>
+          <p className="text-xs text-neutral-400 mt-1">Uppercase letters, digits, underscores. Auto-generated from the Name when empty; stable afterwards.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -212,7 +215,7 @@ export default function CreateLedgerBookPage() {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={saving || !name || !ledgerCode || !workspaceId || !user}
+            disabled={saving || !name || !workspaceId || !user}
             className="w-full sm:w-auto px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={!workspaceId ? 'Waiting for the workspace to load…' : undefined}
           >

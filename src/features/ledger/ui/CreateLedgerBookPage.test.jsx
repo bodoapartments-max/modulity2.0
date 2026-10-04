@@ -58,16 +58,16 @@ describe('CreateLedgerBookPage', () => {
     fireEvent.change(source, { target: { value: 'mod-veh' } });
     expect(screen.getByLabelText('Name *').value).toBe('Vehicle Inspection Register');
     expect(screen.getByLabelText('Reference Prefix').value).toBe('VEHINS');
-    expect(screen.getByLabelText('Ledger Code *').value).toBe('VEHINS_LEDGER');
+    expect(screen.getByLabelText('Ledger Code').value).toBe('VEHINS_LEDGER');
   });
 
   it('keeps user-typed code/prefix when the source changes afterwards', async () => {
     renderPage();
     const source = await screen.findByLabelText('Source');
-    fireEvent.change(screen.getByLabelText('Ledger Code *'), { target: { value: 'MYCUSTOM' } });
+    fireEvent.change(screen.getByLabelText('Ledger Code'), { target: { value: 'MYCUSTOM' } });
     fireEvent.change(screen.getByLabelText('Reference Prefix'), { target: { value: 'MINE' } });
     fireEvent.change(source, { target: { value: 'mod-room' } });
-    expect(screen.getByLabelText('Ledger Code *').value).toBe('MYCUSTOM');
+    expect(screen.getByLabelText('Ledger Code').value).toBe('MYCUSTOM');
     expect(screen.getByLabelText('Reference Prefix').value).toBe('MINE');
     expect(screen.getByLabelText('Name *').value).toBe('Room Inspection Register');
   });
@@ -87,7 +87,7 @@ describe('CreateLedgerBookPage', () => {
     renderPage();
     await screen.findByLabelText('Source');
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Ad-hoc Register' } });
-    fireEvent.change(screen.getByLabelText('Ledger Code *'), { target: { value: 'ADHOC' } });
+    fireEvent.change(screen.getByLabelText('Ledger Code'), { target: { value: 'ADHOC' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Ledger Book' }));
     await waitFor(() => expect(mocks.createBook).toHaveBeenCalled());
     expect(mocks.createBook.mock.calls[0][0].sourceDefinition).toBeNull();
@@ -98,7 +98,7 @@ describe('CreateLedgerBookPage', () => {
     renderPage();
     await screen.findByLabelText('Source');
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'X' } });
-    fireEvent.change(screen.getByLabelText('Ledger Code *'), { target: { value: 'XCODE' } });
+    fireEvent.change(screen.getByLabelText('Ledger Code'), { target: { value: 'XCODE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Ledger Book' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('already in use');
   });

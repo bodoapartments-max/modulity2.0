@@ -125,7 +125,7 @@ export default function ModulesPage() {
   const [saveError, setSaveError] = useState(null);
 
   const moduleLoader = useCallback(() => services.module.listModules(workspaceId), [workspaceId]);
-  const { data: cachedModules = [], error, initialLoading: loading, refreshing } = useWorkspaceQuery({
+  const { data: cachedModules = [], error, initialLoading: loading } = useWorkspaceQuery({
     workspaceId, resource: 'modules', loader: moduleLoader, enabled: Boolean(workspaceId),
   });
 
@@ -216,7 +216,6 @@ export default function ModulesPage() {
         </div>
       </div>
 
-      {refreshing && <p className="mb-3 text-xs text-neutral-400">Refreshing…</p>}
       {error && <ErrorState message="Modules could not be refreshed." />}
       {saveError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{saveError}</div>}
 
