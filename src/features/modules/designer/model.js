@@ -40,6 +40,7 @@ export function createModuleDesignerDraft(moduleDefinition = null) {
   return Object.freeze({
     moduleId: moduleDefinition?.moduleId || null,
     moduleCode: moduleDefinition?.moduleCode || '',
+    categoryId: moduleDefinition?.categoryId || null,
     name: moduleDefinition?.name || '',
     description: moduleDefinition?.description || '',
     category: moduleDefinition?.category || '',
@@ -108,7 +109,7 @@ function canonicalField(field) {
 
 export function serializeModuleDesignerDraft(draft) {
   const fields = draft.fields.map(canonicalField);
-  return Object.freeze({ name: draft.name.trim(), moduleCode: draft.moduleCode.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_'), description: draft.description.trim(), category: draft.category.trim(), formSchema: { schemaVersion: '1.0.0', fields }, displayConfig: { primaryField: draft.primaryField || fields[0]?.key || '', listFields: draft.listFields.filter((key) => fields.some((field) => field.key === key)).slice(0, DESIGNER_LIMITS.MAX_LIST_FIELDS) } });
+  return Object.freeze({ name: draft.name.trim(), moduleCode: draft.moduleCode.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_'), categoryId: draft.categoryId || null, description: draft.description.trim(), category: draft.category.trim(), formSchema: { schemaVersion: '1.0.0', fields }, displayConfig: { primaryField: draft.primaryField || fields[0]?.key || '', listFields: draft.listFields.filter((key) => fields.some((field) => field.key === key)).slice(0, DESIGNER_LIMITS.MAX_LIST_FIELDS) } });
 }
 
 export function validateModuleDesignerDraft(draft, entityTypes = []) {
@@ -116,9 +117,13 @@ export function validateModuleDesignerDraft(draft, entityTypes = []) {
   try { safe(draft); } catch (error) { errors.push(error.message); }
   if (!draft.name.trim()) errors.push('Module name is required');
   else if (draft.name.trim().length > DESIGNER_LIMITS.MAX_NAME_LENGTH) errors.push(`Module name exceeds ${DESIGNER_LIMITS.MAX_NAME_LENGTH} characters`);
+  // Step 17.2 — moduleCode may be EMPTY on creation: it is auto-generated
+  // (ADR-0012). Once chosen (or on edit) it is validated and immutable.
   const code = draft.moduleCode.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
-  errors.push(...validateModuleCode(code).errors);
-  if (code.length > DESIGNER_LIMITS.MAX_CODE_LENGTH) errors.push(`Module code exceeds ${DESIGNER_LIMITS.MAX_CODE_LENGTH} characters`);
+  if (code || draft.moduleId) {
+    errors.push(...validateModuleCode(code).errors);
+    if (code.length > DESIGNER_LIMITS.MAX_CODE_LENGTH) errors.push(`Module code exceeds ${DESIGNER_LIMITS.MAX_CODE_LENGTH} characters`);
+  }
   if (draft.description.length > DESIGNER_LIMITS.MAX_DESCRIPTION_LENGTH) errors.push(`Description exceeds ${DESIGNER_LIMITS.MAX_DESCRIPTION_LENGTH} characters`);
   if (draft.category.length > DESIGNER_LIMITS.MAX_CATEGORY_LENGTH) errors.push(`Category exceeds ${DESIGNER_LIMITS.MAX_CATEGORY_LENGTH} characters`);
   if (!draft.fields.length) errors.push('At least one field is required');

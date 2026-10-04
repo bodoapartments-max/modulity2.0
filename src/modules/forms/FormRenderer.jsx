@@ -144,7 +144,8 @@ export function FormRenderer({
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-4" hidden={hideActions}>
+      {!hideActions && (
+      <div className="flex items-center gap-3 pt-4">
         <button
           type="submit"
           disabled={isDisabled}
@@ -172,6 +173,7 @@ export function FormRenderer({
           </button>
         )}
       </div>
+      )}
     </form>
     </FormFieldServicesProvider>
   );

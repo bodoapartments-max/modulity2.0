@@ -66,10 +66,13 @@ export function useModuleDesigner({ workspace, user, moduleId = null }) {
       const actor = userActor(user.userId || user.uid);
       let saved;
       if (!moduleId) {
-        saved = await services.module.createModule({ workspaceId, ...currentValidation.payload, createdBy: actor });
+        const { moduleCode: proposedCode, ...createPayload } = currentValidation.payload;
+        // Omit moduleCode when the user left it empty — the service auto-generates
+        // a collision-safe code from the name (ADR-0012).
+        saved = await services.module.createModule({ workspaceId, ...createPayload, ...(proposedCode ? { moduleCode: proposedCode } : {}), categoryId: draft.categoryId || null, createdBy: actor });
         if (publish) saved = await services.module.activateModule(workspaceId, saved.moduleId, actor);
       } else {
-        saved = await services.module.updateModule(workspaceId, moduleId, { name: currentValidation.payload.name, description: currentValidation.payload.description, category: currentValidation.payload.category, formSchema: currentValidation.payload.formSchema, displayConfig: currentValidation.payload.displayConfig }, actor);
+        saved = await services.module.updateModule(workspaceId, moduleId, { name: currentValidation.payload.name, description: currentValidation.payload.description, category: currentValidation.payload.category, categoryId: draft.categoryId || null, formSchema: currentValidation.payload.formSchema, displayConfig: currentValidation.payload.displayConfig }, actor);
         if (publish && saved.status !== 'ACTIVE') saved = await services.module.activateModule(workspaceId, moduleId, actor);
       }
       workspaceQueryCache.invalidate(`${workspaceId}:modules:`);

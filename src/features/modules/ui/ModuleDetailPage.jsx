@@ -21,6 +21,7 @@ export default function ModuleDetailPage() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const [mod, setMod] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -35,6 +36,7 @@ export default function ModuleDetailPage() {
     try {
       const result = await services?.module?.getModule(workspaceId, moduleId);
       setMod(result);
+      setCategories(await services?.moduleCategory?.listCategories(workspaceId) ?? []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,6 +45,8 @@ export default function ModuleDetailPage() {
   }, [workspaceId, moduleId]);
 
   useEffect(() => { loadModule(); }, [loadModule]);
+
+  const canonicalCategory = categories.find((c) => c.categoryId === mod?.categoryId) || null;
 
   const handleActivate = async () => {
     setActionLoading(true);
@@ -132,7 +136,28 @@ export default function ModuleDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 text-sm">
           <div>
             <span className="text-neutral-500">Category</span>
-            <p className="font-medium text-neutral-800">{mod.category || '—'}</p>
+            {mod.status !== 'ARCHIVED' ? (
+              <select
+                aria-label="Module Category"
+                value={mod.categoryId || ''}
+                onChange={async (event) => {
+                  try {
+                    setActionLoading(true);
+                    await services.module.updateModule(workspaceId, moduleId, { categoryId: event.target.value || null }, actor);
+                    await loadModule();
+                  } catch (err) { setError(err.message); } finally { setActionLoading(false); }
+                }}
+                className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                disabled={actionLoading}
+              >
+                <option value="">Uncategorized</option>
+                {categories.filter((c) => c.status === 'ACTIVE').map((cat) => (
+                  <option key={cat.categoryId} value={cat.categoryId}>{cat.displayName}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="font-medium text-neutral-800">{canonicalCategory?.displayName || mod.category || '—'}</p>
+            )}
           </div>
           <div>
             <span className="text-neutral-500">Version</span>

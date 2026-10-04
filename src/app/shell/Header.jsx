@@ -13,6 +13,7 @@ import Dropdown from '../../design-system/components/Dropdown/Dropdown.jsx';
 import { DropdownItem } from '../../design-system/components/Dropdown/Dropdown.jsx';
 import WorkspaceSwitcher from './WorkspaceSwitcher.jsx';
 import WorksetSelector from '../../design-system/components/WorksetSelector/WorksetSelector.jsx';
+import AllModulesNavigator from './AllModulesNavigator.jsx';
 import NotificationButton from '../../features/notifications/ui/NotificationButton.jsx';
 
 function MenuIcon(props) {
@@ -57,6 +58,7 @@ function Header({ onOpenMobileMenu }) {
           onChange={activateWorkset}
           className="hidden max-w-36 md:block"
         />
+        <AllModulesNavigator workspaceId={currentWorkspace?.workspaceId} userId={user?.uid || user?.userId} className="hidden md:block" />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
         <NotificationButton />
         <div className="hidden h-4 w-px bg-neutral-200 lg:block" />
