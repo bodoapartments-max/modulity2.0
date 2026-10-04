@@ -3640,31 +3640,39 @@ describe('Step 7.2 Chat security rules', () => {
   });
 
   async function createConversationFixture() {
-    const db = authedDb('user1');
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'workspaces', 'chat-ws', 'conversations', 'c1'), {
-      conversationId: 'c1', workspaceId: 'chat-ws', type: 'DIRECT', title: '',
-      memberIds: ['user1', 'user2'], status: 'ACTIVE',
-      createdBy: { actorType: 'USER', actorId: 'user1' }, _createdAt: new Date(), _updatedAt: new Date(),
-    });
-    for (const userId of ['user1', 'user2']) {
-      batch.set(doc(db, 'workspaces', 'chat-ws', 'conversations', 'c1', 'members', userId), {
-        conversationId: 'c1', workspaceId: 'chat-ws', userId, role: userId === 'user1' ? 'OWNER' : 'MEMBER',
+    // STEP 18: conversations are server-authored. Rules see them only through
+    // the trusted chatCommand boundary (simulated by securityRulesDisabled).
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const batch = writeBatch(ctx.firestore());
+      batch.set(doc(ctx.firestore(), 'workspaces', 'chat-ws', 'conversations', 'c1'), {
+        conversationId: 'c1', workspaceId: 'chat-ws', type: 'DIRECT', title: '',
+        memberIds: ['user1', 'user2'], status: 'ACTIVE',
+        createdBy: { actorType: 'USER', actorId: 'user1' }, _createdAt: new Date(), _updatedAt: new Date(),
       });
-    }
-    await assertSucceeds(batch.commit());
+      for (const userId of ['user1', 'user2']) {
+        batch.set(doc(ctx.firestore(), 'workspaces', 'chat-ws', 'conversations', 'c1', 'members', userId), {
+          conversationId: 'c1', workspaceId: 'chat-ws', userId, role: userId === 'user1' ? 'OWNER' : 'MEMBER',
+        });
+      }
+      await batch.commit();
+    });
   }
 
-  it('allows members to read/send and denies non-members', async () => {
+  it('allows members to read but NOT write messages directly (trusted boundary)', async () => {
     await createConversationFixture();
     await assertSucceeds(getDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1')));
     await assertFails(getDoc(doc(authedDb('user3'), 'workspaces', 'chat-ws', 'conversations', 'c1')));
-    await assertSucceeds(setDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm1'), {
+    // Direct browser message create is denied for everyone (trusted chatCommand only).
+    await assertFails(setDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm1'), {
       messageId: 'm1', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user2', content: 'Hello', _createdAt: new Date(),
     }));
     await assertFails(setDoc(doc(authedDb('user3'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm2'), {
       messageId: 'm2', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user3', content: 'Blocked', _createdAt: new Date(),
     }));
+    // Messages can be READ by members.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm9'), { messageId: 'm9', conversationId: 'c1', workspaceId: 'chat-ws', senderUserId: 'user1', content: 'Hi' }));
+    await assertSucceeds(getDoc(doc(authedDb('user2'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm9')));
+    await assertFails(getDoc(doc(authedDb('user3'), 'workspaces', 'chat-ws', 'conversations', 'c1', 'messages', 'm9')));
   });
 
   it('denies sender identity spoofing and message mutation', async () => {
