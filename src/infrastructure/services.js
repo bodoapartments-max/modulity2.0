@@ -53,6 +53,7 @@ import { createReportService } from '../core/analytics/reportService.js';
 import { createCapabilityDefinitionService } from '../capabilities/definition/capabilityDefinitionService.js';
 import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRuntime.js';
 import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
+import { createCapabilityRegistry } from '../capabilities/capabilityRegistry.js';
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
 import { recordCommandClient } from './firebase/recordCommandClient.js';
 import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
@@ -276,6 +277,13 @@ function createServices() {
       });
       runtime.registerEngineFactory('calendar', '1.0.0', createCalendarEngine);
       return runtime;
+    })(),
+    /** Step 21: deterministic capability lookup facade (never re-register). */
+    capability: (() => {
+      const engineRegistry = createBuiltInCapabilityRegistry({
+        calendar: { definitionValidator: validateCalendarDefinitionV1 },
+      });
+      return createCapabilityRegistry(engineRegistry);
     })(),
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,
