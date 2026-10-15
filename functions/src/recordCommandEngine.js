@@ -16,6 +16,7 @@ import {
 import { evaluateRecordAction } from './generated/src/core/recordCommands/recordActionPolicy.js';
 import { evaluateRecordTransition } from './generated/src/core/recordCommands/recordLifecycle.js';
 import { createAuditEntry } from './generated/src/core/audit/auditEntry.js';
+import { createBusinessEvent, businessEventIdFor, BUSINESS_EVENT_TYPES, BUSINESS_EVENT_SOURCES } from './generated/src/core/events/businessEvent.js';
 import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
@@ -302,6 +303,25 @@ async function executeCreateRecordCommand(db, { userId, command }) {
     });
 
     transaction.set(recRef, buildFirestoreRecordDocument(record));
+
+    // BUSINESS EVENT (Step 22): record.created in the SAME transaction.
+    // Event identity is derived from operationId — retry-safe.
+    {
+      const eventId = businessEventIdFor(command.operationId, BUSINESS_EVENT_TYPES.RECORD_CREATED);
+      transaction.set(db.doc(`workspaces/${workspaceId}/businessEvents/${eventId}`),
+        createBusinessEvent({
+          eventId,
+          eventType: BUSINESS_EVENT_TYPES.RECORD_CREATED,
+          workspaceId,
+          source: BUSINESS_EVENT_SOURCES.RECORD_COMMAND,
+          actor: { actorType: 'USER', actorId: userId },
+          objectReference: { type: 'RECORD', id: recordId, workspaceId },
+          payload: { moduleCode: module.moduleCode, recordType: module.recordConfig?.recordType },
+          idempotencyKey: command.operationId,
+          correlationId: command.operationId,
+        }),
+      );
+    }
 
     transaction.update(opRef, {
       status: OPERATION_STATUS.COMPLETED,

@@ -6,6 +6,8 @@ export const WORKSPACE_RESET_RESOURCES = Object.freeze([
   // ghost across a Workspace Reset. Top-level surviving operation-proof
   // documents live OUTSIDE the workspace (workspaceResetAudits) and stay.
   { resource: 'recordOperations', collection: 'recordOperations', strategy: 'RECURSIVE_DELETE' },
+  // Step 22: durable operational facts
+  { resource: 'businessEvents', collection: 'businessEvents', strategy: 'RECURSIVE_DELETE' },
   { resource: 'domainEntityTypes', collection: 'entityTypes', strategy: 'DOMAIN_ONLY' },
   { resource: 'entities', collection: 'entities', strategy: 'RECURSIVE_DELETE' },
   { resource: 'relationships', collection: 'relationships', strategy: 'RECURSIVE_DELETE' },

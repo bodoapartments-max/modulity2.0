@@ -6,6 +6,10 @@ const descriptor = (engineId, name, mode, description, options = {}) => ({ engin
 export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
   descriptor('approval', 'Approval', CAPABILITY_MODES.ACTION, 'Trusted approval policies and canonical state transitions.', { capabilities: ['approval-policy', 'state-transition'], optionalDependencies: ['notification'] }),
   descriptor('calendar', 'Calendar', CAPABILITY_MODES.READ, 'Derived time-based projections over canonical Records.', { availability: CAPABILITY_AVAILABILITY.AVAILABLE, definitionTypes: ['CalendarDefinitionV1'], capabilities: ['time-mapping', 'record-projection'] }),
+  descriptor('business-event', 'Business Event Backbone', CAPABILITY_MODES.READ, 'Facts emitted by trusted operations; canonical append-only event persistence.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['emit', 'retrieve', 'correlate', 'cause-link'],
+  }),
   descriptor('document', 'Document', CAPABILITY_MODES.READ, 'Document-oriented projections and lifecycle integration.', { supportedSourceKinds: [CAPABILITY_SOURCE_KINDS.MODULE, CAPABILITY_SOURCE_KINDS.ENTITY_TYPE], capabilities: ['document-projection'] }),
   descriptor('integration', 'Integration', CAPABILITY_MODES.ACTION, 'Trusted versioned external API/event/command integration boundary.', { capabilities: ['external-command', 'external-event'] }),
   descriptor('inventory', 'Inventory', CAPABILITY_MODES.READ, 'Derived stock projections from canonical movement Records.', { capabilities: ['stock-projection'] }),

@@ -16,6 +16,7 @@ const files = [
   'src/core/admin/adminDependencyAnalyzer.js',
   'src/core/chat/chatDomain.js',
   'src/core/chat/chatCommandContract.js',
+  'src/core/events/businessEvent.js',
   'src/core/utils/technicalCode.js',
   'src/modules/module.js', 'src/modules/forms/formSchemaValidator.js',
   'src/capabilities/contracts/capabilityContracts.js',

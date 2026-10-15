@@ -888,6 +888,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ─── Business Events (Step 22) ─────────────────────────
+      // Path: workspaces/{workspaceId}/businessEvents/{eventId}
+      // Canonical durable append-only trusted-server-authored business events.
+      // Browser read-only; no arbitrary browser writes of canonical events.
+      match /businessEvents/{eventId} {
+        allow get, list: if canAccessWorkspace();
+        // STEP 22: never allow browser-authored canonical BusinessEvents.
+        allow create, update, delete: if false;
+      }
+
       // ─── Conversations / Chat ──────────────────────────────
       match /conversations/{conversationId} {
         // Read: DIRECT + GROUP — memberIds only. ROOM — memberIds, or any
