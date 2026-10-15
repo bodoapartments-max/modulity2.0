@@ -2,6 +2,27 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 25 — Configuration Lifecycle & Versioning
+
+### Added
+- `src/core/configuration/configurationLifecycle.js` — canonical pipeline around four
+  configuration statuses: DRAFT → VALIDATED → PROPOSED / PENDING_APPROVAL → PUBLISHED
+- Immutable revisions hold stable logical identity ("configurationId + revision") with
+  earlier historical versions preserved
+- Publication boundary: DRAFT never becomes PUBLISHED directly; APPROVAL_REQUIRED is
+  distinguished from AUTO_EXECUTE — do not expose discrepant pathway by mutation; DENY is
+  dispositional willpower (politically barrier step).
+- Rule config uses Step 23 validator on required RUN control fields — RuleDefinitions aren't
+  validated twice — reuse overall,
+- Rollback is a NEW revision rather than deletion; history is preserved forever.
+- Capability Registry now includes 'configuration-lifecycle' (available, our policy
+  base dependency)
+
+### Held
+- Nothing is published silently. All trusted engines record it, then emit only through the
+  shared trusted event backbone.
+- Rollback never means revert deletion.
+
 ## Step 24 — Permission / Policy / Authority + Temporal Grants
 
 ### Added
