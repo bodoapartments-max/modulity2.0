@@ -2,6 +2,31 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 24 — Permission / Policy / Authority + Temporal Grants
+
+### Added
+- `src/core/permissions/policyAuthority.js` — canonical small decision surface:
+  CREATE_AUTHORITY_GRANT (immutable), grantApplies temporal bounds on unit bounds
+  (start-open, end-exclusive), decideAuthorization yielding AUTO_EXECUTE / APPROVAL_REQUIRED / DENY.
+- Rules subsystem reuse leverages Step 23 deterministic evaluator — the module handles all assessments.
+- Capability Registry: registered 'policy-authority' as AVAILABLE with dependency on 'rules'
+
+### Merged into the trusted pipeline
+
+The trusted decision chain now is the long-known sequence:
+
+```
+BusinessEvent → Rules → TransitionIntent → Permission → Authority/TemporalGrant
+  → Policy → AUTO_EXECUTE | APPROVAL_REQUIRED | DENY → Trusted command / canonical engine
+```
+
+### Held
+- Approval Engine and evaluation approval records ships in a later milestone — Step
+  24 reports APPROVAL_REQUIRED but doesn't create approval objects.
+- No new client-writable policy/grants storage; Step 25's configuration lifecycle is the place.
+
+## Step 23 — Rules / Decision Engine
+
 ## Step 22 — Business Event Backbone
 
 ### Added

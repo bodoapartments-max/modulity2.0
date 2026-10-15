@@ -79,6 +79,29 @@ Future (Steps 26, 27, 28) may consume the same canonical meaning; they never int
 
 ## 5c. Business Event Backbone (implemented Step 22)
 
+## 5d. Permission → Policy → Authority → Grant (implemented Step 24)
+
+`src/core/permissions/policyAuthority.js` supplies:
+
+- `createAuthorityGrant(grant)` — canonical temporary Grant: grantee/grantor + resource + window exclusive end.
+- `grantApplies(grant, ctx)` — true only inside the temporal interval and matching workspace/resource.
+- `evaluatePolicy(input)` / `decideAuthorization(input)` — TRUSTED decision point: AUTO_EXECUTE / APPROVAL_REQUIRED / DENY only an auto execute is allowed:
+  - with no applicable Grants: outcome reports NO_AUTHORITY (fail-safe)
+  - when a matching ACTIVE (in-window) Grant exists: tags the authoritive grant id
+  - never executes anything — evaluation outputs only.
+
+Precedence rule: Policy can never bootstrap missing permission. Authority comes from grants only; workspace membership remains analysis-only.
+
+
+---
+
+## Step 24 — Deferred Work
+
+- Rule engine alongside Policy is fine and decoupled perhaps; it runs on the raw events.
+- Approval Engine position: future — step 30.
+- External integrations/credentials rents a Vault piece for integration Layer: step 27.
+- Domainwork Lifecycle fordashboard reels: step 25.
+
 `src/core/events/businessEvent.js` + `functions/src/businessEventEngine.js` + `workspaces/{wsId}/businessEvents/{eventId}`
 
 - Canonical BusinessEvent: durable, append-only, trusted-server authored
