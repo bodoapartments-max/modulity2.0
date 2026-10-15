@@ -44,6 +44,7 @@ export const NOTIFICATION_EVENT_TYPES = Object.freeze({
   CHAT_DIRECT_MESSAGE: 'chat.direct_message',
   CHAT_MENTIONED: 'chat.mentioned',
   CHAT_CONTEXT_MESSAGE: 'chat.context_message',
+  CHAT_ROOM_INVITED: 'chat.room_invited',
 });
 
 /**

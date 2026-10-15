@@ -42,6 +42,18 @@ export function createConversationService({ conversationRepo, chatCommand = null
     return execute('CREATE_CHANNEL', { workspaceId, title, memberIds });
   }
 
+  async function createRoomConversation({ workspaceId, topic, description = '', visibility, memberIds = [], groupIds = [] }) {
+    return execute('CREATE_ROOM_CONVERSATION', { workspaceId, topic, description, visibility, memberIds, groupIds });
+  }
+
+  async function roomAddMember({ workspaceId, conversationId, targetUserId }) {
+    return execute('ROOM_ADD_MEMBER', { workspaceId, conversationId, targetUserId });
+  }
+
+  async function roomRemoveMember({ workspaceId, conversationId, targetUserId }) {
+    return execute('ROOM_REMOVE_MEMBER', { workspaceId, conversationId, targetUserId });
+  }
+
   async function getOrCreateContextConversation({ workspaceId, contextReference }) {
     return execute('CREATE_CONTEXT_CONVERSATION', { workspaceId, contextReference });
   }
@@ -68,6 +80,9 @@ export function createConversationService({ conversationRepo, chatCommand = null
   return {
     createDirectConversation,
     createChannel,
+    createRoomConversation,
+    roomAddMember,
+    roomRemoveMember,
     getOrCreateContextConversation,
     contextIdFor,
     sendMessage,

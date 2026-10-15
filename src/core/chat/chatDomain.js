@@ -4,21 +4,33 @@
  * CONVERSATION ≠ RECORD ≠ MESSAGE. Conversations reference business context;
  * they never become business objects themselves.
  *
- * Types:
- *   DIRECT    — exactly two workspace members (server determines membership)
- *   GROUP     — named conversation pinned by its member set
+ * Conversation types:
+ *   DIRECT    — exactly two workspace members
+ *   ROOM      — topic-based conversation with explicit visibility/participant
+ *               semantics (INVITE_ONLY vs WORKSPACE_VISIBLE), created
+ *               through a trusted chat command
+ *   GROUP     — legacy channel rows (still readable; new creation goes via ROOM)
  *   WORKSPACE — broad workspace channel (all members can participate)
  *   CONTEXT   — bound to a canonical contextReference (RECORD/ENTITY/MODULE)
  *
- * Context references use the closed CONTRACT below — never arbitrary paths.
+ * GROUP ≠ ROOM ≠ future CHANNEL. Inviting a Group is a snapshot: the
+ * trusted server resolves CURRENT group members at room creation; future
+ * Group membership does NOT retroactively grant old invite-only Rooms.
+ *
  * @module core/chat/chatDomain
  */
 
 export const CONVERSATION_TYPES = Object.freeze({
   DIRECT: 'DIRECT',
+  ROOM: 'ROOM',
   GROUP: 'GROUP',
   WORKSPACE: 'WORKSPACE',
   CONTEXT: 'CONTEXT',
+});
+
+export const ROOM_VISIBILITIES = Object.freeze({
+  INVITE_ONLY: 'INVITE_ONLY',
+  WORKSPACE_VISIBLE: 'WORKSPACE_VISIBLE',
 });
 
 export const CONVERSATION_STATUSES = Object.freeze({ ACTIVE: 'ACTIVE', ARCHIVED: 'ARCHIVED' });
@@ -62,6 +74,8 @@ export function createConversation({
   memberIds,
   createdBy,
   contextReference = null,
+  visibility = null,
+  ownerUserId = null,
   status = CONVERSATION_STATUSES.ACTIVE,
   createdAt = null,
   updatedAt = null,
@@ -79,6 +93,12 @@ export function createConversation({
     if (ref.value.workspaceId !== workspaceId) throw new Error('contextReference must be in the same Workspace');
     contextReference = ref.value;
   }
+  if (type === CONVERSATION_TYPES.ROOM) {
+    if (!ownerUserId) throw new Error('Rooms require an ownerUserId');
+    if (!ROOM_VISIBILITIES[visibility]) throw new Error('Rooms require explicit ROOM visibility');
+  } else {
+    visibility = null;
+  }
   if (!createdBy?.actorId) throw new Error('Conversation createdBy is required');
   if (type !== CONVERSATION_TYPES.WORKSPACE && !uniqueMembers.includes(createdBy.actorId)) throw new Error('Conversation creator must be a member');
   const trimmedTitle = String(title || '').trim();
@@ -90,6 +110,8 @@ export function createConversation({
     title: trimmedTitle,
     memberIds: Object.freeze(uniqueMembers),
     contextReference: contextReference ? Object.freeze({ ...contextReference }) : null,
+    visibility,
+    ownerUserId: type === CONVERSATION_TYPES.ROOM ? ownerUserId : null,
     status,
     createdBy: Object.freeze({ ...createdBy }),
     createdAt,

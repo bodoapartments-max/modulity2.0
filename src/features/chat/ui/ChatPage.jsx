@@ -10,18 +10,19 @@ import ErrorState from '../../../design-system/components/ErrorState/ErrorState.
 import LoadingState from '../../../design-system/components/LoadingState/LoadingState.jsx';
 import Button from '../../../design-system/components/Button/Button.jsx';
 import Input from '../../../design-system/components/Input/Input.jsx';
+import Label from '../../../design-system/components/Label/Label.jsx';
 import { Dialog, useToast } from '../../../design-system/index.js';
 import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 
 function ContextBadges({ conversation }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-      conversation.type === 'DIRECT' ? 'bg-blue-50 text-blue-700'
-      : conversation.type === 'GROUP' ? 'bg-emerald-50 text-emerald-700'
-      : conversation.type === 'CONTEXT' ? 'bg-amber-50 text-amber-700'
-      : 'bg-neutral-100 text-neutral-600'
-    }`}>{conversation.type}</span>
-  );
+  const label = conversation.type === 'ROOM' ? `ROOM · ${conversation.visibility === 'WORKSPACE_VISIBLE' ? 'WORKSPACE' : 'INVITE'}` : conversation.type;
+  const tone =
+    conversation.type === 'DIRECT' ? 'bg-blue-50 text-blue-700'
+    : conversation.type === 'ROOM' ? 'bg-purple-50 text-purple-700'
+    : conversation.type === 'GROUP' ? 'bg-emerald-50 text-emerald-700'
+    : conversation.type === 'CONTEXT' ? 'bg-amber-50 text-amber-700'
+    : 'bg-neutral-100 text-neutral-600';
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{label}</span>;
 }
 
 export default function ChatPage() {
@@ -38,11 +39,19 @@ export default function ChatPage() {
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageError, setMessageError] = useState(null);
   const [content, setContent] = useState('');
-  const [directOpen, setDirectOpen] = useState(false);
   const [channelOpen, setChannelOpen] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState(null);
   const [channelTitle, setChannelTitle] = useState('');
   const [channelMembers, setChannelMembers] = useState([]);
+  const [directOpen, setDirectOpen] = useState(false);
+  const [roomOpen, setRoomOpen] = useState(false);
+  const [roomTopic, setRoomTopic] = useState('');
+  const [roomDescription, setRoomDescription] = useState('');
+  const [roomVisibility, setRoomVisibility] = useState('INVITE_ONLY');
+  const [roomMembers, setRoomMembers] = useState([]);
+  const [roomGroups, setRoomGroups] = useState([]);
+  const [busyRoom, setBusyRoom] = useState(false);
+  const [rooms, setRooms] = useState([]);
   const [members, setMembers] = useState([]);
 
   const loader = useCallback(async () => {
@@ -78,6 +87,17 @@ export default function ChatPage() {
     }
     loadMembers();
   }, [currentWorkspace?.organizationId, userId]);
+
+  useEffect(() => {
+    async function loadGroups() {
+      if (!currentWorkspace?.organizationId) { setRooms([]); return; }
+      try {
+        const groups = await services.group.getOrganizationGroups(currentWorkspace.organizationId);
+        setRooms(groups || []);
+      } catch { setRooms([]); }
+    }
+    loadGroups();
+  }, [currentWorkspace?.organizationId]);
 
   const loadMessages = useCallback(async (conversationId) => {
     if (!conversationId) { setMessages([]); return; }
@@ -138,6 +158,31 @@ export default function ChatPage() {
     }
   }
 
+  async function createRoom() {
+    if (busyRoom) return;
+    setBusyRoom(true);
+    try {
+      const result = await services.conversation.createRoomConversation({
+        workspaceId,
+        topic: roomTopic.trim(),
+        description: roomDescription.trim(),
+        visibility: roomVisibility,
+        memberIds: roomMembers,
+        groupIds: roomGroups,
+      });
+      setRoomOpen(false);
+      setRoomTopic('');
+      setRoomDescription('');
+      setRoomMembers([]);
+      setRoomGroups([]);
+      await refreshConversations();
+      setSelectedId(result.result?.conversationId || result.conversationId);
+    } catch (err) {
+      showToast({ message: err.message || 'Room could not be created.', variant: 'error' });
+    } finally {
+      setBusyRoom(false);
+    }
+  }
   const isUnread = useCallback((conversation) => {
     const read = conversation.readState;
     if (!read) return conversation.lastMessageAt != null;
@@ -158,10 +203,10 @@ export default function ChatPage() {
     <PageContainer>
       <PageHeader
         title="Chat"
-        description="Direct, channel, and context conversations in this workspace."
+        description="Direct, room, and context conversations in this workspace."
         action={<div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => setDirectOpen(true)}>New Direct</Button>
-          <Button size="sm" variant="secondary" onClick={() => setChannelOpen(true)}>New Channel</Button>
+          <Button size="sm" variant="secondary" onClick={() => setRoomOpen(true)}>Create Room</Button>
         </div>}
       />
       {conversations.length === 0 ? (
@@ -241,6 +286,67 @@ export default function ChatPage() {
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => setDirectOpen(false)}>Cancel</Button>
           {members.length > 0 && <Button type="button" disabled={!selectedTargetId} onClick={createDirect}>Start</Button>}
+        </div>
+      </Dialog>
+
+      <Dialog open={roomOpen} onClose={() => setRoomOpen(false)} title="Create Chat Room">
+        <Label htmlFor="room-topic">Topic</Label>
+        <Input
+          id="room-topic"
+          value={roomTopic}
+          onChange={(e) => setRoomTopic(e.target.value)}
+          placeholder="e.g. What should we eat Friday?"
+        />
+        <Label htmlFor="room-description" className="mt-3 block">Description (optional)</Label>
+        <Input
+          id="room-description"
+          value={roomDescription}
+          onChange={(e) => setRoomDescription(e.target.value)}
+          placeholder="Optional context for this room"
+        />
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-semibold text-neutral-500">Visibility</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="room-visibility" checked={roomVisibility === 'INVITE_ONLY'} onChange={() => setRoomVisibility('INVITE_ONLY')}/>
+            Invite only — only participants can discover the room
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="room-visibility" checked={roomVisibility === 'WORKSPACE_VISIBLE'} onChange={() => setRoomVisibility('WORKSPACE_VISIBLE')}/>
+            Workspace visible — eligible workspace members can discover the room
+          </label>
+        </div>
+        <div className="mt-3 space-y-1">
+          <p className="text-xs font-semibold text-neutral-500">Invite Groups (snapshot)</p>
+          {rooms.length === 0 && <p className="text-xs text-neutral-400">No groups in this organization yet.</p>}
+          {rooms.map((group) => (
+            <label key={group.groupId} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={roomGroups.includes(group.groupId)}
+                onChange={(event) => setRoomGroups((current) => event.target.checked ? [...current, group.groupId] : current.filter((id) => id !== group.groupId))}
+              />
+              {group.name}
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 space-y-1">
+          <p className="text-xs font-semibold text-neutral-500">Invite People</p>
+          {members.map((member) => (
+            <label key={member.userId} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={roomMembers.includes(member.userId)}
+                onChange={(event) => setRoomMembers((current) => event.target.checked ? [...current, member.userId] : current.filter((id) => id !== member.userId))}
+              />
+              {member.displayName}
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setRoomOpen(false)}>Cancel</Button>
+          <Button type="button" onClick={createRoom} disabled={busyRoom || !roomTopic.trim()}>
+            Create Room
+          </Button>
         </div>
       </Dialog>
 

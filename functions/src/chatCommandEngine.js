@@ -98,7 +98,7 @@ export async function executeChatCommand(db, { userId, command }) {
     const opSnap = await transaction.get(opRef);
 
     let preloadConv = null;
-    const needsConversation = ['POST_MESSAGE', 'MARK_READ', 'ARCHIVE_CONVERSATION', 'CREATE_CONTEXT_CONVERSATION', 'CREATE_DIRECT_CONVERSATION'].includes(command.commandType);
+    const needsConversation = ['POST_MESSAGE', 'MARK_READ', 'ARCHIVE_CONVERSATION', 'CREATE_CONTEXT_CONVERSATION', 'CREATE_DIRECT_CONVERSATION', 'ROOM_ADD_MEMBER', 'ROOM_REMOVE_MEMBER'].includes(command.commandType);
     if (needsConversation) {
       let convId = command.payload.conversationId || null;
       if (command.commandType === 'CREATE_DIRECT_CONVERSATION') convId = directConversationId(userId, command.payload.targetUserId);
@@ -118,6 +118,17 @@ export async function executeChatCommand(db, { userId, command }) {
         const ref = check.value;
         const collectionName = ref.type === 'RECORD' ? 'records' : ref.type === 'ENTITY' ? 'entities' : 'modules';
         preloadCtx = await transaction.get(db.doc(`workspaces/${workspaceId}/${collectionName}/${ref.id}`));
+      }
+    }
+    // Group invites resolve server-side BEFORE any writes.
+    let preloadGroups = [];
+    if (command.commandType === 'CREATE_ROOM_CONVERSATION' && Array.isArray(command.payload.groupIds) && command.payload.groupIds.length) {
+      if (workspace.type !== 'ORGANIZATION' || !workspace.organizationId) {
+        fail(CODES.CONTEXT_FORBIDDEN, 'Group invitation is only available in organization workspaces.');
+      }
+      for (const groupId of command.payload.groupIds) {
+        const groupSnap = await transaction.get(db.doc(`organizations/${workspace.organizationId}/groups/${groupId}`));
+        preloadGroups.push({ groupId, snap: groupSnap });
       }
     }
     let preloadRead = null;
@@ -142,7 +153,7 @@ export async function executeChatCommand(db, { userId, command }) {
 
     const outcome = await executeChatMutation(transaction, db, {
       userId, command, now, actor, workspace, workspaceId,
-      preloadConv, preloadCtx, preloadRead,
+      preloadConv, preloadCtx, preloadRead, preloadGroups,
     });
 
     transaction.update(opRef, {
@@ -173,6 +184,9 @@ async function executeChatMutation(transaction, db, ctx) {
     case CHAT_COMMAND_TYPES.CREATE_DIRECT_CONVERSATION: return createDirectConversation(transaction, db, ctx);
     case CHAT_COMMAND_TYPES.CREATE_CHANNEL: return createChannel(transaction, db, ctx);
     case CHAT_COMMAND_TYPES.CREATE_CONTEXT_CONVERSATION: return createContextConversation(transaction, db, ctx);
+    case CHAT_COMMAND_TYPES.CREATE_ROOM_CONVERSATION: return createRoomConversation(transaction, db, ctx);
+    case CHAT_COMMAND_TYPES.ROOM_ADD_MEMBER: return roomAddMember(transaction, db, ctx);
+    case CHAT_COMMAND_TYPES.ROOM_REMOVE_MEMBER: return roomRemoveMember(transaction, db, ctx);
     case CHAT_COMMAND_TYPES.POST_MESSAGE: return postMessage(transaction, db, ctx);
     case CHAT_COMMAND_TYPES.MARK_READ: return markRead(transaction, db, ctx);
     case CHAT_COMMAND_TYPES.ARCHIVE_CONVERSATION: return archiveConversation(transaction, db, ctx);
@@ -261,6 +275,84 @@ async function createContextConversation(transaction, db, { command, userId, now
   return { result: { conversationId } };
 }
 
+async function createRoomConversation(transaction, db, { command, userId, now, actor, workspace, workspaceId, preloadGroups }) {
+  const p = command.payload;
+  // Resolve invited Groups server-side (never trust client expansion).
+  const invitedMemberIds = new Set([userId]);
+  const invitedGroups = [];
+  for (const offered of preloadGroups) {
+    if (!offered.snap.exists) fail(CODES.CONTEXT_NOT_FOUND, `Group not found: ${offered.groupId}`);
+    const group = offered.snap.data();
+    if (group.organizationId !== workspace.organizationId) fail(CODES.WORKSPACE_FORBIDDEN, 'Group must belong to the same organization.');
+    invitedGroups.push({ groupId: group.groupId, name: group.name });
+    for (const memberId of (group.memberIds || [])) invitedMemberIds.add(memberId);
+  }
+  for (const requested of (p.memberIds || [])) invitedMemberIds.add(requested);
+
+  // Every invited user must be an active workspace member.
+  for (const memberId of invitedMemberIds) {
+    if (!(await assertCanAccessUser(db, workspaceId, workspace, memberId))) {
+      fail(CODES.CONTEXT_FORBIDDEN, `Invited member is not active in this workspace: ${memberId}`);
+    }
+  }
+
+  const conversationId = newId('room');
+  const ref = db.doc(`workspaces/${workspaceId}/conversations/${conversationId}`);
+  const conv = createConversation({
+    conversationId,
+    workspaceId,
+    type: 'ROOM',
+    title: p.topic.trim(),
+    memberIds: [...invitedMemberIds],
+    visibility: p.visibility,
+    ownerUserId: userId,
+    createdBy: actor,
+    createdAt: now,
+    updatedAt: now,
+  });
+  transaction.set(ref, { ...conv, description: String(p.description || '').trim(), _createdAt: FieldValue.serverTimestamp(), _updatedAt: FieldValue.serverTimestamp() });
+  for (const memberId of [userId]) {
+    transaction.set(db.doc(`workspaces/${workspaceId}/conversations/${conversationId}/members/${memberId}`), {
+      conversationId, workspaceId, userId: memberId, role: 'OWNER', _joinedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  return { result: { conversationId, memberCount: invitedMemberIds.size }, postActions: { room: conv, invitedGroups, invitedMemberIds: [...invitedMemberIds], operationId: command.operationId, userId } };
+}
+
+async function roomAddMember(transaction, db, { command, userId, now, workspaceId, preloadConv }) {
+  const p = command.payload;
+  if (!preloadConv?.snap?.exists) fail(CODES.RESOURCE_NOT_FOUND, 'Room not found.');
+  const conversation = preloadConv.snap.data();
+  if (conversation.type !== 'ROOM') fail(CODES.CONTEXT_FORBIDDEN, 'This operation is only allowed for Rooms.');
+  if (conversation.ownerUserId !== userId) fail(CODES.CONTEXT_FORBIDDEN, 'Only the Room owner can manage participants.');
+  if (conversation.status === 'ARCHIVED') fail(CODES.INVALID_STATE, 'Archived Room cannot be modified.');
+  const memberIds = (conversation.memberIds || []).includes(p.targetUserId) ? conversation.memberIds || [] : [...conversation.memberIds, p.targetUserId];
+  transaction.update(db.doc(`workspaces/${workspaceId}/conversations/${p.conversationId}`), {
+    memberIds,
+    _updatedAt: FieldValue.serverTimestamp(),
+  });
+  transaction.set(db.doc(`workspaces/${workspaceId}/conversations/${p.conversationId}/members/${p.targetUserId}`), {
+    conversationId: p.conversationId, workspaceId, userId: p.targetUserId, role: 'MEMBER', _joinedAt: FieldValue.serverTimestamp(),
+  });
+  return { result: { conversationId: p.conversationId, targetUserId: p.targetUserId, added: true } };
+}
+
+async function roomRemoveMember(transaction, db, { command, userId, now, workspaceId, preloadConv }) {
+  const p = command.payload;
+  if (!preloadConv?.snap?.exists) fail(CODES.RESOURCE_NOT_FOUND, 'Room not found.');
+  const conversation = preloadConv.snap.data();
+  if (conversation.type !== 'ROOM') fail(CODES.CONTEXT_FORBIDDEN, 'This operation is only allowed for Rooms.');
+  if (conversation.ownerUserId !== userId) fail(CODES.CONTEXT_FORBIDDEN, 'Only the Room owner can manage participants.');
+  if (p.targetUserId === conversation.ownerUserId) fail(CODES.COMMAND_INVALID, 'Room owner cannot be removed as participant.');
+  const remaining = (conversation.memberIds || []).filter((id) => id !== p.targetUserId);
+  transaction.update(db.doc(`workspaces/${workspaceId}/conversations/${p.conversationId}`), {
+    memberIds: remaining,
+    _updatedAt: FieldValue.serverTimestamp(),
+  });
+  transaction.delete(db.doc(`workspaces/${workspaceId}/conversations/${p.conversationId}/members/${p.targetUserId}`));
+  return { result: { conversationId: p.conversationId, targetUserId: p.targetUserId, removed: true } };
+}
+
 async function postMessage(transaction, db, { command, userId, now, workspaceId, preloadConv }) {
   const p = command.payload;
   if (!preloadConv?.snap?.exists) fail(CODES.RESOURCE_NOT_FOUND, 'Conversation not found.');
@@ -324,7 +416,27 @@ async function archiveConversation(transaction, db, { command, workspaceId, prel
  */
 export async function runChatPostActions(db, workspaceId, outcome) {
   if (!outcome?.postActions) return;
-  const { conversation, p, userId, operationId } = outcome.postActions;
+  const { conversation, room, invitedMemberIds, p, userId, operationId } = outcome.postActions;
+
+  // Room invites (deterministic by room + recipient; a replayed CREATE_ROOM
+  // operation can never duplicate a notification).
+  if (room && Array.isArray(invitedMemberIds) && invitedMemberIds.length > 1) {
+    try {
+      for (const recipient of invitedMemberIds.filter((id) => id !== userId)) {
+        await processNotificationIntent(db, {
+          eventType: NOTIFICATION_EVENT_TYPES.CHAT_ROOM_INVITED,
+          workspaceId,
+          actorUserId: userId,
+          operationId: `${operationId}:room-inv:${recipient}`,
+          recipientStrategy: { type: 'EXPLICIT_USER', userId: recipient },
+          excludeActorRecipient: true,
+          contextReference: { type: 'RECORD', id: room.conversationId, workspaceId },
+        });
+      }
+    } catch { /* best effort */ }
+    return;
+  }
+
   const isContext = conversation.type === 'CONTEXT';
   const isDirect = conversation.type === 'DIRECT';
   const mentioned = (p.mentionedUserIds || []).filter((id) => id !== userId);

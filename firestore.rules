@@ -890,11 +890,13 @@ service cloud.firestore {
 
       // ─── Conversations / Chat ──────────────────────────────
       match /conversations/{conversationId} {
-        // Read: direct/channel — memberIds only; CONTEXT — any workspace member
-        // (record visibility itself is governed by canonical record rules).
+        // Read: DIRECT + GROUP — memberIds only. ROOM — memberIds, or any
+        // workspace member IFF type == 'ROOM' && visibility ==
+        // 'WORKSPACE_VISIBLE'. CONTEXT — any workspace member.
         allow read: if canAccessWorkspace()
           && (resource.data.memberIds.hasAny([request.auth.uid])
-              || resource.data.type == 'CONTEXT');
+              || resource.data.type == 'CONTEXT'
+              || (resource.data.type == 'ROOM' && resource.data.visibility == 'WORKSPACE_VISIBLE'));
         // STEP 18: Conversations are authored by the trusted chatCommand
         // boundary only. Browser writes denied.
         allow create: if false;
@@ -904,15 +906,22 @@ service cloud.firestore {
         match /members/{userId} {
           allow read: if canAccessWorkspace()
             && (isConversationMember(conversationId)
-                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'CONTEXT');
-          // STEP 18: membership mutation is server-only.
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'CONTEXT'
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'ROOM');
+          // STEP 18/19: membership mutation is server-only.
           allow create, update, delete: if false;
         }
 
         match /messages/{messageId} {
-          allow get, list: if canAccessWorkspace()
+          allow get: if canAccessWorkspace()
             && (isConversationMember(conversationId)
-                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'CONTEXT');
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'CONTEXT'
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'ROOM');
+          allow list: if canAccessWorkspace()
+            && (isConversationMember(conversationId)
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'CONTEXT'
+                || get(/databases/$(database)/documents/workspaces/$(workspaceId)/conversations/$(conversationId)).data.type == 'ROOM')
+            && request.query.limit <= 50;
           // STEP 18: messages are authored by the trusted chatCommand boundary.
           allow create, update, delete: if false;
         }

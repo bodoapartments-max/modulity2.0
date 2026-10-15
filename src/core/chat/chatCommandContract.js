@@ -26,9 +26,12 @@ export const CHAT_COMMAND_TYPES = Object.freeze({
   CREATE_DIRECT_CONVERSATION: 'CREATE_DIRECT_CONVERSATION',
   CREATE_CHANNEL: 'CREATE_CHANNEL',
   CREATE_CONTEXT_CONVERSATION: 'CREATE_CONTEXT_CONVERSATION',
+  CREATE_ROOM_CONVERSATION: 'CREATE_ROOM_CONVERSATION',
   POST_MESSAGE: 'POST_MESSAGE',
   MARK_READ: 'MARK_READ',
   ARCHIVE_CONVERSATION: 'ARCHIVE_CONVERSATION',
+  ROOM_ADD_MEMBER: 'ROOM_ADD_MEMBER',
+  ROOM_REMOVE_MEMBER: 'ROOM_REMOVE_MEMBER',
 });
 
 export const CHAT_COMMAND_ERROR_CODES = Object.freeze({
@@ -81,6 +84,18 @@ export function validateChatCommand(command) {
   if (command.commandType === CHAT_COMMAND_TYPES.CREATE_DIRECT_CONVERSATION && (!payload.targetUserId || typeof payload.targetUserId !== 'string')) errors.push('payload.targetUserId is required');
   if (command.commandType === CHAT_COMMAND_TYPES.CREATE_CHANNEL && (!payload.title?.trim?.() && !payload.title)) errors.push('payload.title is required');
   if (command.commandType === CHAT_COMMAND_TYPES.CREATE_CONTEXT_CONVERSATION && !payload.contextReference) errors.push('payload.contextReference is required');
+  if (command.commandType === CHAT_COMMAND_TYPES.CREATE_ROOM_CONVERSATION) {
+    if (!payload.topic?.trim()) errors.push('payload.topic is required');
+    if (!['INVITE_ONLY', 'WORKSPACE_VISIBLE'].includes(payload.visibility)) errors.push('payload.visibility must be INVITE_ONLY or WORKSPACE_VISIBLE');
+    if (payload.memberIds && !Array.isArray(payload.memberIds)) errors.push('payload.memberIds must be an array');
+    if (payload.groupIds && !Array.isArray(payload.groupIds)) errors.push('payload.groupIds must be an array');
+    if ((payload.groupIds || []).length > 20) errors.push('Too many invited Groups');
+    if ((payload.memberIds || []).length > 100) errors.push('Too many invited People');
+  }
+  if ([CHAT_COMMAND_TYPES.ROOM_ADD_MEMBER, CHAT_COMMAND_TYPES.ROOM_REMOVE_MEMBER].includes(command.commandType)) {
+    if (!payload.conversationId) errors.push('payload.conversationId is required');
+    if (!payload.targetUserId) errors.push('payload.targetUserId is required');
+  }
   if (command.commandType === CHAT_COMMAND_TYPES.POST_MESSAGE) {
     if (!payload.conversationId) errors.push('payload.conversationId is required');
     if (!payload.content || !String(payload.content).trim()) errors.push('payload.content is required');

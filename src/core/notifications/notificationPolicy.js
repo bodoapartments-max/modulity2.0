@@ -51,6 +51,11 @@ export const NOTIFICATION_TEMPLATES = Object.freeze({
     priority: NOTIFICATION_PRIORITIES.NORMAL,
     messageFor: () => 'Activity in a business-context conversation.',
   }),
+  [NOTIFICATION_EVENT_TYPES.CHAT_ROOM_INVITED]: Object.freeze({
+    title: 'Invited to a Room',
+    priority: NOTIFICATION_PRIORITIES.ATTENTION,
+    messageFor: () => 'You were invited to a new Chat Room.',
+  }),
 });
 
 const DEFAULT_ACTION = '/app/notifications';
