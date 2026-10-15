@@ -2,6 +2,26 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 21 — Capability Registry & Dependency Graph
+
+### Added
+- `src/capabilities/capabilityRegistry.js` — canonical read-side registry facade:
+  deterministic list/has/get/resolve for every registered capability,
+  engine-bounded dependencies, reverse dependents, cycle diagnostics,
+  and explicit resolution statuses: OK, UNKNOWN_CAPABILITY, MISSING_DEPENDENCY,
+  DEPENDENCY_CYCLE
+- Central descriptor catalog now surfaces through `services.capability`; Future
+  framework consumers (Platform Gateway, Integrations, WordPress) use this
+  canonical meaning; nothing new was introduced to re-register
+- GAP-014 closes correctly — capability contracts are now canonical
+  machine-readable metadata
+
+### Held
+- No business logic change; existing Step 0–20 suites remain green
+- Engine Development Guide's first "reference implementation" target (Business
+  Event Backbone @ Step 22) remains on roadmap — not implemented in Step 21
+
+
 ## Step 20 — Next Platform Architecture, Roadmap Realignment & Development Continuity
 
 An architecture checkpoint. Zero code changes; all work is documentation + roadmap realignment.

@@ -64,6 +64,17 @@ interested deterministic capabilities
 
 Events are first-class canonical data — durable, idempotent, versionable.
 
+## 5b. Capability Registry (implemented Step 21)
+
+`src/capabilities/capabilityRegistry.js` is the deterministic discovery surface:
+
+- read-only facade over `CapabilityEngineRegistry`
+- built-in descriptors registered deterministically; no Firestore scan
+- resolutions: OK, UNKNOWN_CAPABILITY, MISSING_DEPENDENCY, DEPENDENCY_CYCLE
+- availability ≠ authorization
+
+Future (Steps 26, 27, 28) may consume the same canonical meaning; they never introduce parallel capability registries.
+
 ## 5. Rules / Decision Engine (future)
 
 **[Rules Architecture](docs/… is planned at Step 23)**
