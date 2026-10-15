@@ -2,6 +2,26 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 19 — Organization, Sharing & UX Stability
+
+### Added
+- Ledger, People, Groups pages now load from `workspaceQueryCache` (revisits are instant, silent revalidation replaces instead of blanking)
+- Groups expanded with memberIds on the canonical model (createGroup) and workspace-member picker in GroupsPage; groupService provides addGroupMember/removeGroupMember
+- Chat "New Direct" empty state now has an "Invite person" CTA resolving to the People / invite surface
+- Chat "New Channel" retains its member multi-select with improved empty-state handling
+- Category ordering via accessible Up/Down arrows on ModuleCategoriesPage (GAP-010 closes without introducing drag-drop UX debt yet)
+- `docs/HANDOFF_AGENT_CONTINUITY.md` — permanent multi-agent handoff rules; AGENTS.md now links to it
+- E2E `step19.e2e.spec.js`: revisit stability, Direct CTA, channel create+send, reset ghost check
+
+### Changed
+- GAP-017 closed: Groups provide real member management with intent through the existing groupService (no new trusted-command surface required — organizational, not security-sensitive)
+- Secured favorites intent path keeps delegating to `folder.toggleStar` (already canonical); sharing intact through `secureShareService` / `recordFolderService`
+
+### Deferred (Known Gaps)
+- GAP-018 message edit/delete and deep thread trees remain deferred to Step 20.1
+- GAP-019 context conversation access semantics remain a product/security decision for Step 20.1
+
+
 ## Step 18 — Workspace Chat & Contextual Conversations (+ Calendar / Records acceptance fixes)
 
 ### Added

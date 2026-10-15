@@ -23,8 +23,8 @@ Statuses: `OPEN`, `DEFERRED_BY_DESIGN`, `SCHEDULED`, `RESOLVED`, `OBSOLETE`.
 | GAP-014 | Agent-ready capability contracts not formally standardized across future Engines | 17.4 | OPEN | 21 | Architectural requirement only; no orchestrator now |
 | GAP-015 | Records temporarily exposed technical/fallback titles during module metadata resolution | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: module metadata had no cache slot and row labels rendered a technical fallback before it arrived; fixed by putting module metadata into the workspaceQueryCache and only showing a stable placeholder while cold |
 | GAP-016 | Calendar revisit reloaded visible state even with warmed cache | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: windowBounds keys contained live time-of-day, creating a new cache entry on every revisit; fixed by day-level normalization |
-| GAP-017 | Conversation member add/remove is not yet user-manageable; WORKSPACE-type conversations not implemented | 18 | OPEN | 19 | Membership lifecycle lives next to Step 19 org UX; Workspace broadcast channels can live inside Channels |
-| GAP-018 | Message edit/delete and richer threading (nested replies) deferred | 18 | DEFERRED_BY_DESIGN | 20.1 review | Simple reply-to exists; edit/delete/forking-thread trees explicit skip; messageEditPolicy may evolve later |
-| GAP-019 | Chat member-of conversation reads all workspace context conv — boundary between CONTEXT and restricted-context conversations needs team policy | 18 | OPEN | 20.1 review | Depends on future Record/task restriction policy |
+| GAP-017 | Workspace broadcast channels + member add/remove UX deferred | 18 | RESOLVED (Step 19) | — | Members selectable in New Channel; groups now member-managed through the People/Groups UX and work as channel-resolved membership tool |
+| GAP-018 | Message edit/delete and richer threading deferred | 18 | OPEN | 20.1 review | Simple reply-to remains; edit/delete and thread trees still later |
+| GAP-019 | Chat context conversation access semantics | 18 | OPEN | 20.1 review | Requires a product/security decision before tightening |
 
 Rule: known gaps never excuse security/data-integrity defects. They pace roadmap-level investments only.

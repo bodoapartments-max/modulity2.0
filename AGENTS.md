@@ -2,6 +2,8 @@
 
 This file contains practical guidance for anyone (human or coding agent) working on Modulity 2.0.
 
+> Handoff / Continuity: see [`docs/HANDOFF_AGENT_CONTINUITY.md`](docs/HANDOFF_AGENT_CONTINUITY.md). Repo + docs are the project memory; always audit before modifying and preserve verified architecture.
+
 ## Mandatory Governance
 
 Before planning or modifying Modulity 2.0, read [`DEVELOPMENT_RULES.md`](DEVELOPMENT_RULES.md) and the authoritative architecture documents relevant to the task.
