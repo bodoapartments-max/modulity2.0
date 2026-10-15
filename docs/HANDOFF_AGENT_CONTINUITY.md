@@ -1,6 +1,48 @@
 ## Multi-Agent Handoff / Repository Continuity
 
-This repository may be developed by different coding agents over time. The repository and its canonical documentation are the project memory.
+This repository may be developed by different coding agents over time. The repository and its canonical documentation are the project memory. Maintained by all coding agents; never owned by one.
+
+## Fresh Agent Continuation Test
+
+A capable coding Agent with zero conversation history must be able to:
+
+1. identify the currently verified baseline and the active milestone;
+2. understand the product's core architecture and non-negotiable invariants;
+3. locate canonical Engines/Services/Identities;
+4. understand trusted boundaries and prohibited patterns;
+5. locate Known Gaps with their plan/placement;
+6. locate all ADRs and know which are superseded;
+7. distinguish verified implementation/contribution path from future architecture;
+8. run the canonical test suites (`npm test`, `node --test functions/src/*Engine.test.js`, `npm run test:rules`, `npm run build`, live E2E where relevant);
+9. continue safely from repository evidence alone.
+
+If any of these fail, the milestone documentation/handoff is incomplete: this is a blocking gap.
+
+## Development Continuity Contract
+
+Every coding Agent must behave as if seen by fresh eyes every time:
+
+1. identify the repo; 2. identify the branch; 3. confirm the expected starting SHA; 4. confirm a clean tree (never reset/stash unknown work);
+5. read the governance chain in order; 6. audit the repository before changing; 7. preserve verified architecture;
+8. search canonical implementation first; 9. never bypass trusted boundaries; 10. do not refactor when no milestone requires it;
+11. always run the relevant tests; 12. accurately label verification level (AUTOMATED VERIFIED / LIVE DEV VERIFIED / MANUALLY VERIFIED / NOT VERIFIED);
+13. update docs/gaps/roadmap on real architecture change; 14. leave a final SHA and clean hand-off.
+
+Repository evidence wins over assumptions or self-declared history.
+
+## Multi-Agent Development Protocol
+
+Uncontrolled concurrent edits across agents are prohibited. Valid patterns:
+
+| Pattern | Rule |
+|---|---|
+| A | Implementation first, independent review (fresh agent) afterwards |
+| B | Milestone closure → handoff at next milestone |
+| C | explicit scope separation per file/feature (disjoint scopes only, ownership declared up front) |
+
+## Reviewer Role
+
+Reviews may be done by Agents too. Reviewers do not rewrite verified architecture out of personal preference. Permission to change requires evidence: milestone requirement, reproducible defect, security issue, invariant break, or documented architecture blocker.
 
 ### Non-negotiable rules
 

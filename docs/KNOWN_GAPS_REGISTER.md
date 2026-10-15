@@ -19,12 +19,12 @@ Statuses: `OPEN`, `DEFERRED_BY_DESIGN`, `SCHEDULED`, `RESOLVED`, `OBSOLETE`.
 | GAP-010 | Category drag-drop organization UX | 17.2 | SCHEDULED | 19 | Deterministic up/down present; drag/drop deferred |
 | GAP-011 | Application-wide technical identifier UX hardening | 17.4 | RESOLVED (17.4) | — | Ledger code optional/auto; entity type code optional/auto; moduleCode optional already; user-code proposals validated collision-safe |
 | GAP-012 | Roadmap numbering conflict: "17.5 Data Import & Mapping" appeared in earlier docs while authoritative placement is Step 31.1 | 17.2 docs | RESOLVED (17.4) | — | Removed redundant 17.5 row; authoritative placement is 31.1 |
-| GAP-013 | Module Page / View Composition Engine has no final roadmap step | 17.3 area | OPEN | 20.1 decision | Not implemented yet; declarative Module Page Definition planned |
-| GAP-014 | Agent-ready capability contracts not formally standardized across future Engines | 17.4 | OPEN | 21 | Architectural requirement only; no orchestrator now |
+| GAP-013 | Module Page / View Composition Engine has no final roadmap step | 17.3 area | OPEN | Step 35 (post-Platform foundation) | Waiting for Step 35 finalized placement per Step 20 dependency-aware alignment |
+| GAP-014 | Agent-ready capability contracts not formally standardized | 17.4 | OPEN | Step 21 | Capability Registry + Dependency Graph covers this |
 | GAP-015 | Records temporarily exposed technical/fallback titles during module metadata resolution | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: module metadata had no cache slot and row labels rendered a technical fallback before it arrived; fixed by putting module metadata into the workspaceQueryCache and only showing a stable placeholder while cold |
 | GAP-016 | Calendar revisit reloaded visible state even with warmed cache | 17.4 accepted finding | RESOLVED (Step 18) | — | Root cause: windowBounds keys contained live time-of-day, creating a new cache entry on every revisit; fixed by day-level normalization |
 | GAP-017 | Room/channel semantics conflated: created ROOM type with topic, INVITE_ONLY/WORKSPACE_VISIBLE visibility, Group snapshot invitations; persistent Channels deferred (post-Step 20) | 18 | RESOLVED (Step 19 v2) | — | `CHANNEL` is not shipped yet; conversation exposes the grouped "Room" creating via `ch_` legacy type "ROOM" (visible on the Conversation doc, governing access semantics) |
 | GAP-018 | Message edit/delete and richer threading deferred | 18 | OPEN | 20.1 review | Simple reply-to remains; edit/delete and thread trees still later |
 | GAP-019 | Chat context conversation access semantics | 18 | OPEN | 20.1 review | Requires a product/security decision before tightening |
 
-Rule: known gaps never excuse security/data-integrity defects. They pace roadmap-level investments only.
+**(Step 20 closure note)** — GAP-001–008 open items remain acknowledged; GAP-011/gap-015/gap-016/gap-017 are correctly closed; nothing new opened by this architecture milestone.

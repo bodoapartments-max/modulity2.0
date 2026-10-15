@@ -2,6 +2,22 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 20 — Next Platform Architecture, Roadmap Realignment & Development Continuity
+
+An architecture checkpoint. Zero code changes; all work is documentation + roadmap realignment.
+
+### Added
+- `docs/NEXT_PLATFORM_ARCHITECTURE.md` — platform boundary, gateway, events/rules/policy split, temporal authority, sim vs production
+- `docs/ENGINE_DEVELOPMENT_GUIDE.md` — value contract for any future Engine (dependencies, canonical boundaries, prohibitions)
+- `HANDOFF_AGENT_CONTINUITY.md` extended with the Fresh Agent Continuation Test + Development Continuity Contract + multi-Agent protocol + Reviewer role
+- ADR-0015 — the platform realignment decision is a recorded, non-negotiable milestone decision
+- MODULITY_MASTER_ROADMAP.md: Step 21+ section rewritten to be dependency-aware (`Requires/Provides/Unlocks` for every row)
+
+### Deferred by design (still future work)
+
+No runtime implementation below Step 20 — all new architecture is reserved for future milestones. See KNOWN_GAPS_REGISTER for the current inventory.
+
+
 ## Step 19 v2 — Organization, Chat Rooms, Communication Context & UX Stability (FINAL v2)
 
 ### Added

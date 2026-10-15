@@ -219,4 +219,143 @@ See `docs/PACKAGE_ARCHITECTURE.md` for the concrete move map and dependency poli
 
 ## 10. Repository Strategy
 
+Single-repository modular monolith for now. Package extraction is Step 11.1+ dependency work, not an immediate objective.
+
+---
+
+## Step 20 — Next Platform Architecture & Roadmap Realignment (THIS MILESTONE)
+
+Steps 0–19 are immutable history. Step 20 is an architecture checkpoint: nothing here is implemented — every row below is future work.
+
+### Historical milestone ledger (preserved — never renumber)
+
+| Step | Scope | Dependency |
+|---|---|---|
+| 0–10 | Foundation | — |
+| 11 | Package architecture plan (11.0/11.1) | after Step 10 |
+| 15 | Trusted Record Actions & Lifecycle | Ledger foundation |
+| 16 | Trusted Ledger & Audit | Step 12 server-record commands |
+| 17 | Generic Notification capability | Step 15 command surface |
+| 17.1 | Universal Form Ledger & Historical Form Viewer | Step 16 |
+| 17.1.1 | Configurable Ledger Books & universal Ledger sources | Step 17.1 |
+| 17.2 | Module categories & personal module organization | Steps 16–17.1.1 |
+| 17.3 | Trusted Entity & Module Administration + Change History | Step 17.2 |
+| 17.4 | Technical Identifier UX Hardening + small nav fixes | Step 17.3 |
+| 18 | Workspace Chat & Contextual Conversations | Step 17.4 |
+| 19 | Organization, Chat Rooms, Communication Context & UX Stability | Step 18 |
+| **20** | **Next Platform Architecture, Roadmap Realignment & Development Continuity** | Step 19 |
+
+### Foundational Platform
+
+| Step | Requires | Provides | Unlocks |
+|---|---|---|---|
+| 21 — Capability Registry & Dependency Graph (GAP-014 close) | 20 | machine-readable capability metadata; agents/discovery fill the canonical catalog | 26, 27, 33 |
+| 22 — Business Event Backbone contract | 20+21 | canonical BusinessEvent persisted structure plus emit surface | 23, 24, 25, 28, 33 |
+| 23 — Rules / Decision Engine (minimal deterministic evaluation) | 22 | deterministic RuleDefinition evaluation over Events/State | 25, 28, 33 |
+| 24 — Permission / Policy / Authority separation & Temporal Grants | 22 | auto/approval-required/deny outcomes; temporal validity windows; fallback policy | 23, 25, 30 |
+| 25 — Configuration Lifecycle + Rollback (DRAFT → VALIDATE → TEST/SIMULATE → POLICY CHECK → PUBLISH → VERSIONED, revert-N) | 23+24 | shared publish pipeline for Rules/Agents/Connectors | all future config-bearing capabilities |
+| 26 — Agent Orchestrator + Live Provider Adapters (GAP-014 Live) | 21+25 | planner/executor boundary, first Agent↔Agent handoff, provider-agnostic orchestration | specialized business Agents |
+| 27 — Secrets/Credential Vault (bounded prototype for integration flows) | 20+24 | encrypted credential write-paths, rotation/expiry policies, no raw material to UI/agents | 28 and beyond |
+| 28 — Platform Gateway: public REST + MCP + Webhooks for the trusted surface | 24+27 | securely scoped external access to canonical capabilities | WordPress/ERP/partner apps, agent tool bridging |
+
+### Business capabilities
+
+| Step | Requires | Provides | Unlocks |
+|---|---|---|---|
+| 29 — Files / Attachments (+photos/documents/img) | 17.3+24 | canonical File/Attachment storage and references | richer Module Page, Photos, PDF, media for Chat/Import |
+| 30 — Approval / Position Cards | 23+24 | policy-driven approval packaging and listens | 31–33 with policy-based approval |
+| 31 — Inventory (Product + Location identifiers, Inventory Transaction ledger) | 27+29 | stock state, movement ledger |  |
+| 32 — Consumption / Recipe / BOM | 31 | BOM registry, deterministic consumption | automatic Procurement links under Stock script |
+| 33 — Procurement (Supplier + Purchase Requirement + Purchase Order + policy approval; finalized Ledger entries on supplier receipt) | 30+31+32 | full procurement toolkit | restock operations |
+
+### Integrated Experience
+
+| Step | Requires | Provides | Unlocks |
+|---|---|---|---|
+| 34 — Tasks & Action Inbox (What needs my attention?) | 30+31+33 | canonical day-focused projection; approved actions + pending operations + notifications in one inbox | human-in-loop workflow capture |
+| 35 — Module Page/View Composition (GAP-013 closure) | 21+25+29 | generic declarative view compositions (Lists/Table/Calendar/Chart…) | mobile Calendar and boards |
+| 36 — Mobile Calendar view & Live Operational Board | 35 | view definitions for narrow/TV form factors, surface on canonical data | workplace display boards at Sites |
+
+### Integration & Compliance
+
+| Step | Requires | Provides | Unlocks |
+|---|---|---|---|
+| 37 — Data Import & Mapping Engine (real engine) | 25+28 | declarative mapping → canonical import with dry-run validation and provenance audit per import batch | drop-in modernization from station-tested formats |
+| 38 — Data Portability (canonical export) | 28+37 | record/entity/account-authorized exports with provenance | GDPR-ready transitions, owner-allowed migration |
+
+### Maturity — deferred-only list (intentionally NOT numbered)
+
+- Global Search (GAP-003 picked up here)
+- Units/Measurements/Currency concept (no Engine yet)
+- i18n/timezone support
+- Compliance / Regulatory rule packs + Verified statuses (never publicly strips encrypted data)
+- Regulatory Monitoring Agent observation (observation only; no creation)
+- Optional Blockchain ANCHOR of finalized Ledger blocks (proof only, never personal data on public chain)
+
+Verified note — **Steps 0–20 are immutable history**. Changing Steps 21+ relative to earlier steps requires updating the dependency map among them; it never alters the history.
+
+### Historical milestone ledger (preserved, do not renumber)
+
+| Step | Scope | Dependency |
+|---|---|---|
+| 0–10 | Foundation | — |
+| 11 | Package architecture plan (11.0/11.1) | after Step 10 |
+| 15 | Trusted Record Actions & Lifecycle | Ledger foundation |
+| 16 | Trusted Ledger & Audit | Step 12 server-record commands |
+| 17 | Generic Notification capability | Step 15 command surface |
+| 17.1 | Universal Form Ledger & Historical Form Viewer | Step 16 |
+| 17.1.1 | Configurable Ledger Books & universal Ledger sources | Step 17.1 |
+| 17.2 | Module categories & personal module organization | Steps 16–17.1.1 |
+| 17.3 | Trusted Entity & Module Administration + Change History | Step 17.2 |
+| 17.4 | Technical Identifier UX Hardening + small nav fixes | Step 17.3 |
+| 18 | Workspace Chat & Contextual Conversations | Step 17.4 |
+| 19 | Organization, Chat Rooms, Communication Context & UX Stability | Step 18 |
+| **20** | **Next Platform Architecture, Roadmap Realignment & Development Continuity** | Step 19 |
+
+### Step 21+ roadmap — dependency-driven (GROUPED by capability family)
+
+Numbering reflects the DOCUMENTED order of expected implementation. Reordering is allowed ONLY when the dependency graph says so.
+
+| Step | Name | Requires | Provides | Unlocks |
+|---|---|---|---|---|
+| 21 | **Capability Registry & Dependency Graph (GAP-014 close)** — canonical machine-readable capability metadata, registry bookkeeping, capability context inputs/outputs/permissions contract | 20 | Agents, search and future Engines can query/discover | 26, 27, 29 |
+| 22 | **Business Event Backbone contract** — BusinessEvent, event persistence, standardized emission surface, idempotent correlation, first-class trace +店的 NOTIFICATION fan-out of deterministic events | 20+21 | canonical event surface replacing direct inter-engine calls | 23, 24, future Procurement/Inventory reactions |
+| 23 | **Rules / Decision Engine (minimal deterministic evaluation)** — versioned RuleDefinition, deterministic evaluation over Events/State, recommended transition intents, cycle protection, dry-run mode | 22 | deterministic rules core | 25, 28, Data Import logical automations |
+| 24 | **Permission / Policy / Authority separation + Temporal Grants** — policy field: automatic/approval-required/deny; temporal windows; fallback policy; actor = USER | ROLE | MEMBERSHIP | AGENT | SERVICE | INTEGRATION concepts | 17.3+22 | author separates definitively, temporal grants, policy-driven approval routing | 25, repurchase and policy flows |
+| 25 | **Configuration Lifecycle** — DRAFT → VALIDATE → TEST/SIMULATE → POLICY CHECK → (AUTO-PUBLISH / APPROVAL REQUIRED / DENY) → PUBLISHED, versioned, rollback to N-1 | 23+24 | versioned configuration ownership for Rule/Agent/Connector/etc. | all future Engines use a shared publish path |
+| 26 | **Agent Orchestrator + Live Provider Adapters** — provider-agnostic planner/executor, deterministic adapter set (expandable to future LLM providers), structured agent↔agent handoffs, trace-backed observability finds | 21+25 | complete future Agents machinery without inventing Chat-petal Chat multiple identity | all practical use of Agents; "George Pizza"/"WindTech"-style specialized workspaces are enabled |
+| 27 | **Integration Platform & Connectors** — canonical Connectors (WordPress > stories_shape > partners > ERP), sync jobs, credential mapping/storage primitives, inbound/outbound events bending into BusinessEvent sphere | 21+22+24.4 | canonical platform boundary; WordPress/websites/ERP/SAP surface flows without crossing | supplier integrations, OAuth/apps/MCP adapters, WordPress embedded client |
+| 28 | **Platform Gateway + Developer Platform** — public REST+MCP for subset of trusted surface, scoped API tokens, webhook emitters, first third-party access surface to canonical capabilities | 21+25+27 | industry-grade gateway | external builders and entire agent/ERP/WordPress work |
+
+### BUSINESS CAPABILITIES
+
+| Step | Name | Requires | Provides |
+|---|---|---|---|
+| 29 | **Files / Attachments** — canonical File reference storage + UI; no local-storage canonical paths | 17.3+24 | entity/file attachments, future Sites & document surfaces |
+| 30 | **Approval & Position Cards** — safe human-only shipping approvals supplied by Policy; approval cards feed the Action Inbox (E2E) | 23+24 | human approval on conditional smart Rules actions |
+| 31 | **Inventory** — Product & Location dependencies, InventoryTransaction ledger, available-seat/reserved/current, minimal minimum targets | 20.2+21+29 | foundational inventory movement data | drives All المستخدمين ideas near BOM |
+| 32 | **Consumption / Recipe / BOM** — versioned Product+Component catalog mapping; deterministic consumption reporting, minimal calculation | 21+31 | component-level data | procurement requirements, inventory-driven production |
+| 33 | **Procurement** — Supplier, Purchase Requirement, Purchase Order with configurable approval policies and settled Ledger entries on supplier receipt | 30+31+32 | complete procurement order flow | on−demand replenishment/generation engines |
+| 34 | **Tasks & Shared-UX Workflow base** — generic task records ON canonical assignment/note linking; “What needs my attention?” inbox becomes the first projection | 30+31 | Task references | future workflow-building without Task specific Engines |
+
+### EXPERIENCE
+
+| Step | Name | Requires | Provides |
+|---|---|---|---|
+| 35 | **Module Page/View Composition** (GAP-013 closure) — declarative view slots (List/Table/Chart/Calendar/etc.) with dragging+reordering | 21+25+29 | module-specific page composition | mobile Calendar, site-level broadcast boards |
+| 36 | **Mobile Calendar / Live Operational Board** — exposing decl. view through the Mobile-side cases and Display mode | 35+close-Access L8 | TV/mobile live boards at site level | live boards, kiosks, job-site posters |
+| 37 | **Action Inbox** ("What needs my attention?") — approved + tasks + alerts + notifications under one user inbox | 30+34 | obvious close interaction |
+
+### INTEGRATION/CONTENT
+
+| Step | Name | Requires | Provides |
+|---|---|---|---|
+| 38 | **Data Import & Mapping Engine (real Engine)** — deterministic mapping spec → canonical Record/Entity creation with dry-run validation and Media Provenance audit table on import | 21+25+28 | real no-code import | bulk onboarding, ERP/SAP archive transition |
+| 39 | **Data Portability & Compliance groundwork** — export surfaces to Entities/Records/Files on human order policy-verified files; include relevant Provenance rows; the scope is export-only | 27+28 | reference exports | GDPR/data protection compliance ready for export flow |
+
+### MATURITY (future gated)
+
+> Planned only after the foundation depends has stabilized: Global Search (GAP-003); Units/Measurements/Currency; zone-i18n/timezone local few workflow/contexts; Compliance/Regulatory platform; Monitoring; Optional Blockchain ANCHOR ledger (never personal data on public chain; anchors proof only for integrity, not for legal burden)
+
+Every milestone above the CONTEXT shape is informed of the health-check coverage table and the previous milestones closure. Do not re-number or re-order completed historical milestones.
 **Single repository.** Keep Core, Engines, Agents, Features, Infrastructure, and Design System in one Git repository with explicit package boundaries. Do not split into per-engine repositories until there is concrete evidence that deployment scale or team autonomy requires it.
