@@ -14,6 +14,11 @@ export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
   descriptor('integration', 'Integration', CAPABILITY_MODES.ACTION, 'Trusted versioned external API/event/command integration boundary.', { capabilities: ['external-command', 'external-event'] }),
   descriptor('inventory', 'Inventory', CAPABILITY_MODES.READ, 'Derived stock projections from canonical movement Records.', { capabilities: ['stock-projection'] }),
   descriptor('notification', 'Notification', CAPABILITY_MODES.ACTION, 'Trusted notification dispatch driven by canonical events and policies.', { capabilities: ['notification-policy', 'delivery-journal'] }),
+  descriptor('rules', 'Rules / Decision Engine', CAPABILITY_MODES.READ, 'Deterministic declarative Rules / Decision evaluation; canonical Decision-Result surface over Business Events.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['evaluate', 'validate', 'resolve', 'dry-run'],
+    requires: ['business-event'],
+  }),
   descriptor('scheduling', 'Scheduling', CAPABILITY_MODES.ACTION, 'Trusted allocation and scheduling commands using Calendar semantics.', { capabilities: ['resource-allocation'], requires: ['calendar'] }),
   descriptor('task', 'Task', CAPABILITY_MODES.ACTION, 'Trusted task orchestration around canonical business state.', { capabilities: ['task-assignment', 'task-state'] }),
   descriptor('workflow', 'Workflow', CAPABILITY_MODES.ACTION, 'Trusted deterministic transitions and commands over canonical state.', { capabilities: ['transition-policy', 'command-journal'], optionalDependencies: ['notification'] }),
