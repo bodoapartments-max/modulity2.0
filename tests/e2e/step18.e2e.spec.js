@@ -22,10 +22,10 @@ test('Step 18 — workspace chat + context conversations', async ({ page }) => {
   await page.goto('/app/chat');
   await expect(page.locator('h1')).toContainText('Chat', { timeout: 15_000 });
 
-  // ─── 2. Channel creation ─────────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'New Channel' }).click();
-  await page.fill('#channel-title', `Ops Team ${stamp}`);
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  // ─── 2. Room creation (was "channel" in early v2 — same trusted family) ───
+  await page.getByRole('button', { name: 'Create Room' }).click();
+  await page.fill('#room-topic', `Ops Team ${stamp}`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create Room' }).click();
   await expect(page.locator(`text=Ops Team ${stamp}`)).toBeVisible({ timeout: 15_000 });
 
   // ─── 3. Send a message into the created channel ─────────────────────────────

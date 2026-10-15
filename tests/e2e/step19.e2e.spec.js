@@ -44,10 +44,10 @@ test('Step 19 — Ledger/People/Groups revisit still stable, new Direct CTA open
   await expect(page.getByRole('link', { name: 'Invite person' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  // ─── 5. Channel creation still works with member selection support ──────
-  await page.getByRole('button', { name: 'New Channel' }).click();
-  await page.fill('#channel-title', `Step 19 Channel ${stamp}`);
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  // ─── 5. Room creation with optional member selection support ───────────────
+  await page.getByRole('button', { name: 'Create Room' }).click();
+  await page.fill('#room-topic', `Step 19 Channel ${stamp}`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create Room' }).click();
   await expect(page.locator(`text=Step 19 Channel ${stamp}`)).toBeVisible({ timeout: 15_000 });
   await page.fill('#chat-message', 'Step 19 verified');
   await page.getByRole('button', { name: 'Send', exact: true }).click();

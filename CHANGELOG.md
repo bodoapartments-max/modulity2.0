@@ -2,9 +2,26 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
-## Step 19 — Organization, Sharing & UX Stability
+## Step 19 v2 — Organization, Chat Rooms, Communication Context & UX Stability (FINAL v2)
 
 ### Added
+- `ROOM` Conversation type with explicit topic, description, INVITE_ONLY / WORKSPACE_VISIBLE visibility, owner semantics, memberIds; CREATE_ROOM_CONVERSATION command resolves invited Groups SERVER-SIDE (trusted Group expansion: current membership snapshot; future group changes do NOT grant old invite-only Room access — GAP-017 closed correctly this time)
+- `ROOM_ADD_MEMBER` / `ROOM_REMOVE_MEMBER` — Room owner only, trusted, transactional
+- Room creation UX: topic + optional description + visibility radio + People/Groups invite checkboxes in Create Chat Room dialog
+- Notification event `chat.room_invited` — one deterministic notification per invited recipient; retries cannot duplicate
+- Room badges on the conversation list (ROOM · INVITE / ROOM · WORKSPACE)
+- People / Groups / Ledger revisit now live through `workspaceQueryCache` (carried from Step 19 final scope)
+- HANDOFF_AGENT_CONTINUITY.md — permanent multi-agent rules now linked from AGENTS.md
+
+### Changed
+- GAP-010 module/category reorder now uses accessible Up/Down arrows on the categories page (Stage-appropriate; drag & drop can follow later)
+- Step 18 chat Contracts remain: CHAT_ROOM_INVITED added to the canonical event vocabulary
+- Step 19 FINAL v2 acceptance: GAP-017 is CLOSED as a whole (Group snapshot invites) — the previously reported residual "Group→Channel member resolution deferred" is superseded
+
+### Deferred (Known Gaps unchanged)
+- GAP-018 message edit/delete and nesting review at Step 20.1
+- GAP-019 context conversation access semantics review at Step 20.1
+
 - Ledger, People, Groups pages now load from `workspaceQueryCache` (revisits are instant, silent revalidation replaces instead of blanking)
 - Groups expanded with memberIds on the canonical model (createGroup) and workspace-member picker in GroupsPage; groupService provides addGroupMember/removeGroupMember
 - Chat "New Direct" empty state now has an "Invite person" CTA resolving to the People / invite surface
