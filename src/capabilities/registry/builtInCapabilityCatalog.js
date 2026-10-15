@@ -24,6 +24,11 @@ export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
     capabilities: ['evaluate', 'decide'],
     requires: ['rules'],
   }),
+  descriptor('configuration-lifecycle', 'Configuration Lifecycle & Versioning', CAPABILITY_MODES.READ, 'Trusted configuration — immutable revisions with trusted publication, lifecycle enforcement, immutable history.; automatic rollback and deterministic versioning', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['validate', 'test', 'publish', 'rollback'],
+    requires: ['policy-authority'],
+  }),
   descriptor('scheduling', 'Scheduling', CAPABILITY_MODES.ACTION, 'Trusted allocation and scheduling commands using Calendar semantics.', { capabilities: ['resource-allocation'], requires: ['calendar'] }),
   descriptor('task', 'Task', CAPABILITY_MODES.ACTION, 'Trusted task orchestration around canonical business state.', { capabilities: ['task-assignment', 'task-state'] }),
   descriptor('workflow', 'Workflow', CAPABILITY_MODES.ACTION, 'Trusted deterministic transitions and commands over canonical state.', { capabilities: ['transition-policy', 'command-journal'], optionalDependencies: ['notification'] }),
