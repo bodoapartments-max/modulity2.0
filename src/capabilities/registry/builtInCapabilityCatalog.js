@@ -29,6 +29,11 @@ export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
     capabilities: ['validate', 'test', 'publish', 'rollback'],
     requires: ['policy-authority'],
   }),
+  descriptor('simulation', 'Simulation / Dry-Run Engine', CAPABILITY_MODES.READ, 'Deterministic simulation over existing engines on explicit state overlays; projects BusinessEvents/Transitions without mutation.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['simulate', 'project', 'dry-run'],
+    requires: ['rules', 'policy-authority'],
+  }),
   descriptor('scheduling', 'Scheduling', CAPABILITY_MODES.ACTION, 'Trusted allocation and scheduling commands using Calendar semantics.', { capabilities: ['resource-allocation'], requires: ['calendar'] }),
   descriptor('task', 'Task', CAPABILITY_MODES.ACTION, 'Trusted task orchestration around canonical business state.', { capabilities: ['task-assignment', 'task-state'] }),
   descriptor('workflow', 'Workflow', CAPABILITY_MODES.ACTION, 'Trusted deterministic transitions and commands over canonical state.', { capabilities: ['transition-policy', 'command-journal'], optionalDependencies: ['notification'] }),

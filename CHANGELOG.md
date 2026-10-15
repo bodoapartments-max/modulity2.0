@@ -2,6 +2,23 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 26 — Simulation / Dry-Run Engine
+
+### Added
+- `src/core/simulation/simulationEngine.js` — canonical simulation primitive:
+  explicit immutable state overlays, event projection through Rule evaluations, bounded
+  cycle guards, no production writes, no network calls, no wall-clock dependency.
+- `simulateScenario` — multi-step projection of BusinessEvent chains for Context
+  evaluation with cycle detection.
+- Existing Rule engine (Step 23) and Permission authority (Step 24) reused; the simulator
+  never lives as a standalone evaluator. Production never becomes simulation input.
+
+### Held
+- simulation can never publish configuration; it only reports eligibility.
+- Simulation always invocable as a recommendation through a trusted Runtime broker.
+
+## Step 25 — Configuration Lifecycle & Versioning
+
 ## Step 25 — Configuration Lifecycle & Versioning
 
 ### Added

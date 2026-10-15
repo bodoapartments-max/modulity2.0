@@ -79,7 +79,17 @@ Future (Steps 26, 27, 28) may consume the same canonical meaning; they never int
 
 ## 5c. Business Event Backbone (implemented Step 22)
 
-## 5d. Permission → Policy → Authority → Grant (implemented Step 24)
+## 5e. Simulation / Dry-Run Engine (implemented Step 26)
+
+`src/core/simulation/simulationEngine.js` delivers the canonical simulation primitive:
+
+- **SIMULATION PREDICTS. PRODUCTION EXECUTES.** Production business state NEVER mutates.
+- Explicit base state + hypothetical state overlay (`__isOverlay`) with the project never written.
+- Rule/policy engines are used exactly for capabilities — multiple engines join a simulation.
+- Deterministic decisions: all inside the same authorization framework used by trusted tools.
+- IMMUTABLE lineage: if an intended produces an intent that would lead back to another rule whose event, final model no longer evaluates it (cycle protection).
+
+Uses CANONICAL Step 23 Rules (evaluateRuleDefinition) and Step 24 policy authority surface (decideAuthorization) — no parallel evaluators exist.
 
 `src/core/permissions/policyAuthority.js` supplies:
 
