@@ -28,6 +28,7 @@ export function createGroup({
   organizationId,
   name,
   description = '',
+  memberIds = [],
   createdAt,
   updatedAt,
 }) {
@@ -40,6 +41,7 @@ export function createGroup({
     organizationId,
     name: name.trim(),
     description: description.trim(),
+    memberIds: [...new Set(memberIds)],
     createdAt: createdAt || new Date().toISOString(),
     updatedAt: updatedAt || new Date().toISOString(),
   });

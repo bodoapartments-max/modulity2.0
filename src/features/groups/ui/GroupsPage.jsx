@@ -4,8 +4,9 @@
  * Organization-level groups management. Supports create, rename, delete.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import services from '../../../infrastructure/services.js';
 import { hasCapability } from '../../../core/workspace/role.js';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
@@ -22,41 +23,39 @@ import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 function GroupsPage() {
   const { user } = useAuth();
   const { currentWorkspace, currentMembership, isOrganizationWorkspace } = useWorkspace();
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
+  const [expandedGroup, setExpandedGroup] = useState(null);
 
   const roles = currentMembership?.roles || [];
   const canCreate = hasCapability(roles, 'groups.create');
   const canDelete = hasCapability(roles, 'groups.delete');
+  const canEdit = hasCapability(roles, 'groups.edit');
+  const orgId = isOrganizationWorkspace ? currentWorkspace?.organizationId : null;
 
-  const loadGroups = useCallback(async () => {
-    if (!isOrganizationWorkspace || !currentWorkspace?.organizationId) {
-      setLoading(false);
-      return;
-    }
+  const loader = useCallback(async () => {
+    if (!orgId) return [];
+    return services.group.getOrganizationGroups(orgId);
+  }, [orgId]);
+  const { data: groups = [], error, initialLoading: loading, refresh } = useWorkspaceQuery({
+    workspaceId: orgId, resource: 'organizationGroups', loader, enabled: Boolean(orgId),
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await services.group.getOrganizationGroups(
-        currentWorkspace.organizationId,
-      );
-      setGroups(result);
-    } catch (err) {
-      console.error('[GroupsPage] Load failed:', err);
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOrganizationWorkspace, currentWorkspace?.organizationId]);
+  const loadGroups = refresh;
 
-  useEffect(() => {
-    loadGroups();
-  }, [loadGroups]);
+  const memberLoader = useCallback(async () => {
+    if (!orgId) return [];
+    const rows = await services.membership.getOrganizationMembers(orgId);
+    return rows.map((row) => ({
+      userId: row.membership?.userId,
+      displayName: row.person?.displayName || row.person?.firstName || row.membership?.userId,
+      status: row.membership?.status,
+    })).filter((m) => m.userId && (m.status === 'ACTIVE' || !m.status));
+  }, [orgId]);
+  const { data: memberRows = [] } = useWorkspaceQuery({
+    workspaceId: orgId, resource: 'organizationMembers', loader: memberLoader, enabled: Boolean(orgId),
+  });
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -162,17 +161,57 @@ function GroupsPage() {
                     <p className="mt-1 text-sm text-neutral-500">{group.description}</p>
                   )}
                 </div>
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(group.groupId)}
-                    className="text-sm text-neutral-400 hover:text-danger"
-                    aria-label={`Delete group ${group.name}`}
-                  >
-                    Delete
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGroup(expandedGroup === group.groupId ? null : group.groupId)}
+                      className="text-sm text-neutral-400 hover:text-primary-600"
+                    >
+                      {expandedGroup === group.groupId ? 'Close' : 'Members'}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(group.groupId)}
+                      className="text-sm text-neutral-400 hover:text-danger"
+                      aria-label={`Delete group ${group.name}`}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
+              {(group.memberIds || []).length > 0 && (
+                <p className="mt-2 text-xs text-neutral-500">{group.memberIds.length} member{(group.memberIds.length || 0) !== 1 ? 's' : ''}</p>
+              )}
+              {expandedGroup === group.groupId && (
+                <div className="mt-3 border-t border-neutral-100 pt-3 space-y-2">
+                  {memberRows.map((m) => {
+                    const inGroup = (group.memberIds || []).includes(m.userId);
+                    return (
+                      <label key={m.userId} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={inGroup}
+                          onChange={async (event) => {
+                            try {
+                              if (event.target.checked) {
+                                await services.group.addGroupMember(group.groupId, m.userId, user.userId, roles, orgId);
+                              } else {
+                                await services.group.removeGroupMember(group.groupId, m.userId, user.userId, roles, orgId);
+                              }
+                              await loadGroups();
+                            } catch (err) { setCreateError(err.message); }
+                          }}
+                        />
+                        <span>{m.displayName}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           ))}
         </div>

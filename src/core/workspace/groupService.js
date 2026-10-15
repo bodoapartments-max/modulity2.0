@@ -90,6 +90,35 @@ export function createGroupService({ groupRepo }) {
   }
 
   /**
+   * Adds a workspace member to the group (no-op if already present).
+   * Group membership is organizational labeling, not authorization.
+   */
+  async function addGroupMember(groupId, memberUserId, userId, roles, organizationId) {
+    if (!hasCapability(roles, 'groups.edit')) {
+      throw new AppError('forbidden', 'You do not have permission to edit groups.');
+    }
+    if (!memberUserId) throw new AppError('validation_error', 'memberUserId is required');
+    const existing = await groupRepo.getById(groupId, organizationId);
+    if (!existing) throw new AppError('not_found', 'Group not found.');
+    const next = [...new Set([...(existing.memberIds || []), memberUserId])];
+    return groupRepo.update(groupId, { memberIds: next }, organizationId);
+  }
+
+  /**
+   * Removes a workspace member from the group.
+   */
+  async function removeGroupMember(groupId, memberUserId, userId, roles, organizationId) {
+    if (!hasCapability(roles, 'groups.edit')) {
+      throw new AppError('forbidden', 'You do not have permission to edit groups.');
+    }
+    if (!memberUserId) throw new AppError('validation_error', 'memberUserId is required');
+    const existing = await groupRepo.getById(groupId, organizationId);
+    if (!existing) throw new AppError('not_found', 'Group not found.');
+    const next = (existing.memberIds || []).filter((id) => id !== memberUserId);
+    return groupRepo.update(groupId, { memberIds: next }, organizationId);
+  }
+
+  /**
    * Gets all groups for an organization.
    */
   async function getOrganizationGroups(organizationId) {
@@ -101,5 +130,7 @@ export function createGroupService({ groupRepo }) {
     updateGroup,
     deleteGroup,
     getOrganizationGroups,
+    addGroupMember,
+    removeGroupMember,
   };
 }

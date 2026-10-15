@@ -68,15 +68,6 @@ async function assertCanAccessUser(db, workspaceId, workspace, userId) {
   return member.exists && member.data().status === 'ACTIVE';
 }
 
-async function assertConversationMember(db, workspaceId, conversationId, userId) {
-  const convSnap = await db.doc(`workspaces/${workspaceId}/conversations/${conversationId}`).get();
-  if (!convSnap.exists) return null;
-  const conversation = convSnap.data();
-  if (conversation.workspaceId !== workspaceId) fail(CODES.WORKSPACE_FORBIDDEN, 'Conversation workspace mismatch.');
-  if (!(conversation.memberIds || []).includes(userId)) fail(CODES.NOT_MEMBER, 'You are not a member of this Conversation.');
-  return conversation;
-}
-
 // ─── Engine ─────────────────────────────────────────────────────────────────
 
 export async function executeChatCommand(db, { userId, command }) {

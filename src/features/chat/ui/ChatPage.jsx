@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
 import services from '../../../infrastructure/services.js';
@@ -210,18 +210,37 @@ export default function ChatPage() {
       )}
 
       <Dialog open={directOpen} onClose={() => setDirectOpen(false)} title="New direct conversation">
-        <p className="text-sm text-neutral-600 mb-3">Choose an active workspace member.</p>
-        <ul className="space-y-1">
-          {members.length === 0 && <li className="text-sm text-neutral-400">No other members available.</li>}
-          {members.map((m) => (
-            <li key={m.userId}>
-              <label className="flex items-center gap-2 text-sm"><input type="radio" name="dm-target" checked={selectedTargetId === m.userId} onChange={() => setSelectedTargetId(m.userId)} />{m.displayName || m.email || m.userId}</label>
-            </li>
-          ))}
-        </ul>
+        {members.length === 0 ? (
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center">
+            <EmptyState
+              title="No other members yet."
+              description="Invite someone to your workspace to start a direct conversation."
+            />
+            <div className="mt-3 flex justify-center">
+              <Link
+                to="/app/settings"
+                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white"
+                onClick={() => setDirectOpen(false)}
+              >
+                Invite person
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-neutral-600 mb-3">Choose an active workspace member.</p>
+            <ul className="space-y-1">
+              {members.map((m) => (
+                <li key={m.userId}>
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" name="dm-target" checked={selectedTargetId === m.userId} onChange={() => setSelectedTargetId(m.userId)} />{m.displayName || m.email || m.userId}</label>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => setDirectOpen(false)}>Cancel</Button>
-          <Button type="button" disabled={!selectedTargetId} onClick={createDirect}>Start</Button>
+          {members.length > 0 && <Button type="button" disabled={!selectedTargetId} onClick={createDirect}>Start</Button>}
         </div>
       </Dialog>
 

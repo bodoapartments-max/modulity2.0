@@ -5,8 +5,9 @@
  * Displays: Name, Email, Role, Status.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import services from '../../../infrastructure/services.js';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
@@ -25,34 +26,15 @@ const STATUS_VARIANTS = {
 
 function PeoplePage() {
   const { currentWorkspace, isOrganizationWorkspace } = useWorkspace();
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const orgId = currentWorkspace?.organizationId;
 
-  const loadMembers = useCallback(async () => {
-    if (!isOrganizationWorkspace || !currentWorkspace?.organizationId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await services.membership.getOrganizationMembers(
-        currentWorkspace.organizationId,
-      );
-      setMembers(result);
-    } catch (err) {
-      console.error('[PeoplePage] Load failed:', err);
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOrganizationWorkspace, currentWorkspace?.organizationId]);
-
-  useEffect(() => {
-    loadMembers();
-  }, [loadMembers]);
+  const loader = useCallback(async () => {
+    if (!orgId) return [];
+    return services.membership.getOrganizationMembers(orgId);
+  }, [orgId]);
+  const { data: members = [], error, initialLoading: loading } = useWorkspaceQuery({
+    workspaceId: orgId, resource: 'organizationMembers', loader, enabled: Boolean(orgId),
+  });
 
   if (!isOrganizationWorkspace) {
     return (
@@ -76,10 +58,7 @@ function PeoplePage() {
   if (error) {
     return (
       <PageContainer>
-        <ErrorState
-          title="Failed to Load Members"
-          message="Could not load organization members. Please try again."
-        />
+        <ErrorState title="Failed to Load Members" message={"Could not load organization members: ${error.message}"} />
       </PageContainer>
     );
   }

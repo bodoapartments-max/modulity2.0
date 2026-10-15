@@ -9,9 +9,10 @@
  * All data projects the canonical LedgerBook/LedgerBlock/LedgerEntry
  * documents — no derived persistence.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../../app/providers/WorkspaceProvider.jsx';
+import { useWorkspaceQuery } from '../../../app/hooks/useWorkspaceQuery.js';
 import services from '../../../infrastructure/services.js';
 import PageContainer from '../../../design-system/components/PageContainer/PageContainer.jsx';
 import PageHeader from '../../../design-system/components/PageHeader/PageHeader.jsx';
@@ -24,48 +25,33 @@ export default function LedgerListPage() {
   const { currentWorkspace, error: workspaceError } = useWorkspace();
   const workspaceId = currentWorkspace?.workspaceId;
 
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const load = useCallback(async (background = false) => {
-    if (!workspaceId || !services?.ledger?.listBooks) return;
-    if (!background) setLoading(true);
-    setError(null);
-    try {
-      const books = await services.ledger.listBooks(workspaceId);
-      const enriched = await Promise.all(
-        (Array.isArray(books) ? books : []).map(async (book) => {
-          let blocks = [];
+  const loader = useCallback(async () => {
+    if (!services?.ledger?.listBooks) return [];
+    const books = await services.ledger.listBooks(workspaceId);
+    const rows = await Promise.all(
+      (Array.isArray(books) ? books : []).map(async (book) => {
+        let blocks = [];
+        try { blocks = await services.ledger.listBlocks(workspaceId, book.ledgerBookId); } catch { /* keep empty block state */ }
+        const currentBlock = selectCurrentBlock(blocks);
+        let entries = [];
+        if (currentBlock && services?.ledgerQuery?.queryEntries) {
           try {
-            blocks = await services.ledger.listBlocks(workspaceId, book.ledgerBookId);
-          } catch { /* keep empty block state */ }
-          const currentBlock = selectCurrentBlock(blocks);
-          let entries = [];
-          if (currentBlock && services?.ledgerQuery?.queryEntries) {
-            try {
-              const page = await services.ledgerQuery.queryEntries({
-                workspaceId,
-                ledgerBookId: book.ledgerBookId,
-                ledgerBlockId: currentBlock.ledgerBlockId,
-                limit: 200,
-              });
-              entries = page?.items || [];
-            } catch { /* keep counters with zero voided */ }
-          }
-          const counters = deriveFormBookCounters(book, currentBlock, entries);
-          return { book, blocks, currentBlock: counters ? { ...currentBlock } : currentBlock, counters };
-        }),
-      );
-      setRows(enriched);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+            const page = await services.ledgerQuery.queryEntries({
+              workspaceId, ledgerBookId: book.ledgerBookId, ledgerBlockId: currentBlock.ledgerBlockId, limit: 200,
+            });
+            entries = page?.items || [];
+          } catch { /* keep counters with zero voided */ }
+        }
+        const counters = deriveFormBookCounters(book, currentBlock, entries);
+        return { book, blocks, currentBlock: counters ? { ...currentBlock } : currentBlock, counters };
+      }),
+    );
+    return rows;
   }, [workspaceId]);
 
-  useEffect(() => { void load(); }, [load]);
+  const { data: rows = [], error, initialLoading: loading } = useWorkspaceQuery({
+    workspaceId, resource: 'ledgerBooks:list', loader, enabled: Boolean(workspaceId),
+  });
 
   const columns = useMemo(() => [
     {
@@ -127,6 +113,7 @@ export default function LedgerListPage() {
     },
   ], []);
 
+  const errorMessage = error?.message ?? null;
   if (workspaceError || !currentWorkspace) {
     return <PageContainer><PageHeader title="Ledger" description="Permanent register of official forms in this workspace." /><ErrorStateLocal message="Select an available workspace first." /></PageContainer>;
   }
@@ -148,7 +135,7 @@ export default function LedgerListPage() {
         rows={rows}
         rowKey={(row) => row.book.ledgerBookId}
         loading={loading}
-        error={error}
+        error={errorMessage}
         emptyMessage="No Ledger Books have been configured yet"
         emptyDescription="Official form history is preserved by the trusted Ledger where supported. Configure a Ledger Book to organize that history into a named register."
         ariaLabel="Ledger books"

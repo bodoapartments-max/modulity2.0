@@ -89,7 +89,7 @@ export default function ModuleCategoriesPage() {
       )}
 
       <ul className="space-y-3">
-        {categories.map((cat) => (
+        {categories.map((cat, catIndex) => (
           <li key={cat.categoryId}>
             <div className="rounded-xl border border-neutral-200 bg-white p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -103,7 +103,7 @@ export default function ModuleCategoriesPage() {
                 </div>
                 <Badge variant={cat.status === 'ACTIVE' ? 'success' : 'neutral'}>{cat.status}</Badge>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <AdminActions
                   resourceLabel={`Category "${cat.displayName}"`}
                   status={cat.status}
@@ -113,6 +113,37 @@ export default function ModuleCategoriesPage() {
                   onRestore={() => withBusy(cat.categoryId, () => services.moduleCategory.unarchiveCategory(workspaceId, cat.categoryId), 'Restored')}
                   onDelete={() => withBusy(cat.categoryId, () => services.moduleCategory.deleteCategory(workspaceId, cat.categoryId), 'Deleted')}
                 />
+                {/* GAP-010: accessible reorder via up/down actions (drag & drop would be an addon later) */}
+                <div role="group" aria-label="Reorder category" className="ml-auto flex gap-1">
+                  <button
+                    type="button"
+                    aria-label={`Move ${cat.displayName} up`}
+                    disabled={catIndex === 0 || busyId === cat.categoryId}
+                    onClick={async () => {
+                      const prev = categories[catIndex - 1];
+                      if (!prev) return;
+                      await withBusy(cat.categoryId, async () => {
+                        await services.moduleCategory.renameCategory(workspaceId, cat.categoryId, { sortOrder: prev.sortOrder }, userActor(user?.userId));
+                        await services.moduleCategory.renameCategory(workspaceId, prev.categoryId, { sortOrder: cat.sortOrder }, userActor(user?.userId));
+                      }, 'Moved up');
+                    }}
+                    className="rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:opacity-30"
+                  >↑</button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${cat.displayName} down`}
+                    disabled={catIndex === categories.length - 1 || busyId === cat.categoryId}
+                    onClick={async () => {
+                      const next = categories[catIndex + 1];
+                      if (!next) return;
+                      await withBusy(cat.categoryId, async () => {
+                        await services.moduleCategory.renameCategory(workspaceId, cat.categoryId, { sortOrder: next.sortOrder }, userActor(user?.userId));
+                        await services.moduleCategory.renameCategory(workspaceId, next.categoryId, { sortOrder: cat.sortOrder }, userActor(user?.userId));
+                      }, 'Moved down');
+                    }}
+                    className="rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:opacity-30"
+                  >↓</button>
+                </div>
               </div>
             </div>
           </li>

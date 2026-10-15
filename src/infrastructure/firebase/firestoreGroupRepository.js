@@ -35,6 +35,7 @@ export function createFirestoreGroupRepository(db) {
       organizationId: group.organizationId,
       name: group.name,
       description: group.description,
+      memberIds: group.memberIds || [],
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     };
@@ -46,6 +47,7 @@ export function createFirestoreGroupRepository(db) {
       organizationId: data.organizationId,
       name: data.name,
       description: data.description || '',
+      memberIds: data.memberIds || [],
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
