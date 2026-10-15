@@ -77,6 +77,16 @@ Future (Steps 26, 27, 28) may consume the same canonical meaning; they never int
 
 ## 5. Rules / Decision Engine (future)
 
+## 5c. Business Event Backbone (implemented Step 22)
+
+`src/core/events/businessEvent.js` + `functions/src/businessEventEngine.js` + `workspaces/{wsId}/businessEvents/{eventId}`
+
+- Canonical BusinessEvent: durable, append-only, trusted-server authored
+- Idempotency: `be_<operationId>_<eventType>` proves same logical operation never emits twice
+- Read-only rules: workspace members see events only; writes only via trusted commands
+- Reset contract sweeps businessEvents under workspace reset
+- This step ships no consumers — it's the Foundation every Step 23+ future Engine relies on
+
 **[Rules Architecture](docs/… is planned at Step 23)**
 
 **Decision structure now (Step 20):** evaluation vs mutation separation is documented. `RuleDefinition` is versioned; deterministic evaluate → recommended transition intents; Policy gate decides to auto-publish or route for approval. Loop prevention and idempotency (event-driven, operation-safe) are continuous. Agents may translate natural language TO proposed rules; they do NOT execute them.

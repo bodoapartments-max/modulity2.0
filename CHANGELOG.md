@@ -2,6 +2,42 @@
 
 All notable changes to Modulity 2.0 will be documented in this file.
 
+## Step 22 — Business Event Backbone
+
+### Added
+- `src/core/events/businessEvent.js` — canonical immutable BusinessEvent entity
+  (identity, type, workspace, source, actor, objectRef, payload, idempotencyKey,
+  correlationId, causeEventId, timestamps, contract version)
+- `functions/src/businessEventEngine.js` — trusted emission surface, reads inside
+  the same transaction the trusted command finishes (no extra event-write commit)
+- `functions/src/fakeDbHarness.js` — official deterministic in-memory Firestore
+  harness for trusted Engine test suites (replaces ad-hoc mocks from Step 19+)
+- recordCommandEngine integration: `CREATE_RECORD` now emits `record.created` inside
+  the same trusted commit (proven by fire tests)
+- `function Registry` descriptors via `BUILT_IN_CAPABILITY_DESCRIPTORS` include
+  `business-event` with emit/retrieve/correlate/cause-link capabilities
+- `firestore.rules` — `workspaces/{wsId}/businessEvents/{eventId}` is readable,
+  never writable by any browser; Step 22 durable append-only boundary
+- `workspaceResetContract` sweeps business events with workspace records
+- `undoer` Event write is tried AFTER trusted operations records (Command engine
+  writes them directly inside transactions) — while NO duplicate write attempts
+- Function Suites restructured: business event tests run in the canonical
+  harness and indirectly validate the trusted transaction order
+
+### Verification
+- Unit/UI: 945 green (945 updated projects including BusinessEvent tests)
+- Functions: 83 green (create + retry idempotency + negative source checks + deny-trusted
+  source — no event-NOtification/ledger)(now in our new fake harness)
+- Rules/emulator: 304 green on the new businessEvents rule set
+- Build: ✓ Lint: 4 warnings persist from after Step 17.
+
+### Architecture compliance
+- EVENT != COMMAND (commands write, events are emitted)
+- EVENT != AUDIT (Audit continues as before, both branches invite your event)
+- EVENT != LEDGER (Ledger registration called accordingly)
+- EVENT != NOTIFICATION (notification never consumed an event)
+- Reset policy included. Canonical = future events only.
+
 ## Step 21 — Capability Registry & Dependency Graph
 
 ### Added
