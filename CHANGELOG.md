@@ -22,6 +22,9 @@ All notable changes to Modulity 2.0 will be documented in this file.
 - QUORUM(n), REQUEST_CHANGES/RETURN/DELEGATE decision kinds, auto-expiry sweeper, signature integration (APPROVED ≠ SIGNED), org-admin cancellation, definition version history docs, Action Inbox UX (Step 42).
 - Verification: lint 0 errors, 1234 unit tests, 134 Functions tests, 328 rules tests, production build.
 
+### Closure
+- Implementation commit `add0f88`; remote CI run 38904867633 green (Lint, Test, Functions tests, Build).
+
 ## Step 30 — Universal Files & Attachments
 
 ### Added
@@ -121,1946 +124,987 @@ All notable changes to Modulity 2.0 will be documented in this file.
 ### Held
 - provider secrets never leave trusted execution — Step 28 Vault separates the production border
 
-��#   C h a n g e l o g 
- 
- 
- 
- A l l   n o t a b l e   c h a n g e s   t o   M o d u l i t y   2 . 0   w i l l   b e   d o c u m e n t e d   i n   t h i s   f i l e . 
- 
- 
- 
- # #   S t e p   2 5   �� �   C o n f i g u r a t i o n   L i f e c y c l e   &   V e r s i o n i n g 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` s r c / c o r e / c o n f i g u r a t i o n / c o n f i g u r a t i o n L i f e c y c l e . j s `   �� �   c a n o n i c a l   p i p e l i n e   a r o u n d   f o u r 
- 
-     c o n f i g u r a t i o n   s t a t u s e s :   D R A F T   �� �   V A L I D A T E D   �� �   P R O P O S E D   /   P E N D I N G _ A P P R O V A L   �� �   P U B L I S H E D 
- 
- -   I m m u t a b l e   r e v i s i o n s   h o l d   s t a b l e   l o g i c a l   i d e n t i t y   ( " c o n f i g u r a t i o n I d   +   r e v i s i o n " )   w i t h 
- 
-     e a r l i e r   h i s t o r i c a l   v e r s i o n s   p r e s e r v e d 
- 
- -   P u b l i c a t i o n   b o u n d a r y :   D R A F T   n e v e r   b e c o m e s   P U B L I S H E D   d i r e c t l y ;   A P P R O V A L _ R E Q U I R E D   i s 
- 
-     d i s t i n g u i s h e d   f r o m   A U T O _ E X E C U T E   �� �   d o   n o t   e x p o s e   d i s c r e p a n t   p a t h w a y   b y   m u t a t i o n ;   D E N Y   i s 
- 
-     d i s p o s i t i o n a l   w i l l p o w e r   ( p o l i t i c a l l y   b a r r i e r   s t e p ) . 
- 
- -   R u l e   c o n f i g   u s e s   S t e p   2 3   v a l i d a t o r   o n   r e q u i r e d   R U N   c o n t r o l   f i e l d s   �� �   R u l e D e f i n i t i o n s   a r e n ' t 
- 
-     v a l i d a t e d   t w i c e   �� �   r e u s e   o v e r a l l , 
- 
- -   R o l l b a c k   i s   a   N E W   r e v i s i o n   r a t h e r   t h a n   d e l e t i o n ;   h i s t o r y   i s   p r e s e r v e d   f o r e v e r . 
- 
- -   C a p a b i l i t y   R e g i s t r y   n o w   i n c l u d e s   ' c o n f i g u r a t i o n - l i f e c y c l e '   ( a v a i l a b l e ,   o u r   p o l i c y 
- 
-     b a s e   d e p e n d e n c y ) 
- 
- 
- 
- # # #   H e l d 
- 
- -   N o t h i n g   i s   p u b l i s h e d   s i l e n t l y .   A l l   t r u s t e d   e n g i n e s   r e c o r d   i t ,   t h e n   e m i t   o n l y   t h r o u g h   t h e 
- 
-     s h a r e d   t r u s t e d   e v e n t   b a c k b o n e . 
- 
- -   R o l l b a c k   n e v e r   m e a n s   r e v e r t   d e l e t i o n . 
- 
- 
- 
- # #   S t e p   2 4   �� �   P e r m i s s i o n   /   P o l i c y   /   A u t h o r i t y   +   T e m p o r a l   G r a n t s 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` s r c / c o r e / p e r m i s s i o n s / p o l i c y A u t h o r i t y . j s `   �� �   c a n o n i c a l   s m a l l   d e c i s i o n   s u r f a c e : 
- 
-     C R E A T E _ A U T H O R I T Y _ G R A N T   ( i m m u t a b l e ) ,   g r a n t A p p l i e s   t e m p o r a l   b o u n d s   o n   u n i t   b o u n d s 
- 
-     ( s t a r t - o p e n ,   e n d - e x c l u s i v e ) ,   d e c i d e A u t h o r i z a t i o n   y i e l d i n g   A U T O _ E X E C U T E   /   A P P R O V A L _ R E Q U I R E D   /   D E N Y . 
- 
- -   R u l e s   s u b s y s t e m   r e u s e   l e v e r a g e s   S t e p   2 3   d e t e r m i n i s t i c   e v a l u a t o r   �� �   t h e   m o d u l e   h a n d l e s   a l l   a s s e s s m e n t s . 
- 
- -   C a p a b i l i t y   R e g i s t r y :   r e g i s t e r e d   ' p o l i c y - a u t h o r i t y '   a s   A V A I L A B L E   w i t h   d e p e n d e n c y   o n   ' r u l e s ' 
- 
- 
- 
- # # #   M e r g e d   i n t o   t h e   t r u s t e d   p i p e l i n e 
- 
- 
- 
- T h e   t r u s t e d   d e c i s i o n   c h a i n   n o w   i s   t h e   l o n g - k n o w n   s e q u e n c e : 
- 
- 
- 
- ` ` ` 
- 
- B u s i n e s s E v e n t   �� �   R u l e s   �� �   T r a n s i t i o n I n t e n t   �� �   P e r m i s s i o n   �� �   A u t h o r i t y / T e m p o r a l G r a n t 
- 
-     �� �   P o l i c y   �� �   A U T O _ E X E C U T E   |   A P P R O V A L _ R E Q U I R E D   |   D E N Y   �� �   T r u s t e d   c o m m a n d   /   c a n o n i c a l   e n g i n e 
- 
- ` ` ` 
- 
- 
- 
- # # #   H e l d 
- 
- -   A p p r o v a l   E n g i n e   a n d   e v a l u a t i o n   a p p r o v a l   r e c o r d s   s h i p s   i n   a   l a t e r   m i l e s t o n e   �� �   S t e p 
- 
-     2 4   r e p o r t s   A P P R O V A L _ R E Q U I R E D   b u t   d o e s n ' t   c r e a t e   a p p r o v a l   o b j e c t s . 
- 
- -   N o   n e w   c l i e n t - w r i t a b l e   p o l i c y / g r a n t s   s t o r a g e ;   S t e p   2 5 ' s   c o n f i g u r a t i o n   l i f e c y c l e   i s   t h e   p l a c e . 
- 
- 
- 
- # #   S t e p   2 3   �� �   R u l e s   /   D e c i s i o n   E n g i n e 
- 
- 
- 
- # #   S t e p   2 2   �� �   B u s i n e s s   E v e n t   B a c k b o n e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` s r c / c o r e / e v e n t s / b u s i n e s s E v e n t . j s `   �� �   c a n o n i c a l   i m m u t a b l e   B u s i n e s s E v e n t   e n t i t y 
- 
-     ( i d e n t i t y ,   t y p e ,   w o r k s p a c e ,   s o u r c e ,   a c t o r ,   o b j e c t R e f ,   p a y l o a d ,   i d e m p o t e n c y K e y , 
- 
-     c o r r e l a t i o n I d ,   c a u s e E v e n t I d ,   t i m e s t a m p s ,   c o n t r a c t   v e r s i o n ) 
- 
- -   ` f u n c t i o n s / s r c / b u s i n e s s E v e n t E n g i n e . j s `   �� �   t r u s t e d   e m i s s i o n   s u r f a c e ,   r e a d s   i n s i d e 
- 
-     t h e   s a m e   t r a n s a c t i o n   t h e   t r u s t e d   c o m m a n d   f i n i s h e s   ( n o   e x t r a   e v e n t - w r i t e   c o m m i t ) 
- 
- -   ` f u n c t i o n s / s r c / f a k e D b H a r n e s s . j s `   �� �   o f f i c i a l   d e t e r m i n i s t i c   i n - m e m o r y   F i r e s t o r e 
- 
-     h a r n e s s   f o r   t r u s t e d   E n g i n e   t e s t   s u i t e s   ( r e p l a c e s   a d - h o c   m o c k s   f r o m   S t e p   1 9 + ) 
- 
- -   r e c o r d C o m m a n d E n g i n e   i n t e g r a t i o n :   ` C R E A T E _ R E C O R D `   n o w   e m i t s   ` r e c o r d . c r e a t e d `   i n s i d e 
- 
-     t h e   s a m e   t r u s t e d   c o m m i t   ( p r o v e n   b y   f i r e   t e s t s ) 
- 
- -   ` f u n c t i o n   R e g i s t r y `   d e s c r i p t o r s   v i a   ` B U I L T _ I N _ C A P A B I L I T Y _ D E S C R I P T O R S `   i n c l u d e 
- 
-     ` b u s i n e s s - e v e n t `   w i t h   e m i t / r e t r i e v e / c o r r e l a t e / c a u s e - l i n k   c a p a b i l i t i e s 
- 
- -   ` f i r e s t o r e . r u l e s `   �� �   ` w o r k s p a c e s / { w s I d } / b u s i n e s s E v e n t s / { e v e n t I d } `   i s   r e a d a b l e , 
- 
-     n e v e r   w r i t a b l e   b y   a n y   b r o w s e r ;   S t e p   2 2   d u r a b l e   a p p e n d - o n l y   b o u n d a r y 
- 
- -   ` w o r k s p a c e R e s e t C o n t r a c t `   s w e e p s   b u s i n e s s   e v e n t s   w i t h   w o r k s p a c e   r e c o r d s 
- 
- -   ` u n d o e r `   E v e n t   w r i t e   i s   t r i e d   A F T E R   t r u s t e d   o p e r a t i o n s   r e c o r d s   ( C o m m a n d   e n g i n e 
- 
-     w r i t e s   t h e m   d i r e c t l y   i n s i d e   t r a n s a c t i o n s )   �� �   w h i l e   N O   d u p l i c a t e   w r i t e   a t t e m p t s 
- 
- -   F u n c t i o n   S u i t e s   r e s t r u c t u r e d :   b u s i n e s s   e v e n t   t e s t s   r u n   i n   t h e   c a n o n i c a l 
- 
-     h a r n e s s   a n d   i n d i r e c t l y   v a l i d a t e   t h e   t r u s t e d   t r a n s a c t i o n   o r d e r 
- 
- 
- 
- # # #   V e r i f i c a t i o n 
- 
- -   U n i t / U I :   9 4 5   g r e e n   ( 9 4 5   u p d a t e d   p r o j e c t s   i n c l u d i n g   B u s i n e s s E v e n t   t e s t s ) 
- 
- -   F u n c t i o n s :   8 3   g r e e n   ( c r e a t e   +   r e t r y   i d e m p o t e n c y   +   n e g a t i v e   s o u r c e   c h e c k s   +   d e n y - t r u s t e d 
- 
-     s o u r c e   �� �   n o   e v e n t - N O t i f i c a t i o n / l e d g e r ) ( n o w   i n   o u r   n e w   f a k e   h a r n e s s ) 
- 
- -   R u l e s / e m u l a t o r :   3 0 4   g r e e n   o n   t h e   n e w   b u s i n e s s E v e n t s   r u l e   s e t 
- 
- -   B u i l d :   �� �   L i n t :   4   w a r n i n g s   p e r s i s t   f r o m   a f t e r   S t e p   1 7 . 
- 
- 
- 
- # # #   A r c h i t e c t u r e   c o m p l i a n c e 
- 
- -   E V E N T   ! =   C O M M A N D   ( c o m m a n d s   w r i t e ,   e v e n t s   a r e   e m i t t e d ) 
- 
- -   E V E N T   ! =   A U D I T   ( A u d i t   c o n t i n u e s   a s   b e f o r e ,   b o t h   b r a n c h e s   i n v i t e   y o u r   e v e n t ) 
- 
- -   E V E N T   ! =   L E D G E R   ( L e d g e r   r e g i s t r a t i o n   c a l l e d   a c c o r d i n g l y ) 
- 
- -   E V E N T   ! =   N O T I F I C A T I O N   ( n o t i f i c a t i o n   n e v e r   c o n s u m e d   a n   e v e n t ) 
- 
- -   R e s e t   p o l i c y   i n c l u d e d .   C a n o n i c a l   =   f u t u r e   e v e n t s   o n l y . 
- 
- 
- 
- # #   S t e p   2 1   �� �   C a p a b i l i t y   R e g i s t r y   &   D e p e n d e n c y   G r a p h 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` s r c / c a p a b i l i t i e s / c a p a b i l i t y R e g i s t r y . j s `   �� �   c a n o n i c a l   r e a d - s i d e   r e g i s t r y   f a c a d e : 
- 
-     d e t e r m i n i s t i c   l i s t / h a s / g e t / r e s o l v e   f o r   e v e r y   r e g i s t e r e d   c a p a b i l i t y , 
- 
-     e n g i n e - b o u n d e d   d e p e n d e n c i e s ,   r e v e r s e   d e p e n d e n t s ,   c y c l e   d i a g n o s t i c s , 
- 
-     a n d   e x p l i c i t   r e s o l u t i o n   s t a t u s e s :   O K ,   U N K N O W N _ C A P A B I L I T Y ,   M I S S I N G _ D E P E N D E N C Y , 
- 
-     D E P E N D E N C Y _ C Y C L E 
- 
- -   C e n t r a l   d e s c r i p t o r   c a t a l o g   n o w   s u r f a c e s   t h r o u g h   ` s e r v i c e s . c a p a b i l i t y ` ;   F u t u r e 
- 
-     f r a m e w o r k   c o n s u m e r s   ( P l a t f o r m   G a t e w a y ,   I n t e g r a t i o n s ,   W o r d P r e s s )   u s e   t h i s 
- 
-     c a n o n i c a l   m e a n i n g ;   n o t h i n g   n e w   w a s   i n t r o d u c e d   t o   r e - r e g i s t e r 
- 
- -   G A P - 0 1 4   c l o s e s   c o r r e c t l y   �� �   c a p a b i l i t y   c o n t r a c t s   a r e   n o w   c a n o n i c a l 
- 
-     m a c h i n e - r e a d a b l e   m e t a d a t a 
- 
- 
- 
- # # #   H e l d 
- 
- -   N o   b u s i n e s s   l o g i c   c h a n g e ;   e x i s t i n g   S t e p   0 �� � 2 0   s u i t e s   r e m a i n   g r e e n 
- 
- -   E n g i n e   D e v e l o p m e n t   G u i d e ' s   f i r s t   " r e f e r e n c e   i m p l e m e n t a t i o n "   t a r g e t   ( B u s i n e s s 
- 
-     E v e n t   B a c k b o n e   @   S t e p   2 2 )   r e m a i n s   o n   r o a d m a p   �� �   n o t   i m p l e m e n t e d   i n   S t e p   2 1 
- 
- 
- 
- 
- 
- # #   S t e p   2 0   �� �   N e x t   P l a t f o r m   A r c h i t e c t u r e ,   R o a d m a p   R e a l i g n m e n t   &   D e v e l o p m e n t   C o n t i n u i t y 
- 
- 
- 
- A n   a r c h i t e c t u r e   c h e c k p o i n t .   Z e r o   c o d e   c h a n g e s ;   a l l   w o r k   i s   d o c u m e n t a t i o n   +   r o a d m a p   r e a l i g n m e n t . 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` d o c s / N E X T _ P L A T F O R M _ A R C H I T E C T U R E . m d `   �� �   p l a t f o r m   b o u n d a r y ,   g a t e w a y ,   e v e n t s / r u l e s / p o l i c y   s p l i t ,   t e m p o r a l   a u t h o r i t y ,   s i m   v s   p r o d u c t i o n 
- 
- -   ` d o c s / E N G I N E _ D E V E L O P M E N T _ G U I D E . m d `   �� �   v a l u e   c o n t r a c t   f o r   a n y   f u t u r e   E n g i n e   ( d e p e n d e n c i e s ,   c a n o n i c a l   b o u n d a r i e s ,   p r o h i b i t i o n s ) 
- 
- -   ` H A N D O F F _ A G E N T _ C O N T I N U I T Y . m d `   e x t e n d e d   w i t h   t h e   F r e s h   A g e n t   C o n t i n u a t i o n   T e s t   +   D e v e l o p m e n t   C o n t i n u i t y   C o n t r a c t   +   m u l t i - A g e n t   p r o t o c o l   +   R e v i e w e r   r o l e 
- 
- -   A D R - 0 0 1 5   �� �   t h e   p l a t f o r m   r e a l i g n m e n t   d e c i s i o n   i s   a   r e c o r d e d ,   n o n - n e g o t i a b l e   m i l e s t o n e   d e c i s i o n 
- 
- -   M O D U L I T Y _ M A S T E R _ R O A D M A P . m d :   S t e p   2 1 +   s e c t i o n   r e w r i t t e n   t o   b e   d e p e n d e n c y - a w a r e   ( ` R e q u i r e s / P r o v i d e s / U n l o c k s `   f o r   e v e r y   r o w ) 
- 
- 
- 
- # # #   D e f e r r e d   b y   d e s i g n   ( s t i l l   f u t u r e   w o r k ) 
- 
- 
- 
- N o   r u n t i m e   i m p l e m e n t a t i o n   b e l o w   S t e p   2 0   �� �   a l l   n e w   a r c h i t e c t u r e   i s   r e s e r v e d   f o r   f u t u r e   m i l e s t o n e s .   S e e   K N O W N _ G A P S _ R E G I S T E R   f o r   t h e   c u r r e n t   i n v e n t o r y . 
- 
- 
- 
- 
- 
- # #   S t e p   1 9   v 2   �� �   O r g a n i z a t i o n ,   C h a t   R o o m s ,   C o m m u n i c a t i o n   C o n t e x t   &   U X   S t a b i l i t y   ( F I N A L   v 2 ) 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` R O O M `   C o n v e r s a t i o n   t y p e   w i t h   e x p l i c i t   t o p i c ,   d e s c r i p t i o n ,   I N V I T E _ O N L Y   /   W O R K S P A C E _ V I S I B L E   v i s i b i l i t y ,   o w n e r   s e m a n t i c s ,   m e m b e r I d s ;   C R E A T E _ R O O M _ C O N V E R S A T I O N   c o m m a n d   r e s o l v e s   i n v i t e d   G r o u p s   S E R V E R - S I D E   ( t r u s t e d   G r o u p   e x p a n s i o n :   c u r r e n t   m e m b e r s h i p   s n a p s h o t ;   f u t u r e   g r o u p   c h a n g e s   d o   N O T   g r a n t   o l d   i n v i t e - o n l y   R o o m   a c c e s s   �� �   G A P - 0 1 7   c l o s e d   c o r r e c t l y   t h i s   t i m e ) 
- 
- -   ` R O O M _ A D D _ M E M B E R `   /   ` R O O M _ R E M O V E _ M E M B E R `   �� �   R o o m   o w n e r   o n l y ,   t r u s t e d ,   t r a n s a c t i o n a l 
- 
- -   R o o m   c r e a t i o n   U X :   t o p i c   +   o p t i o n a l   d e s c r i p t i o n   +   v i s i b i l i t y   r a d i o   +   P e o p l e / G r o u p s   i n v i t e   c h e c k b o x e s   i n   C r e a t e   C h a t   R o o m   d i a l o g 
- 
- -   N o t i f i c a t i o n   e v e n t   ` c h a t . r o o m _ i n v i t e d `   �� �   o n e   d e t e r m i n i s t i c   n o t i f i c a t i o n   p e r   i n v i t e d   r e c i p i e n t ;   r e t r i e s   c a n n o t   d u p l i c a t e 
- 
- -   R o o m   b a d g e s   o n   t h e   c o n v e r s a t i o n   l i s t   ( R O O M   ,%V%  I N V I T E   /   R O O M   ,%V%  W O R K S P A C E ) 
- 
- -   P e o p l e   /   G r o u p s   /   L e d g e r   r e v i s i t   n o w   l i v e   t h r o u g h   ` w o r k s p a c e Q u e r y C a c h e `   ( c a r r i e d   f r o m   S t e p   1 9   f i n a l   s c o p e ) 
- 
- -   H A N D O F F _ A G E N T _ C O N T I N U I T Y . m d   �� �   p e r m a n e n t   m u l t i - a g e n t   r u l e s   n o w   l i n k e d   f r o m   A G E N T S . m d 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   G A P - 0 1 0   m o d u l e / c a t e g o r y   r e o r d e r   n o w   u s e s   a c c e s s i b l e   U p / D o w n   a r r o w s   o n   t h e   c a t e g o r i e s   p a g e   ( S t a g e - a p p r o p r i a t e ;   d r a g   &   d r o p   c a n   f o l l o w   l a t e r ) 
- 
- -   S t e p   1 8   c h a t   C o n t r a c t s   r e m a i n :   C H A T _ R O O M _ I N V I T E D   a d d e d   t o   t h e   c a n o n i c a l   e v e n t   v o c a b u l a r y 
- 
- -   S t e p   1 9   F I N A L   v 2   a c c e p t a n c e :   G A P - 0 1 7   i s   C L O S E D   a s   a   w h o l e   ( G r o u p   s n a p s h o t   i n v i t e s )   �� �   t h e   p r e v i o u s l y   r e p o r t e d   r e s i d u a l   " G r o u p �� � C h a n n e l   m e m b e r   r e s o l u t i o n   d e f e r r e d "   i s   s u p e r s e d e d 
- 
- 
- 
- # # #   D e f e r r e d   ( K n o w n   G a p s   u n c h a n g e d ) 
- 
- -   G A P - 0 1 8   m e s s a g e   e d i t / d e l e t e   a n d   n e s t i n g   r e v i e w   a t   S t e p   2 0 . 1 
- 
- -   G A P - 0 1 9   c o n t e x t   c o n v e r s a t i o n   a c c e s s   s e m a n t i c s   r e v i e w   a t   S t e p   2 0 . 1 
- 
- 
- 
- -   L e d g e r ,   P e o p l e ,   G r o u p s   p a g e s   n o w   l o a d   f r o m   ` w o r k s p a c e Q u e r y C a c h e `   ( r e v i s i t s   a r e   i n s t a n t ,   s i l e n t   r e v a l i d a t i o n   r e p l a c e s   i n s t e a d   o f   b l a n k i n g ) 
- 
- -   G r o u p s   e x p a n d e d   w i t h   m e m b e r I d s   o n   t h e   c a n o n i c a l   m o d e l   ( c r e a t e G r o u p )   a n d   w o r k s p a c e - m e m b e r   p i c k e r   i n   G r o u p s P a g e ;   g r o u p S e r v i c e   p r o v i d e s   a d d G r o u p M e m b e r / r e m o v e G r o u p M e m b e r 
- 
- -   C h a t   " N e w   D i r e c t "   e m p t y   s t a t e   n o w   h a s   a n   " I n v i t e   p e r s o n "   C T A   r e s o l v i n g   t o   t h e   P e o p l e   /   i n v i t e   s u r f a c e 
- 
- -   C h a t   " N e w   C h a n n e l "   r e t a i n s   i t s   m e m b e r   m u l t i - s e l e c t   w i t h   i m p r o v e d   e m p t y - s t a t e   h a n d l i n g 
- 
- -   C a t e g o r y   o r d e r i n g   v i a   a c c e s s i b l e   U p / D o w n   a r r o w s   o n   M o d u l e C a t e g o r i e s P a g e   ( G A P - 0 1 0   c l o s e s   w i t h o u t   i n t r o d u c i n g   d r a g - d r o p   U X   d e b t   y e t ) 
- 
- -   ` d o c s / H A N D O F F _ A G E N T _ C O N T I N U I T Y . m d `   �� �   p e r m a n e n t   m u l t i - a g e n t   h a n d o f f   r u l e s ;   A G E N T S . m d   n o w   l i n k s   t o   i t 
- 
- -   E 2 E   ` s t e p 1 9 . e 2 e . s p e c . j s ` :   r e v i s i t   s t a b i l i t y ,   D i r e c t   C T A ,   c h a n n e l   c r e a t e + s e n d ,   r e s e t   g h o s t   c h e c k 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   G A P - 0 1 7   c l o s e d :   G r o u p s   p r o v i d e   r e a l   m e m b e r   m a n a g e m e n t   w i t h   i n t e n t   t h r o u g h   t h e   e x i s t i n g   g r o u p S e r v i c e   ( n o   n e w   t r u s t e d - c o m m a n d   s u r f a c e   r e q u i r e d   �� �   o r g a n i z a t i o n a l ,   n o t   s e c u r i t y - s e n s i t i v e ) 
- 
- -   S e c u r e d   f a v o r i t e s   i n t e n t   p a t h   k e e p s   d e l e g a t i n g   t o   ` f o l d e r . t o g g l e S t a r `   ( a l r e a d y   c a n o n i c a l ) ;   s h a r i n g   i n t a c t   t h r o u g h   ` s e c u r e S h a r e S e r v i c e `   /   ` r e c o r d F o l d e r S e r v i c e ` 
- 
- 
- 
- # # #   D e f e r r e d   ( K n o w n   G a p s ) 
- 
- -   G A P - 0 1 8   m e s s a g e   e d i t / d e l e t e   a n d   d e e p   t h r e a d   t r e e s   r e m a i n   d e f e r r e d   t o   S t e p   2 0 . 1 
- 
- -   G A P - 0 1 9   c o n t e x t   c o n v e r s a t i o n   a c c e s s   s e m a n t i c s   r e m a i n   a   p r o d u c t / s e c u r i t y   d e c i s i o n   f o r   S t e p   2 0 . 1 
- 
- 
- 
- 
- 
- # #   S t e p   1 8   �� �   W o r k s p a c e   C h a t   &   C o n t e x t u a l   C o n v e r s a t i o n s   ( +   C a l e n d a r   /   R e c o r d s   a c c e p t a n c e   f i x e s ) 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` c h a t C o m m a n d `   t r u s t e d   c a l l a b l e   ( 6   c o m m a n d s )   w i t h   j o u r n a l   r e p l a y ,   i d e m p o t e n c y ,   d e t e r m i n i s t i c   D M / c o n t e x t   i d s 
- 
- -   ` s r c / c o r e / c h a t / c h a t D o m a i n . j s `   +   ` c h a t C o m m a n d C o n t r a c t . j s `   �� �   c a n o n i c a l   C o n v e r s a t i o n / M e s s a g e   m o d e l   w i t h   t y p e d   c o n t e x t R e f e r e n c e 
- 
- -   ` C o n t e x t C o n v e r s a t i o n L i n k `   o n   R e c o r d   D e t a i l   /   E n t i t y   D e t a i l   /   M o d u l e   D e t a i l 
- 
- -   N o t i f i c a t i o n   e v e n t s   ` c h a t . d i r e c t _ m e s s a g e ` ,   ` c h a t . m e n t i o n e d ` ,   ` c h a t . c o n t e x t _ m e s s a g e `   v i a   S t e p   1 7   c h a n n e l 
- 
- -   R e a d - s t a t e   p e r   u s e r   f o r   u n r e a d   i n d i c a t o r s 
- 
- -   C a l e n d a r   r e v i s i t   u s e s   d a y - n o r m a l i z e d   c a c h e   w i n d o w s   ( n o   f l a s h   o n   r e v i s i t ) 
- 
- -   R e c o r d s   l i s t   w a i t s   f o r   m o d u l e   m e t a d a t a   b e f o r e   r e n d e r i n g   t i t l e s ;   s t a b l e   p l a c e h o l d e r   r e p l a c e s   t e c h n i c a l   f a l l b a c k   d u r i n g   c o l d   l o a d 
- 
- -   R u l e s   l o c k   c o n v e r s a t i o n s / m e m b e r s / m e s s a g e s / r e a d S t a t e s   t o   t h e   c h a t C o m m a n d   b o u n d a r y 
- 
- -   E 2 E   ` s t e p 1 8 . e 2 e . s p e c . j s ` :   c h a n n e l   c r e a t i o n ,   m e s s a g i n g ,   R e c o r d   c o n t e x t   c o n v e r s a t i o n ,   r e s e t   g h o s t - c h e c k 
- 
- 
- 
- # # #   D e f e r r e d   ( K n o w n   G a p s ) 
- 
- -   W O R K S P A C E - t y p e   c o n v e r s a t i o n s   ( G A P - 0 1 7   �� �   S t e p   1 9 ) 
- 
- -   M e s s a g e   e d i t / d e l e t e   +   n e s t e d   t h r e a d s   ( G A P - 0 1 8   �� �   S t e p   2 0 . 1   r e v i e w ) 
- 
- -   R e s t r i c t e d   c o n t e x t   c o n v e r s a t i o n s   ( G A P - 0 1 9   �� �   S t e p   2 0 . 1   r e v i e w ) 
- 
- 
- 
- # #   S t e p   1 7 . 4   �� �   T e c h n i c a l   I d e n t i f i e r   U X   H a r d e n i n g 
- 
- 
- 
- # #   S t e p   1 7 . 3   �� �   T r u s t e d   E n t i t y   &   M o d u l e   A d m i n i s t r a t i o n   +   C h a n g e   H i s t o r y 
- 
- 
- 
- # # #   A d d e d 
- 
- -   ` a d m i n C o m m a n d `   c a l l a b l e   w i t h   v e r s i o n e d   c o n t r a c t   c o v e r i n g   2 0   t y p e d   c o m m a n d s : 
- 
-     E n t i t y   T y p e ,   E n t i t y ,   M o d u l e ,   M o d u l e   C a t e g o r y   l i f e c y c l e   ( c r e a t e   /   u p d a t e   /   a r c h i v e   /   r e s t o r e   /   d e l e t e ) 
- 
- -   T y p e d ,   c l o s e d - r e g i s t r y   d e p e n d e n c y   a n a l y z e r   b l o c k i n g   h a r d   D e l e t e s   w i t h   h u m a n - r e a d a b l e   r e a s o n s 
- 
- -   S e r v e r - g e n e r a t e d   t e c h n i c a l   i d e n t i f i e r s   f o r   a l l   a d m i n   c r e a t e s   ( ` t e c h n i c a l C o d e . j s `   c o l l i s i o n - s a f e   s t r a t e g y ) 
- 
- -   D u r a b l e   b e f o r e / a f t e r   A u d i t   o n   e v e r y   a d m i n   m u t a t i o n ,   c o m m i t t e d   i n   t h e   s a m e   t r a n s a c t i o n ;   h i s t o r y   o u t l i v e s   d e l e t e d   d o c u m e n t s 
- 
- -   C O N T A C T   C o r e   E n t i t y   T y p e   ( ` c o r e : c o n t a c t ` )   �� �   b u s i n e s s   c o n t a c t ,   n e v e r   a n   a u t h   p r i n c i p a l 
- 
- -   U I :   ` A d m i n A c t i o n s `   s h a r e d   s t r i p ,   ` A d m i n H i s t o r y P a g e `   w i t h   f i l t e r s   +   b e f o r e / a f t e r   d i f f   v i e w ,   ` M o d u l e C a t e g o r i e s P a g e ` ,   a d m i n - w i r e d   E n t i t y   T y p e / E n t i t y / M o d u l e   p a g e s 
- 
- -   F u n c t i o n   s u i t e   f o r   t h e   t r u s t e d   e n g i n e   ( 1 3   t e s t s :   a u t h o r i z a t i o n ,   f o r g e - r e j e c t i o n ,   l i f e c y c l e   i d e m p o t e n c y ,   d e p e n d e n c y   b l o c k i n g ,   r e t r y   d e d u p e ,   C O N T A C T ) 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   C o r e   s e r v i c e s   r o u t e   m u t a t i o n s   t h r o u g h   t r u s t e d   c o m m a n d s   w h i l e   k e e p i n g   r e p o   r e a d s ;   s i g n a t u r e s   p r e s e r v e d   f o r   a l l   c a l l e r s 
- 
- -   B r o w s e r s   c a n   n o   l o n g e r   c r e a t e   M o d u l e s ,   e n t i t y   T y p e s ,   E n t i t i e s ,   o r   M o d u l e   C a t e g o r i e s   d i r e c t l y ;   e x i s t i n g   R u l e s   n o w   e n f o r c e   s e r v e r - o n l y   a d m i n i s t r a t i o n   w r i t e s 
- 
- -   L e g a c y / p r e - 1 7 . 3   o b j e c t s   r e m a i n   f u l l y   u s a b l e ;   h i s t o r y   s t a r t s   a t   1 7 . 3   ( n o   f a b r i c a t e d   l e g a c y   a u d i t ) 
- 
- 
- 
- # #   S t e p   1 7 . 2   �� �   M o d u l e   O r g a n i z a t i o n ,   C a t e g o r i e s   &   P e r s o n a l   M o d u l e   S e l e c t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   C a n o n i c a l   M o d u l e   C a t e g o r y   m o d e l   ( ` m o d u l e C a t e g o r i e s ` ,   w o r k s p a c e - s c o p e d ,   A C T I V E / A R C H I V E D )   �� �   o n e   t a x o n o m y   s h a r e d   b y   m a n u a l   a n d   A u t o m a t - g e n e r a t e d   M o d u l e s 
- 
- -   ` c a t e g o r y I d `   o n   M o d u l e s ;   l e g a c y   f r e e - t e x t   ` c a t e g o r y `   k e p t   a s   a   h i s t o r i c a l   s n a p s h o t 
- 
- -   P e r s o n a l   M o d u l e   s e l e c t i o n   p r e f e r e n c e s   o n   ` u s e r W o r k s p a c e P r e f e r e n c e s `   ( ` m o d u l e S e l e c t i o n ` :   s e l e c t e d   i d s ,   o r d e r ,   v i e w M o d e )   �� �   v a l i d a t e d   a g a i n s t   r e a l   w o r k s p a c e   M o d u l e s   o n   w r i t e 
- 
- -   M y   M o d u l e s   u p g r a d e :   s e a r c h ,   c a t e g o r y   f i l t e r ,   g r o u p e d / f l a t   t o g g l e ,   C u s t o m i z e   p a n e l   w i t h   c h e c k b o x   s e l e c t i o n   a n d   d e t e r m i n i s t i c   o r d e r   c o n t r o l s 
- 
- -   H e a d e r   ` A l l   M o d u l e s `   n a v i g a t o r :   g r o u p e d   a u t h o r i z e d   d i s c o v e r y   o v e r   t h e   s a m e   c a n o n i c a l   c a t e g o r y   d a t a   �� �   i g n o r e s   p e r s o n a l   s e l e c t i o n ,   s o   h i d d e n - b u t - a u t h o r i z e d   M o d u l e s   r e m a i n   d i s c o v e r a b l e 
- 
- -   M o d u l e   D e s i g n e r :   c a n o n i c a l   c a t e g o r y   s e l e c t o r   w i t h   i n l i n e   " +   N e w   C a t e g o r y " ;   M o d u l e   C o d e   f i e l d   o p t i o n a l   a n d   a u t o - g e n e r a t e d   f r o m   N a m e 
- 
- -   ` s r c / c o r e / u t i l s / t e c h n i c a l C o d e . j s `   �� �   d e t e r m i n i s t i c   t e c h n i c a l   i d e n t i f i e r   g e n e r a t i o n   w i t h   c o l l i s i o n - s a f e   s u f f i x e s 
- 
- -   A u t o m a t   a p p l y   n o r m a l i z e s   p r o p o s a l   a r e a s   i n t o   t h e   c a n o n i c a l   c a t e g o r y   c o l l e c t i o n   ( s a m e   m o d e l   a s   m a n u a l   U I ) 
- 
- -   R u l e s   f o r   ` m o d u l e C a t e g o r i e s ` ;   p e r - u s e r   p r e f e r e n c e   i s o l a t i o n   n e g a t i v e   t e s t s 
- 
- -   W o r k s p a c e   R e s e t   n o w   a l s o   r e m o v e s   ` m o d u l e C a t e g o r i e s ` 
- 
- -   A D R - 0 0 1 2 ,   M O D U L E _ O R G A N I Z A T I O N _ A R C H I T E C T U R E . m d 
- 
- -   L i v e   E 2 E   ` t e s t s / e 2 e / s t e p 1 7 _ 2 . e 2 e . s p e c . j s `   c o v e r i n g   c a t e g o r y   c r e a t e / a s s i g n / a u t o - c o d e ,   U n c a t e g o r i z e d   f a l l b a c k ,   p e r s o n a l   s e l e c t i o n   +   o r d e r   +   m o d e   p e r s i s t e n c e   a c r o s s   r e l o a d ,   A l l   M o d u l e s   d i s c o v e r y   ( h i d d e n - b u t - a u t h o r i z e d   s t a y s   v i s i b l e ) ,   a n d   r e s e t 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   C r e a t e   M o d u l e   n o   l o n g e r   r e q u i r e s   t y p i n g   a   t e c h n i c a l   c o d e   �� �   t h e   p l a t f o r m   g e n e r a t e s   i t   c o l l i s i o n - s a f e l y 
- 
- -   M o d u l e   D e t a i l   C a t e g o r y   i s   a   l i v e   s e l e c t o r   t h a t   r e a s s i g n s   o r g a n i z a t i o n a l   g r o u p i n g   w i t h o u t   t o u c h i n g   R e c o r d s / L e d g e r / M o d u l e V e r s i o n   h i s t o r y 
- 
- 
- 
- # # #   R e g r e s s i o n 
- 
- -   S t e p   1 7   /   1 7 . 1   /   1 7 . 1 . 1   l i v e   E 2 E   r e m a i n   g r e e n   ( 1 7 . 1   g o t   a   v i e w e r   f i x :   F o r m R e n d e r e r   a c t i o n s   a r e   n o w   f u l l y   u n m o u n t e d   i n   h i d e A c t i o n s   m o d e   i n s t e a d   o f   t h e   ` h i d d e n `   a t t r i b u t e   t r a p ) 
- 
- 
- 
- # #   S t e p   1 7 . 1 . 1   �� �   C o n f i g u r a b l e   L e d g e r   B o o k s   &   U n i v e r s a l   L e d g e r   S o u r c e s 
- 
- 
- 
- # # #   A d d e d 
- 
- -   T y p e d   d e c l a r a t i v e   ` s o u r c e D e f i n i t i o n `   o n   L e d g e r   B o o k s   ( c l o s e d   u n i o n ;   v 1 :   ` {   t y p e :   ' M O D U L E ' ,   m o d u l e I d   } ` )   �� �   n e v e r   a r b i t r a r y   q u e r y   c o n f i g 
- 
- -   ` p r o v i s i o n e d B y `   ( ` A U T O ` | ` U S E R ` )   s e r v e r - d e r i v e d   p r o v e n a n c e   o n   b o o k s 
- 
- -   T r u s t e d   r o u t i n g :   s u b m i s s i o n s   p r e f e r   t h e   U S E R - c o n f i g u r e d   A C T I V E   r e g i s t e r   f o r   t h e   M o d u l e ;   p e r - M o d u l e   A U T O   b o o k   r e m a i n s   t h e   e v i d e n c e   f a l l b a c k 
- 
- -   D e t e r m i n i s t i c   h i s t o r i c a l   b a c k f i l l   o n   b o o k   c r e a t i o n :   e l i g i b l e   R e c o r d s   ( _ c r e a t e d A t   o r d e r ,   �� � 1 0 0 0 )   r e g i s t e r   v i a   t h e   o r d i n a r y   t r u s t e d   p a t h   w i t h   ` b a c k f i l l - { o p I d } - { r e c o r d I d } `   o p   i d s ;   j o u r n a l   r e p l a y s   c o n t i n u e   i d e m p o t e n t l y 
- 
- -   C r e a t e   L e d g e r   B o o k   p a g e :   M o d u l e   s o u r c e   s e l e c t o r ,   a u t o - s u g g e s t e d   c o d e / p r e f i x ,   i n l i n e   t r u s t e d   e r r o r s 
- 
- -   C o n t r a c t   ` l e d g e r C o m m a n d `   1 . 1 . 0   ( 1 . 0 . 0   s t i l l   a c c e p t e d ;   a d d i t i v e ) 
- 
- -   F u n c t i o n   t e s t s   f o r   s o u r c e   v a l i d a t i o n ,   f o r g e d - s o u r c e   r e j e c t i o n ,   b a c k f i l l   i d e m p o t e n c y / o r d e r ,   r o u t i n g   p r e f e r e n c e   ( 5 8   t o t a l ) 
- 
- -   U I   t e s t s   f o r   t h e   c o n f i g u r a t i o n   p a g e ;   c o r e   c o n t r a c t   t e s t s   f o r   ` l e d g e r S o u r c e D e f i n i t i o n ` 
- 
- -   L i v e   E 2 E   ` t e s t s / e 2 e / s t e p 1 7 _ 1 _ 1 . e 2 e . s p e c . j s ` :   h i d d e n   a u t o   e v i d e n c e   �� �   c o n f i g u r e   b o o k   �� �   b a c k f i l l   �� �   r o u t i n g   �� �   v o i d   s t a y s   c o n s u m e d   �� �   r e s e t   c l e a n   r e b u i l d 
- 
- -   A D R - 0 0 1 1 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   L e d g e r   m a i n   p a g e :   " L e d g e r   B o o k "   r o w s   ( A u t o   b a d g e ) ,   U s e d / V o i d e d / R e m a i n i n g   c o u n t e r s   w o r d i n g ,   h o n e s t   e m p t y   s t a t e 
- 
- 
- 
- # #   S t e p   1 7 . 1   �� �   U n i v e r s a l   F o r m   L e d g e r   &   H i s t o r i c a l   F o r m   V i e w e r 
- 
- 
- 
- # # #   A d d e d 
- 
- -   S e r v e r - s i d e   a u t o - r e g i s t r a t i o n :   t r u s t e d   ` S U B M I T _ R E C O R D `   ( a n d   n o n - d r a f t   ` C R E A T E _ R E C O R D ` )   c h a i n s   ` e n s u r e M o d u l e L e d g e r B o o k `   +   ` R E G I S T E R _ L E D G E R _ E N T R Y `   w i t h   d e t e r m i n i s t i c   o p e r a t i o n   i d   ` a u t o - r e g i s t e r - { o p e r a t i o n I d } `   �� �   e v e r y   o f f i c i a l   s u b m i s s i o n   g e t s   r e g i s t e r   i d e n t i t y ;   r e t r i e s   n e v e r   c o n s u m e   a   s e c o n d   s e q u e n c e 
- 
- -   T r u s t e d   ` C A N C E L _ R E C O R D `   c h a i n s   ` c a n c e l L e d g e r R e g i s t r a t i o n F o r R e c o r d ` :   e n t r i e s   b e c o m e   C A N C E L L E D   ( n e v e r   d e l e t e d ) ,   s e q u e n c e   s t a y s   c o n s u m e d 
- 
- -   F o r m   B o o k s   m a i n   v i e w :   b o o k   r o w s   w i t h   b l o c k ,   c a p a c i t y ,   f i l l e d / v o i d e d / r e m a i n i n g   c o u n t e r s ,   s t a t u s 
- 
- -   F o r m   B o o k   p a g e :   b l o c k   s t r i p ,   s t a t u s / r e f e r e n c e   f i l t e r s ,   e n t r i e s   t a b l e 
- 
- -   R e a d - o n l y   H i s t o r i c a l   F o r m   V i e w e r   ( ` F o r m R e n d e r e r `   r e a d O n l y )   w i t h   P r e v i o u s / N e x t   n a v i g a t i o n   t h r o u g h   t h e   r e g i s t e r ,   p r e s e r v i n g   t h e   h i s t o r i c a l   M o d u l e   V e r s i o n   s c h e m a 
- 
- -   C o m p o s i t e   i n d e x   ` ( l e d g e r B o o k I d ,   l e d g e r B l o c k I d ,   s e q u e n c e N u m b e r ) `   o n   ` l e d g e r E n t r i e s ` 
- 
- -   ` t e s t s / r u l e s / l e d g e r R e s e t . i n t e g r a t i o n . t e s t . j s `   �� �   r e s e t   w i p e s   l e d g e r B o o k s / b l o c k s / e n t r i e s / c o d e s / r e c o r d s / m o d u l e s / r e c o r d O p e r a t i o n s   ( n o   g h o s t   j o u r n a l s ) 
- 
- -   L i v e   E 2 E   ` t e s t s / e 2 e / s t e p 1 7 _ 1 . e 2 e . s p e c . j s `   �� �   s u b m i t   �� �   a u t o - r e g i s t e r   �� �   c o u n t e r s   �� �   v i e w e r   �� �   c a n c e l   e v i d e n c e   �� �   r e s e t   g h o s t - f r e e   +   f r e s h   r e g i s t e r   f r o m   0 0 0 0 0 1 
- 
- -   A D R - 0 0 1 0 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   W o r k s p a c e   r e s e t   c o n t r a c t   n o w   a l s o   d e l e t e s   ` r e c o r d O p e r a t i o n s ` 
- 
- 
- 
- # #   S t e p   1 7   �� �   G e n e r i c   N o t i f i c a t i o n   C a p a b i l i t y 
- 
- 
- 
- # # #   A d d e d 
- 
- -   C a n o n i c a l   N o t i f i c a t i o n   d o m a i n   u n d e r   ` s r c / c o r e / n o t i f i c a t i o n s / ` : 
- 
-     -   ` n o t i f i c a t i o n C o n t r a c t . j s `   �� �   v e r s i o n e d   c o n t r a c t   ( 1 . 0 . 0 )   w i t h   i n t e n t   v a l i d a t i o n   ( n o   a u t h o r i t y   f i e l d s ,   n o   e x e c u t a b l e s ) ,   d e t e r m i n i s t i c   N o t i f i c a t i o n   i d   p e r   ( o p e r a t i o n I d ,   e v e n t T y p e ,   r e c i p i e n t ) ,   c o n t e x t - r e f e r e n c e   m o d e l   ( p o i n t e r s ,   n e v e r   c o p i e s ) 
- 
-     -   ` n o t i f i c a t i o n P o l i c y . j s `   �� �   c o n t r o l l e d   p r e s e n t a t i o n   t e m p l a t e s   p e r   e v e n t 
- 
-     -   ` r e c i p i e n t R e s o l u t i o n . j s `   �� �   ` S E L F _ F R O M _ A C T O R `   /   ` E X P L I C I T _ U S E R `   s t r a t e g i e s   w i t h   a c t o r - r e d u n d a n c y   o p t - o u t 
- 
-     -   ` d e l i v e r y R o u t e r . j s `   �� �   a d a p t e r   s e a m ;   ` I N _ A P P `   i m p l e m e n t e d ,   E M A I L / P U S H / W E B H O O K   d o c u m e n t e d   f u t u r e   a d a p t e r s 
- 
- -   T r u s t e d   s e r v e r   ` f u n c t i o n s / s r c / n o t i f i c a t i o n E n g i n e . j s `   �� �   t h e   s i n g l e   c r e a t i o n   p a t h   f o r   c a n o n i c a l   N o t i f i c a t i o n s ;   r e c i p i e n t   w o r k s p a c e   a c c e s s   r e - v e r i f i e d   s e r v e r - s i d e 
- 
- -   F u n c t i o n - l e v e l   t e s t s :   c r e a t i o n ,   r e a d - s t a t e - p r e s e r v i n g   1 0 %�   r e t r y   d e d u p e ,   d i s t i n c t - o p e r a t i o n   d u a l   n o t i f i c a t i o n s ,   r e c i p i e n t   a c c e s s   c o n t r o l   ( p e r s o n a l / o r g / i n a c t i v e ) ,   f o r g e d - i n t e n t   r e j e c t i o n   ( 9   t e s t s ) 
- 
- -   ` d o c s / N O T I F I C A T I O N _ A R C H I T E C T U R E . m d `   +   A D R - 0 0 0 9 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   ` r e c o r d C o m m a n d `   n o w   e m i t s   N o t i f i c a t i o n s   t h r o u g h   t h e   g e n e r i c   e n g i n e   ( ` r e c o r d . c r e a t e d ` ,   ` r e c o r d . d r a f t _ s a v e d ` )   i n s t e a d   o f   a d - h o c   p o s t - t x   w r i t e s 
- 
- -   N o t i f i c a t i o n   C e n t e r   r e w r i t t e n :   u n r e a d / r e a d   b a d g e s ,   a t t e n t i o n   p r i o r i t y   b a d g e ,   b o u n d e d   c u r s o r   p a g i n a t i o n   ( 2 5 / p a g e   w i t h   " L o a d   o l d e r " ) ,   p e r - i t e m   M a r k   r e a d ,   M a r k   a l l   r e a d ,   t i m e s t a m p s ,   d e e p   l i n k s ,   e m p t y / l o a d i n g / e r r o r   s t a t e s 
- 
- -   ` c r e a t e C a n o n i c a l N o t i f i c a t i o n `   k e e p s   l e g a c y   ` t y p e ` / ` r e s o u r c e T y p e ` / ` r e s o u r c e I d `   f i e l d s   f o r   c o m p a t i b i l i t y 
- 
- 
- 
- # # #   S e c u r i t y 
- 
- -   F i r e s t o r e   R u l e s :   b r o w s e r s   m a y   n o   l o n g e r   C R E A T E   n o t i f i c a t i o n s   a t   a l l ;   r e c i p i e n t s   m a y   f l i p   O N L Y   t h e i r   o w n   ` s t a t u s ` / ` r e a d A t ` ;   e v e r y t h i n g   e l s e   i m m u t a b l e 
- 
- -   L e g a c y   b r o w s e r   ` n o t i f i c a t i o n B r i d g e `   r e m o v e d   ( d e l i v e r y - d o m a i n   n o t i f i c a t i o n s   a r e   d e f e r r e d   u n t i l   d e l i v e r y   g e t s   a   t r u s t e d   c o m m a n d   �� �   n o   f o r g e d   f i l l - i n ) 
- 
- -   R e c i p i e n t   r e s o l u t i o n   c a n   n e v e r   g r a n t   a c c e s s   t o   r e f e r e n c e d   c a n o n i c a l   o b j e c t s 
- 
- 
- 
- # #   S t e p   1 6   �� �   T r u s t e d   L e d g e r   &   A u d i t   B a c k e n d 
- 
- 
- 
- # # #   A d d e d 
- 
- -   T r u s t e d   ` l e d g e r C o m m a n d `   c a l l a b l e   ( e u r o p e - w e s t 1 ,   c o n t r a c t   1 . 0 . 0 ) : 
- 
-     -   ` C R E A T E _ L E D G E R _ B O O K `   �� �   a t o m i c   c o d e   r e s e r v a t i o n   +   b o o k   +   i n i t i a l   b l o c k 
- 
-     -   ` R E G I S T E R _ L E D G E R _ E N T R Y `   �� �   s e r v e r - d e r i v e d   s e q u e n c e ,   r e f e r e n c e   n u m b e r ,   a c t o r ,   t i m e s t a m p s ,   b l o c k   r o l l o v e r ,   R e c o r d   l i n k a g e 
- 
- -   S h a r e d   o p e r a t i o n - j o u r n a l   h e l p e r s   ( ` f u n c t i o n s / s r c / o p e r a t i o n J o u r n a l . j s ` )   r e u s e d   b y   r e c o r d C o m m a n d   a n d   l e d g e r C o m m a n d 
- 
- -   R e c o r d   D e t a i l   t r u s t e d   " R e g i s t e r   i n   L e d g e r "   p a n e l   ( w h e n   a n   A C T I V E   b o o k   m a t c h e s ,   a n d   s t a t u s   a l l o w s ) 
- 
- -   F u n c t i o n - l e v e l   c o n c u r r e n c y   t e s t s :   2 0   s a m e - R e c o r d   r e g i s t r a t i o n s   c o n v e r g e   t o   o n e   e n t r y / s e q u e n c e ;   5 0   d i s t i n c t   R e c o r d s   g e t   u n i q u e   c o n t i g u o u s   s e q u e n c e s   w i t h   r o l l o v e r ;   r e p l a y   d o e s   n o t   r e - c o n s u m e   s e q u e n c e s 
- 
- -   ` d o c s / L E D G E R _ A R C H I T E C T U R E . m d ` ,   ` d o c s / A U D I T _ A R C H I T E C T U R E . m d ` ,   A D R - 0 0 0 8 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   A u t h o r i t a t i v e   A u d i t   e v i d e n c e   ( r e c o r d C o m m a n d   +   l e d g e r C o m m a n d )   n o w   c o m m i t s   * * i n   t h e   s a m e   F i r e s t o r e   t r a n s a c t i o n * *   a s   t h e   d o m a i n   m u t a t i o n   �� �   a   t r u s t e d   m u t a t i o n   c a n n o t   c o m m i t   w i t h o u t   i t s   e v i d e n c e ;   ` _ t i m e s t a m p `   i s   a   s e r v e r   t i m e s t a m p   ( m a t c h e s   t h e   H i s t o r y   q u e r y ) 
- 
- -   A u d i t   d o c u m e n t   i d s   a r e   d e t e r m i n i s t i c   ( ` o p _ { o p e r a t i o n I d } _ { a c t i o n } ` )   �� �   r e t r i e s   c a n n o t   d u p l i c a t e   l o g i c a l   h i s t o r y 
- 
- -   L e g a c y   b r o w s e r   A u d i t B r i d g e   r e t i r e d   ( r e m o v e d   f r o m   ` b o o t s t r a p S e r v i c e s ` ,   f i l e   d e l e t e d )   �� �   b r o w s e r   t e l e m e t r y   c a n   n o   l o n g e r   m a s q u e r a d e   a s   c a n o n i c a l   A u d i t 
- 
- -   R e c o r d   H i s t o r y   c o n t i n u e s   t o   r e a d   t h e   s a m e   d u r a b l e   ` a u d i t E n t r i e s `   c o l l e c t i o n 
- 
- -   L e d g e r   b o o k   l i s t   p a g e   a n d   R e c o r d   D e t a i l   s u r v i v e   t h e   r u l e s   t i g h t e n i n g   v i a   r e a d - o n l y   b r o w s e r   a c c e s s 
- 
- 
- 
- # # #   S e c u r i t y 
- 
- -   F i r e s t o r e   R u l e s :   b r o w s e r s   m a y   n o   l o n g e r   c r e a t e / u p d a t e / d e l e t e   L e d g e r   e n t r i e s ,   b l o c k s ,   b o o k s ,   o r   l e d g e r   c o d e   r e s e r v a t i o n s ;   c a n n o t   s e t   R e c o r d   L e d g e r   l i n k a g e ;   c a n n o t   c r e a t e / u p d a t e / d e l e t e   A u d i t   e n t r i e s .   R e a d s   p r e s e r v e d . 
- 
- -   A d m i n   S D K   f u n c t i o n s   p e r f o r m   e x p l i c i t   a u t h o r i z a t i o n   ( w o r k s p a c e   o w n e r   /   a c t i v e   o r g   m e m b e r )   b e c a u s e   t h e y   b y p a s s   R u l e s . 
- 
- -   T r u s t e d   c a n c e l / v o i d   o f   L e d g e r   e n t r i e s   a n d   b o o k   c l o s e   s t a y   r e s e r v e d   f o r   a   f u t u r e   t r u s t e d   c o m m a n d   ( n o   p r i o r   c l i e n t   U X ) . 
- 
- 
- 
- # # #   F i x e d 
- 
- -   T r u s t e d   s e r v e r   t r a n s a c t i o n s   n o w   o b e y   F i r e s t o r e ' s   r e a d s - b e f o r e - w r i t e s   r u l e   ( c a u g h t   b y   t h e   n e w   c o n c u r r e n c y   s u i t e ) 
- 
- -   D r a f t   " C r e a t e   L e d g e r   B o o k "   f o r m   c a n   n o   l o n g e r   s i l e n t l y   n o - o p   w h e n   t h e   w o r k s p a c e   c o n t e x t   i s   s t i l l   r e s o l v i n g   ( s u b m i t   i s   d i s a b l e d   u n t i l   t h e   w o r k s p a c e   i s   r e a d y ) 
- 
- 
- 
- # # #   K n o w n   f i n d i n g s 
- 
- -   F o r m R e q u e s t   c o m p l e t i o n   s t i l l   a t t e m p t s   a   c l i e n t - t r a n s a c t i o n   R e c o r d   C R E A T E   ( r u l e s - b l o c k e d   s i n c e   S t e p   1 2 ) .   D E F E R R E D :   r e q u i r e s   i t s   o w n   r e c i p i e n t - s c o p e d   t r u s t e d   c o m m a n d   �� �   r e c o r d e d   a s   f o l l o w - u p ,   R u l e s   n o t   w e a k e n e d . 
- 
- -   P r e - S t e p - 1 6   a u d i t   e n t r i e s   w r i t t e n   b y   t h e   o l d   s e r v e r   p a t h   l a c k   ` _ t i m e s t a m p `   a n d   w o n ' t   a p p e a r   i n   H i s t o r y   o r d e r i n g s   ( d e v   d a t a   o n l y ) . 
- 
- 
- 
- # #   S t e p   1 5   �� �   G e n e r i c   R e c o r d   A c t i o n s   &   L i f e c y c l e   F o u n d a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   T r u s t e d   m u t a t i o n   c o m m a n d s   o n   t h e   e x i s t i n g   ` r e c o r d C o m m a n d `   b o u n d a r y   ( c o n t r a c t   ` 1 . 1 . 0 ` ,   b a c k w a r d   c o m p a t i b l e   w i t h   ` 1 . 0 . 0 `   C R E A T E   c l i e n t s ) : 
- 
-     -   ` U P D A T E _ D R A F T `   �� �   t r u s t e d   D R A F T   c o n t e n t   u p d a t e   ( h i s t o r i c a l   M o d u l e   V e r s i o n   s c h e m a ,   p a r t i a l / t y p e - c h e c k e d   v a l u e s ,   s e r v e r   E n t i t y R e f e r e n c e   v a l i d a t i o n ) 
- 
-     -   ` S U B M I T _ R E C O R D `   �� �   t r u s t e d   D R A F T   �� �   S U B M I T T E D   t r a n s i t i o n   w i t h   s e r v e r - d e r i v e d   a c t o r ,   t i m e s t a m p s   a n d   f u l l   r e q u i r e d - f i e l d   v a l i d a t i o n 
- 
-     -   ` S E T _ P R I O R I T Y ` ,   ` A R C H I V E _ R E C O R D ` ,   ` R E S T O R E _ R E C O R D ` ,   ` C A N C E L _ R E C O R D ` 
- 
- -   P u r e   R e c o r d   A c t i o n   P o l i c y   ( ` r e c o r d A c t i o n P o l i c y . j s ` )   �� �   ` e v a l u a t e R e c o r d A c t i o n ( {   a c t o r C o n t e x t ,   r e c o r d ,   m o d u l e ,   a c t i o n   } ) `   w i t h   s t a b l e   m a c h i n e - r e a d a b l e   r e a s o n   c o d e s 
- 
- -   P u r e   l i f e c y c l e   t r a n s i t i o n   m o d e l   ( ` r e c o r d L i f e c y c l e . j s ` )   �� �   t h e   c o m m a n d   i m p l i e s   t h e   t r a n s i t i o n ;   c l i e n t s   n e v e r   s e l e c t   a   t a r g e t   s t a t u s 
- 
- -   ` g e t A v a i l a b l e R e c o r d A c t i o n s `   U I   a c t i o n - d i s c o v e r y   ( R e c o r d   D e t a i l :   S u b m i t / A r c h i v e / R e s t o r e / C a n c e l   w i t h   c o n f i r m a t i o n   d i a l o g s ,   p l u s   e x i s t i n g   E d i t / C o p y / P r i n t / E x p o r t ) 
- 
- -   R u l e :   D R A F T   c r e a t i o n   n o w   t o l e r a t e s   i n c o m p l e t e   v a l u e s   ( r e q u i r e d   f i e l d s   e n f o r c e d   a t   S U B M I T _ R E C O R D ) ;   d r a f t   s a v e s   s t a y   t r u s t e d 
- 
- -   ` r e c o r d . d r a f t _ u p d a t e d `   a u d i t   a c t i o n 
- 
- -   F u n c t i o n s   e x e c u t o r   t e s t s :   U P D A T E _ D R A F T / S U B M I T _ R E C O R D   i d e m p o t e n c y ,   1 0 %�   c o n c u r r e n t   d u p l i c a t e   s a f e t y ,   c r o s s - w o r k s p a c e   d e n i a l ,   i m p e r s o n a t i o n   r e j e c t i o n   ( 2 4   t e s t s ) 
- 
- -   P l a y w r i g h t   ` t e s t s / e 2 e / s t e p 1 5 . e 2 e . s p e c . j s `   �� �   l i v e   t r u s t e d   l i f e c y c l e :   d r a f t   a u t o s a v e   �� �   r e j e c t e d   s u b m i t   ( r e q u i r e d   f i e l d )   �� �   e d i t o r   s u b m i t   �� �   S U B M I T T E D   �� �   A r c h i v e / R e s t o r e   �� �   H i s t o r y   �� �   z e r o   d i r e c t   b r o w s e r   R e c o r d   m u t a t i o n s 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   R e c o r d E d i t P a g e   a u t o s a v e   m i g r a t e d   t o   t r u s t e d   ` U P D A T E _ D R A F T ` ;   e a c h   s a v e   g e t s   a   f r e s h   ` o p e r a t i o n I d ` ,   i d e n t i c a l - p a y l o a d   r e t r i e s   r e p l a y   t h e   s a m e   o n e 
- 
- -   ` R e c o r d E d i t P a g e `   e x p o s e s   " S u b m i t   r e c o r d "   ( f l u s h e s   p e n d i n g   s a v e s   f i r s t ) 
- 
- -   ` m o d u l e S u b m i s s i o n . s u b m i t D r a f t `   d e l e g a t e s   t o   t r u s t e d   ` S U B M I T _ R E C O R D ` 
- 
- -   G l o b a l   l i s t   b u l k   a r c h i v e   n o w   i s s u e s   o n e   t r u s t e d   ` A R C H I V E _ R E C O R D `   p e r   R e c o r d 
- 
- -   O p e r a t i o n   j o u r n a l   +   R e c o r d   m u t a t i o n   n o w   c o m m i t   i n   O N E   t r a n s a c t i o n   f o r   m u t a t i o n s ;   j o u r n a l   r e p l a y   p r e c e d e s   c u r r e n t - s t a t e   p o l i c y 
- 
- -   A u d i t / N o t i f i c a t i o n   s i d e   e f f e c t s   w r i t e   d e t e r m i n i s t i c   ` o p _ < o p e r a t i o n I d > `   d o c s   ( r e c o v e r y   r e t r i e s   n o   l o n g e r   d u p l i c a t e ) 
- 
- 
- 
- # # #   S e c u r i t y 
- 
- -   F i r e s t o r e   R u l e s   d e n y   b r o w s e r   u p d a t e s   t o   R e c o r d   ` d a t a ` ,   ` e n t i t y R e f e r e n c e s ` ,   ` s t a t u s ` ,   ` p r i o r i t y ` ,   a r c h i v e / c a n c e l   p r o v e n a n c e ,   ` s u b m i t t e d A t ` ,   ` a t t a c h m e n t s `   �� �   e v e r y   s t a t e 
- 
- -   E m u l a t o r   n e g a t i v e   t e s t s :   d r a f t   d a t a   m u t a t i o n ,   s t a t u s   t r a n s i t i o n s ,   p r i o r i t y   c h a n g e ,   a r c h i v e   f i e l d   s e t ,   ` s u b m i t t e d A t ` / ` s u b m i t t e d B y `   i m p e r s o n a t i o n   a l l   d e n i e d   f r o m   b r o w s e r s ;   l e g i t i m a t e   r e a d s   p r e s e r v e d ;   L e d g e r   l i n k a g e   s e t - o n c e   i n t e r i m   e x c e p t i o n   d o c u m e n t e d   u n t i l   S t e p   1 6 
- 
- -   A D R - 0 0 0 7 :   T r u s t e d   R e c o r d   A c t i o n s   a n d   L i f e c y c l e   B o u n d a r y 
- 
- 
- 
- # # #   D e f e r r e d 
- 
- -   A p p r o v a l / W o r k f l o w / T a s k / S c h e d u l i n g / I n v e n t o r y / D o c u m e n t   e n g i n e s ;   D R A F T �� � S U B M I T   f o r   F o r m R e q u e s t   c o m p l e t i o n   p a t h   ( p r e - e x i s t i n g   c l i e n t - t r a n s a c t i o n   g a p ) ;   L e d g e r   b a c k e n d   s e r v e r   m o v e   ( S t e p   1 6 ) ;   n o t i f i c a t i o n   f a n - o u t   f o r   m u t a t i o n s   ( S t e p   1 7 ) 
- 
- 
- 
- # #   S t e p   1 4   �� �   R e c o r d   U X   H a r d e n i n g 
- 
- 
- 
- # # #   A d d e d 
- 
- -   D e t e r m i n i s t i c   R e c o r d   d i s p l a y   l a b e l s :   ` g e t R e c o r d D i s p l a y L a b e l `   ( ` d i s p l a y C o n f i g . p r i m a r y F i e l d `   �� �   f i r s t   t e x t - l i k e   s c h e m a   v a l u e   �� �   M o d u l e   n a m e   +   s h o r t   I D ) 
- 
- -   S h a r e d   ` u s e R e c o r d W i t h S c h e m a `   h o o k :   l o a d s   R e c o r d   +   M o d u l e   +   h i s t o r i c a l   M o d u l e   V e r s i o n   s c h e m a   +   E n t i t y   d i s p l a y   n a m e s   f o r   d e t a i l / e d i t   v i e w s 
- 
- -   R e c o r d   D e t a i l   a c t i o n s :   E d i t   d r a f t   ( D R A F T   o n l y ) ,   C r e a t e   c o p y   ( p r e f i l l e d   M o d u l e   f o r m ) ,   P r i n t ,   E x p o r t   J S O N 
- 
- -   ` R e c o r d E d i t P a g e `   ( ` / a p p / r e c o r d s / : r e c o r d I d / e d i t ` ) :   D R A F T - o n l y   e d i t i n g   t h r o u g h   t h e   e x i s t i n g   c l i e n t - a u t h o r i t a t i v e   d r a f t   U P D A T E   p a t h ,   w i t h   d e b o u n c e d   a u t o s a v e   ( U n s a v e d / S a v i n g / S a v e d / S a v e   f a i l e d )   t h a t   a l w a y s   u p d a t e s   t h e   s a m e   D r a f t   R e c o r d 
- 
- -   ` F o r m R e n d e r e r `   n o w   s u p p o r t s   ` o n V a l u e s C h a n g e `   ( a u t o s a v e   h o o k )   a n d   ` v a l i d a t e O n S u b m i t = { f a l s e } `   ( p a r t i a l   d r a f t   s a v e s ) 
- 
- -   ` b u i l d R e c o r d C o p y V a l u e s `   /   ` b u i l d R e c o r d E x p o r t `   h e l p e r s :   c o p y   o n l y   s c h e m a   v a l u e s   ( n o   i d e n t i t y / p r o v e n a n c e ) ,   e x p o r t   a   s a n i t i z e d   s i n g l e - R e c o r d   J S O N   ( a c t o r   l a b e l s ,   n o   i n t e r n a l   i n d e x   f i e l d s ) 
- 
- -   P r i n t   s t y l e s h e e t   ( ` @ m e d i a   p r i n t ` ) :   a p p   s h e l l   c h r o m e ,   n a v i g a t i o n   l i n k s   a n d   a c t i o n   r o w s   h i d d e n   v i a   ` n o - p r i n t ` 
- 
- -   P l a y w r i g h t   ` t e s t s / e 2 e / s t e p 1 4 . e 2 e . s p e c . j s ` :   d e t a i l   a s s e r t i o n s ,   t r u s t e d   c o p y   f l o w   ( n e w   R e c o r d ,   d i f f e r e n t   I D ,   o r i g i n a l   u n c h a n g e d ) ,   d r a f t   e d i t   +   a u t o s a v e ,   g l o b a l   l i s t   s e a r c h / f i l t e r ,   ` r e c o r d C o m m a n d `   v s   d i r e c t - C R E A T E   n e t w o r k   v e r i f i c a t i o n 
- 
- -   ` d o c s / R E C O R D _ U X . m d ` :   c a n o n i c a l   R e c o r d   U X   a r c h i t e c t u r e ,   t r u s t   b o u n d a r i e s ,   d e f e r r e d   i t e m s 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   R e c o r d   L i s t   r e b u i l t   o n   t h e   d e s i g n - s y s t e m   ` D a t a G r i d `   w i t h   b u c k e t   ` T a b s ` ,   c a n o n i c a l   ` S e l e c t `   f i l t e r s   ( s t a t u s / p r i o r i t y / m o d u l e / s o r t   w h i t e l i s t   +   c r e a t e d - d a t e   w i n d o w ) ,   p a g e - s c o p e d   s e a r c h   w i t h   e x p l i c i t   n o - m a t c h   s t a t e ,   a n d   c u r s o r - s t a c k   ` P a g i n a t i o n `   o n   b o t h   G l o b a l   a n d   M o d u l e   l i s t s 
- 
- -   R e c o r d   D e t a i l   h e a d e r   n o w   s h o w s   d i s p l a y   l a b e l ,   s t a t u s / p r i o r i t y   ` B a d g e ` s ,   l i n k e d   M o d u l e ,   W o r k s p a c e ,   a c t o r   l a b e l s ,   a n d   s c h e m a - s o u r c e   i n d i c a t o r 
- 
- -   E n t i t y   r e f e r e n c e s   o n   R e c o r d   D e t a i l   l i n k   t o   E n t i t y   D e t a i l   w h e n   r e s o l v a b l e   a n d   d e g r a d e   t o   a n   e x p l i c i t   " u n a v a i l a b l e "   m a r k e r   o t h e r w i s e 
- 
- -   B u l k - a r c h i v e   o n   t h e   G l o b a l   l i s t   n o w   r e s e t s   t h e   p a g i n a t i o n   c u r s o r   s t a c k   b e f o r e   r e l o a d i n g 
- 
- 
- 
- # # #   S e c u r i t y   /   T r u s t   b o u n d a r i e s 
- 
- -   C a n o n i c a l   R e c o r d   C R E A T E   s t a y s   s e r v e r - a u t h o r i t a t i v e   v i a   ` r e c o r d C o m m a n d ` ;   b r o w s e r   E 2 E   c o n f i r m s   z e r o   d i r e c t   b r o w s e r   R e c o r d   C R E A T E s   d u r i n g   d e t a i l / c o p y / d r a f t   f l o w s 
- 
- -   D r a f t   a u t o s a v e   r e u s e s   t h e   e x i s t i n g   D R A F T - o n l y   U P D A T E   b o u n d a r y   ( R u l e s   a l l o w   ` d a t a ` / ` e n t i t y R e f e r e n c e s `   m u t a t i o n s   w h i l e   a   R e c o r d   i s   D R A F T   a n d   f r e e z e   t h e m   a f t e r w a r d s ) ;   n o   n e w   m u t a t i o n   a u t h o r i t y   w a s   a d d e d 
- 
- -   F i n d i n g :   D R A F T �� � S U B M I T T E D   f r o m   t h e   c l i e n t   i s   b l o c k e d   b y   R u l e s   ( ` s u b m i t t e d B y `   i m m u t a b l e )   �� �   t h e   t r u s t e d   s u b m i t   t r a n s i t i o n   i s   d e f e r r e d   t o   S t e p   1 5 
- 
- 
- 
- # # #   D e f e r r e d 
- 
- -   A t t a c h m e n t s ,   S i g n a t u r e ,   S e n d / S h a r e   U I ,   C o m m e n t s ,   b u l k   l i f e c y c l e   a c t i o n s ,   s a v e d   v i e w s ,   G l o b a l   S e a r c h ,   g e n e r a t e d   P D F   ( D o c u m e n t   E n g i n e ) 
- 
- 
- 
- # #   S t e p   1 3   �� �   D e s i g n - S y s t e m   P r i m i t i v e s 
- 
- 
- 
- # # #   A d d e d 
- 
- -   C a n o n i c a l   d e s i g n - s y s t e m   p r i m i t i v e s   u n d e r   ` s r c / d e s i g n - s y s t e m / c o m p o n e n t s / ` : 
- 
-     -   ` S e l e c t ` ,   ` T e x t a r e a ` ,   ` T a b l e `   +   t a b l e   s u b c o m p o n e n t s ,   ` D a t a G r i d ` ,   ` P a g i n a t i o n ` ,   ` T o a s t `   +   ` T o a s t P r o v i d e r ` ,   ` F i l e U p l o a d ` ,   ` T a b s ` 
- 
- -   P u b l i c   d e s i g n - s y s t e m   b a r r e l   e x p o r t   a t   ` s r c / d e s i g n - s y s t e m / i n d e x . j s ` 
- 
- -   F o c u s e d   u n i t   t e s t s   f o r   e a c h   n e w   p r i m i t i v e   ( r e n d e r i n g ,   c a l l b a c k s ,   k e y b o a r d / a c c e s s i b i l i t y ,   d i s a b l e d / e r r o r / e m p t y / l o a d i n g   s t a t e s ) 
- 
- -   ` d o c s / D E S I G N _ S Y S T E M . m d `   d o c u m e n t i n g   p r i m i t i v e   i n v e n t o r y ,   l a y e r   b o u n d a r y ,   c o n v e n t i o n s ,   a c c e s s i b i l i t y ,   a n d   F i l e U p l o a d   l i m i t a t i o n 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   ` E n t i t y L i s t P a g e `   n o w   u s e s   ` S e l e c t ` ,   ` D a t a G r i d ` ,   a n d   ` P a g i n a t i o n ` 
- 
- -   ` E n t i t y F o r m P a g e `   l i f e c y c l e   s t a t u s   n o w   u s e s   ` S e l e c t ` 
- 
- -   ` M o d u l e D e s i g n e r `   d e s c r i p t i o n   f i e l d   n o w   u s e s   ` T e x t a r e a ` 
- 
- -   ` M o d u l e C a p a b i l i t i e s P a n e l `   c a p a b i l i t y   f i e l d   m a p p i n g   n o w   u s e s   ` S e l e c t ` 
- 
- -   ` W o r k s p a c e R e s e t P a n e l `   s u c c e s s   s t a t e   n o w   u s e s   ` T o a s t `   v i a   g l o b a l   ` T o a s t P r o v i d e r ` 
- 
- -   ` A p p R o u t e r `   w r a p s   t h e   a p p l i c a t i o n   i n   ` T o a s t P r o v i d e r `   s o   a n y   f e a t u r e   c a n   s h o w   t r a n s i e n t   f e e d b a c k 
- 
- -   ` v i t e . c o n f i g . j s `   e x c l u d e s   ` t e s t s / e 2 e / * * `   f r o m   V i t e s t   d i s c o v e r y   s o   P l a y w r i g h t   s p e c s   a r e   n o t   c o l l e c t e d   b y   t h e   u n i t   r u n n e r 
- 
- 
- 
- # # #   S e c u r i t y   /   A r c h i t e c t u r e 
- 
- -   D e s i g n - s y s t e m   p r i m i t i v e s   r e m a i n   p r e s e n t a t i o n - o n l y :   n o   F i r e b a s e   i m p o r t s ,   n o   b u s i n e s s   a u t h o r i z a t i o n ,   n o   f e a t u r e   s t a t e   o w n e r s h i p 
- 
- -   V e r i f i e d   d e p e n d e n c y   d i r e c t i o n :   f e a t u r e s   �� �   d e s i g n - s y s t e m ;   n o   d e s i g n - s y s t e m   �� �   f e a t u r e   o r   b a c k e n d   i m p o r t s 
- 
- 
- 
- # #   S t e p   1 2 . 1   �� �   R e c o r d   C o m m a n d   R e c o v e r y ,   M o d u l e   P o l i c y   &   R e a l   B r o w s e r   V e r i f i c a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   S e r v e r - s i d e   c o m m a n d   f i n g e r p r i n t   a n d   o p e r a t i o n   l e a s e   t o   p r e v e n t   s t a l e   ` P R O C E S S I N G `   o p e r a t i o n s   f r o m   b l o c k i n g   l e g i t i m a t e   r e t r i e s 
- 
- -   D e t e r m i n i s t i c   r e c o v e r y   f o r   s t a l e   ` P R O C E S S I N G `   o p e r a t i o n s : 
- 
-     -   I f   R e c o r d   e x i s t s ,   r e c o n c i l e   o p e r a t i o n   t o   ` C O M P L E T E D `   a n d   r e t u r n   e x i s t i n g   R e c o r d 
- 
-     -   I f   l e a s e   e x p i r e d   a n d   R e c o r d   d o e s   n o t   e x i s t ,   r e a c q u i r e   o p e r a t i o n   a n d   r e t r y   c r e a t i o n 
- 
- -   ` O P E R A T I O N _ I N _ P R O G R E S S `   a n d   ` O P E R A T I O N _ M I S M A T C H `   e r r o r   c o d e s   i n   ` R E C O R D _ C O M M A N D _ E R R O R _ C O D E S ` 
- 
- -   D R A F T   M o d u l e   r e j e c t i o n   i n   t h e   t r u s t e d   c o m m a n d   e n g i n e 
- 
- -   S e r v e r - o n l y   F i r e s t o r e   R u l e s   f o r   ` w o r k s p a c e s / { w o r k s p a c e I d } / r e c o r d O p e r a t i o n s / { o p e r a t i o n I d } ` 
- 
- -   F u n c t i o n - l e v e l   u n i t   t e s t s   f o r   r e c o v e r y ,   m i s m a t c h ,   c o n c u r r e n t   d u p l i c a t e   r e q u e s t s ,   a n d   D R A F T   p o l i c y 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   ` r e c o r d C o m m a n d E n g i n e . j s `   n o w   v a l i d a t e s   ` o p e r a t i o n I d `   o w n e r s h i p ,   c o m m a n d   f i n g e r p r i n t ,   a n d   l e a s e   e x p i r y   i n s i d e   t h e   F i r e s t o r e   t r a n s a c t i o n 
- 
- -   ` r e c o r d C o m m a n d E n g i n e . j s `   r e j e c t s   ` D R A F T ` / ` I N A C T I V E ` / ` A R C H I V E D `   M o d u l e s ;   o n l y   ` A C T I V E `   M o d u l e s   m a y   r e c e i v e   c a n o n i c a l   R e c o r d s 
- 
- -   ` v i t e . c o n f i g . j s `   e x c l u d e s   ` f u n c t i o n s / * * `   f r o m   V i t e s t   t e s t   d i s c o v e r y   s o   N o d e . j s   ` n o d e : t e s t `   f i l e s   c a n   c o e x i s t 
- 
- -   ` d o c s / T R U S T E D _ R E C O R D _ C O M M A N D S . m d `   u p d a t e d   w i t h   r e c o v e r y   s e m a n t i c s ,   l e a s e   d e s i g n ,   f i n g e r p r i n t   d e s i g n ,   a n d   D R A F T   p o l i c y 
- 
- -   ` d o c s / M O D U L I T Y _ M A S T E R _ R O A D M A P . m d `   u p d a t e d   w i t h   S t e p   1 2 . 1 
- 
- 
- 
- # # #   S e c u r i t y 
- 
- -   ` r e c o r d O p e r a t i o n s `   c o l l e c t i o n   i s   i n a c c e s s i b l e   t o   b r o w s e r   c l i e n t s 
- 
- -   S a m e   ` o p e r a t i o n I d `   w i t h   d i f f e r e n t   c o m m a n d   r e t u r n s   ` O P E R A T I O N _ M I S M A T C H `   i n s t e a d   o f   a n   u n r e l a t e d   e x i s t i n g   R e c o r d 
- 
- -   D R A F T   M o d u l e   s u b m i s s i o n   i s   e x p l i c i t l y   r e j e c t e d   s e r v e r - s i d e 
- 
- 
- 
- # #   S t e p   1 2   �� �   T r u s t e d   R e c o r d   S u b m i s s i o n   &   S e r v e r   A u t h o r i t y   F o u n d a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   V e r s i o n e d   ` R e c o r d C o m m a n d `   c o n t r a c t   ( ` s r c / c o r e / r e c o r d C o m m a n d s / r e c o r d C o m m a n d C o n t r a c t . j s ` )   w i t h   ` C R E A T E _ R E C O R D `   s u p p o r t   a n d   e x t e n s i b l e   f u t u r e   c o m m a n d   t y p e s 
- 
- -   P u r e   ` r e c o r d C o m m a n d E n g i n e . j s `   f o r   d e t e r m i n i s t i c   c o m m a n d   v a l i d a t i o n   a n d   c a n o n i c a l   R e c o r d   c o n s t r u c t i o n 
- 
- -   S e r v e r - a u t h o r i t a t i v e   ` r e c o r d C o m m a n d `   F i r e b a s e   c a l l a b l e   ( ` f u n c t i o n s / s r c / r e c o r d C o m m a n d E n g i n e . j s ` )   w i t h : 
- 
-     -   F i r e b a s e   A u t h   i d e n t i t y   v e r i f i c a t i o n 
- 
-     -   W o r k s p a c e   a u t h o r i z a t i o n   ( P e r s o n a l   o w n e r   /   a c t i v e   O r g a n i z a t i o n   m e m b e r ) 
- 
-     -   M o d u l e   r e s o l u t i o n ,   s t a t u s / v e r s i o n   a u t h o r i t y ,   a n d   F o r m S c h e m a   v a l i d a t i o n 
- 
-     -   E n t i t y R e f e r e n c e   e x i s t e n c e ,   w o r k s p a c e ,   a n d   t y p e   v e r i f i c a t i o n 
- 
-     -   D e t e r m i n i s t i c   ` r e c o r d I d `   d e r i v e d   f r o m   ` o p e r a t i o n I d ` 
- 
-     -   O p e r a t i o n   j o u r n a l   f o r   i d e m p o t e n t   r e t r i e s 
- 
-     -   S e r v e r - a u t h o r i t a t i v e   t i m e s t a m p s   a n d   a c t o r   f i e l d s 
- 
-     -   B e s t - e f f o r t   A u d i t   a n d   N o t i f i c a t i o n   s i d e   e f f e c t s 
- 
- -   C l i e n t   a d a p t e r   ` s r c / i n f r a s t r u c t u r e / f i r e b a s e / r e c o r d C o m m a n d C l i e n t . j s `   t o   k e e p   F i r e b a s e   S D K   c a l l s   i n s i d e   i n f r a s t r u c t u r e 
- 
- -   L o c a l   t e s t   a d a p t e r   ` s r c / i n f r a s t r u c t u r e / r e c o r d C o m m a n d L o c a l A d a p t e r . j s `   f o r   u n i t / i n t e g r a t i o n   t e s t s   o u t s i d e   t h e   F u n c t i o n s   e m u l a t o r 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   ` M o d u l e S u b m i s s i o n S e r v i c e `   n o w   r o u t e s   s u b m i s s i o n   t h r o u g h   a n   i n j e c t e d   t r u s t e d   ` r e c o r d C o m m a n d `   e x e c u t o r   w h e n   a v a i l a b l e ;   d i r e c t   l o c a l   p a t h   r e m a i n s   a s   t e s t   f a l l b a c k 
- 
- -   ` s e r v i c e s . j s `   w i r e s   t h e   t r u s t e d   ` r e c o r d C o m m a n d `   c l i e n t   i n t o   ` m o d u l e S u b m i s s i o n ` 
- 
- -   ` f i r e s t o r e . r u l e s `   d e n i e s   d i r e c t   b r o w s e r   ` C R E A T E `   o n   c a n o n i c a l   R e c o r d s ;   c r e a t i o n   f l o w s   t h r o u g h   t h e   t r u s t e d   c a l l a b l e 
- 
- -   ` f u n c t i o n s / s c r i p t s / b u i l d - s h a r e d . m j s `   c o p i e s   t h e   R e c o r d   c o m m a n d   c o n t r a c t   a n d   e n g i n e   i n t o   F u n c t i o n s   g e n e r a t e d   c o n t r a c t s 
- 
- -   I n t e g r a t i o n   t e s t s   u p d a t e d   t o   u s e   p r i v i l e g e d   ( r u l e s - d i s a b l e d )   F i r e s t o r e   c o n t e x t s   f o r   R e c o r d   c r e a t i o n   p a t h s 
- 
- 
- 
- # # #   S e c u r i t y 
- 
- -   D i r e c t   c l i e n t   R e c o r d   c r e a t i o n   i s   r e j e c t e d   b y   F i r e s t o r e   R u l e s 
- 
- -   A c t o r   i d e n t i t y ,   w o r k s p a c e / m o d u l e   a u t h o r i t y ,   s c h e m a   v a l i d a t i o n ,   a n d   r e f e r e n c e   i n t e g r i t y   a r e   e n f o r c e d   s e r v e r - s i d e 
- 
- -   ` o p e r a t i o n I d `   i d e m p o t e n c y   p r e v e n t s   d u p l i c a t e   R e c o r d s   o n   r e t r y 
- 
- 
- 
- # # #   D o c u m e n t a t i o n 
- 
- -   ` d o c s / T R U S T E D _ R E C O R D _ C O M M A N D S . m d `   d o c u m e n t i n g   c o n t r a c t ,   t r u s t   b o u n d a r y ,   i d e m p o t e n c y ,   t r a n s a c t i o n   s c o p e ,   f a i l u r e   s e m a n t i c s ,   a n d   m i g r a t i o n 
- 
- -   ` A G E N T S . m d `   u p d a t e d   w i t h   S t e p   1 2   d u r a b l e   r u l e :   c a n o n i c a l   R e c o r d   c r e a t i o n   m u s t   c r o s s   a   t r u s t e d   s e r v e r - a u t h o r i t a t i v e   c o m m a n d   b o u n d a r y 
- 
- 
- 
- # #   S t e p   1 1 . 1   �� �   P h y s i c a l   A r c h i t e c t u r e   P a c k a g e   R e o r g a n i z a t i o n 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   M o v e d   g e n e r i c   c a p a b i l i t y   i n f r a s t r u c t u r e   f r o m   ` s r c / c o r e / c a p a b i l i t i e s / `   t o   ` s r c / c a p a b i l i t i e s / ` :   c o n t r a c t s ,   r e g i s t r y ,   d e f i n i t i o n   d o m a i n ,   a n d   r u n t i m e   f a c t o r y 
- 
- -   M o v e d   C a l e n d a r   e n g i n e   r u n t i m e ,   v a l i d a t i o n ,   a n d   d o m a i n   m o d e l   t o   ` s r c / e n g i n e s / c a l e n d a r / `   w i t h   a   p u b l i c   ` i n d e x . j s `   A P I 
- 
- -   R e m o v e d   h a r d c o d e d   c a l e n d a r   b r a n c h   i n   ` c a p a b i l i t y R u n t i m e ` ;   a d d e d   ` r e g i s t e r E n g i n e F a c t o r y `   s e a m   a n d   w i r e d   c a l e n d a r   v a l i d a t o r / f a c t o r y   i n   ` s e r v i c e s . j s ` 
- 
- -   M o v e d   ` a u t o m a t P l a n n i n g . j s `   f r o m   ` s r c / i n f r a s t r u c t u r e / `   t o   ` s r c / a g e n t s / i n f r a s t r u c t u r e / `   t o   f i x   i n f r a s t r u c t u r e �� � a g e n t s   l a y e r   d i r e c t i o n 
- 
- -   E x t r a c t e d   p r e s e n t a t i o n   h e l p e r s   ( ` e n t i t y P r e s e n t a t i o n . j s ` ,   ` r e c o r d L i s t P r e s e n t a t i o n . j s ` )   t o   ` s r c / s h a r e d / p r e s e n t a t i o n / ` 
- 
- -   E x t r a c t e d   ` W i d g e t C a r d `   t o   ` s r c / s h a r e d / u i / W i d g e t C a r d . j s x `   a n d   m a d e   i t   p r e s e n t a t i o n a l ;   d a s h b o a r d   f e a t u r e   n o w   o w n s   w i d g e t   e x e c u t i o n   q u e r y   s t a t e 
- 
- -   A d d e d   d e s i g n - s y s t e m   ` W o r k s e t S e l e c t o r `   p r i m i t i v e   a n d   r e p l a c e d   i n l i n e   s e l e c t s   i n   ` H e a d e r `   a n d   ` S i d e b a r ` 
- 
- -   E x t r a c t e d   a u t h e n t i c a t e d   r o u t e   t a b l e   f r o m   ` A p p S h e l l . j s x `   i n t o   ` s r c / a p p / r o u t e s . j s x ` 
- 
- -   R e m o v e d   i m p o r t - t i m e   A u d i t / N o t i f i c a t i o n   b r i d g e   s i d e   e f f e c t s   f r o m   ` s e r v i c e s . j s ` ;   a d d e d   e x p l i c i t   ` b o o t s t r a p S e r v i c e s ( ) `   c a l l e d   i n   ` m a i n . j s x ` 
- 
- -   I n j e c t e d   f i e l d   s e r v i c e s   ( ` l o a d E n t i t i e s ` )   i n t o   ` F o r m R e n d e r e r `   v i a   ` F o r m F i e l d S e r v i c e s C o n t e x t ` ,   r e m o v i n g   t h e   ` s r c / m o d u l e s / ` �� � ` s r c / i n f r a s t r u c t u r e / `   d i r e c t   i m p o r t   f r o m   ` E n t i t y R e f e r e n c e F i e l d ` 
- 
- -   U p d a t e d   ` f u n c t i o n s / s c r i p t s / b u i l d - s h a r e d . m j s `   c o p y   l i s t   f o r   n e w   c a p a b i l i t y   c o n t r a c t   p a t h 
- 
- 
- 
- # # #   F i x e d 
- 
- -   L a y e r - d i r e c t i o n   v i o l a t i o n s :   c a p a b i l i t i e s   n o   l o n g e r   i m p o r t   e n g i n e s ;   s h a r e d / u i   n o   l o n g e r   i m p o r t s   i n f r a s t r u c t u r e ;   m o d u l e s   n o   l o n g e r   i m p o r t s   i n f r a s t r u c t u r e   f r o m   a   f i e l d   c o m p o n e n t 
- 
- 
- 
- # #   S t e p   1 0 . 4   �� �   C a l e n d a r   &   S c h e d u l i n g   E n g i n e   F o u n d a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   G e n e r i c   C a p a b i l i t y D e f i n i t i o n   p e r s i s t e n c e :   m o d e l ,   r e p o s i t o r y   c o n t r a c t ,   F i r e s t o r e   r e p o s i t o r y ,   a n d   s e r v i c e   w i t h   W o r k s p a c e   a u t h o r i z a t i o n   a n d   l i f e c y c l e   m a n a g e m e n t 
- 
- -   C a p a b i l i t y D e f i n i t i o n s   s t o r e d   i n   ` w o r k s p a c e s / { w o r k s p a c e I d } / c a p a b i l i t y D e f i n i t i o n s / { d e f i n i t i o n I d } `   w i t h   b o u n d e d ,   e x e c u t a b l e - f r e e   d e c l a r a t i v e   c o n f i g u r a t i o n 
- 
- -   F i r e s t o r e   S e c u r i t y   R u l e s   f o r   C a p a b i l i t y D e f i n i t i o n s :   w o r k s p a c e   s c o p e ,   m a n a g e r - o n l y   w r i t e s ,   i m m u t a b l e   i d e n t i t y / p r o v e n a n c e ,   s a f e   c o n f i g u r a t i o n   r e j e c t i o n ,   a n d   l i f e c y c l e   e n f o r c e m e n t 
- 
- -   N e g a t i v e   R u l e s / E m u l a t o r   t e s t s   f o r   u n a u t h e n t i c a t e d   a c c e s s ,   c r o s s - W o r k s p a c e ,   M E M B E R   w r i t e s ,   s p o o f e d   w o r k s p a c e I d ,   u n s a f e   c o n f i g ,   a n d   d e l e t e   b e h a v i o r 
- 
- -   C a l e n d a r   E n g i n e   r u n t i m e :   l o a d s   C a l e n d a r D e f i n i t i o n s ,   r e s o l v e s   M o d u l e   s o u r c e s ,   q u e r i e s   c a n o n i c a l   R e c o r d s   i n   b o u n d e d   w i n d o w s ,   m a p s   t o   r e b u i l d a b l e   ` C a l e n d a r E v e n t P r o j e c t i o n ` s ,   r e s o l v e s   E n t i t y R e f e r e n c e   l a b e l s ,   a n d   i s o l a t e s   i n v a l i d   d e f i n i t i o n s 
- 
- -   C a l e n d a r   V i e w   c o m p o n e n t s :   M o n t h ,   W e e k ,   a n d   D a y   w i t h   r e s p o n s i v e   n a v i g a t i o n ,   f i l t e r   c h i p s ,   a n d   e v e n t   c l i c k   n a v i g a t i o n   t o   c a n o n i c a l   R e c o r d   D e t a i l 
- 
- -   M a n a g e   C a l e n d a r s   p a g e   f o r   c r e a t i n g   a n d   a c t i v a t i n g / d e a c t i v a t i n g   C a l e n d a r D e f i n i t i o n s   w i t h   c o n s t r a i n e d   f i e l d   s e l e c t i o n 
- 
- -   M o d u l e   D e s i g n e r   " C a p a b i l i t i e s "   s e a m   n o w   s h o w s   C a l e n d a r   a s   o p e r a t i o n a l   a n d   a l l o w s   C a l e n d a r D e f i n i t i o n   c r e a t i o n   w i t h o u t   e m b e d d i n g   c o n f i g   i n   F o r m S c h e m a 
- 
- -   W o r k s p a c e   A r c h i t e c t   c a p a b i l i t y   c a t a l o g   r e f l e c t s   C a l e n d a r   a s   ` A V A I L A B L E ` ;   t r u s t e d   A u t o m a t   a p p l y   f o r   C a p a b i l i t y D e f i n i t i o n s   r e m a i n s   d e f e r r e d 
- 
- -   C a l e n d a r   c a p a b i l i t y   a d d e d   t o   A p p   S h e l l   r o u t e s   a n d   S i d e b a r 
- 
- -   W o r k s p a c e   R e s e t   i n t e g r a t i o n   r e m o v e s   C a p a b i l i t y D e f i n i t i o n s   w h i l e   p r e s e r v i n g   i d e n t i t y ,   m e m b e r s h i p s ,   c o r e   e n t i t y   t y p e s ,   a n d   a u d i t   e v i d e n c e 
- 
- -   U n i t   t e s t s   f o r   C a p a b i l i t y D e f i n i t i o n   d o m a i n   m o d e l ,   C a l e n d a r   E n g i n e   p r o j e c t i o n s ,   a n d   C a l e n d a r   V i e w   r e n d e r i n g 
- 
- -   ` C A L E N D A R _ E N G I N E . m d `   d o c u m e n t i n g   a r c h i t e c t u r e ,   d a t e   s e m a n t i c s ,   b o u n d e d   q u e r i e s ,   a u t h o r i z a t i o n ,   v i e w s ,   a n d   l i m i t a t i o n s 
- 
- -   Y e a r   V i e w   w i t h   1 2   M o n d a y - f i r s t   m i n i - m o n t h s ,   a c t i v i t y   i n d i c a t o r s ,   b o u n d e d   d a y - s u m m a r y   p o p o v e r ,   a n d   Y e a r   �� �   D a y   n a v i g a t i o n 
- 
- -   A l l / i n d i v i d u a l   C a l e n d a r D e f i n i t i o n   v i s i b i l i t y   c o n t r o l s 
- 
- -   G e n e r i c   ` d a t e - r a n g e `   F o r m S c h e m a   f i e l d   t y p e   w i t h   F r o m / T i l l   d a t e   p i c k e r s ,   c a n o n i c a l   ` {   s t a r t ,   e n d   } `   I S O   d a t e   v a l u e ,   d e t e r m i n i s t i c   v a l i d a t i o n ,   R e c o r d   L i s t   /   R e c o r d   D e t a i l   f o r m a t t i n g ,   a n d   C a l e n d a r   E n g i n e   c o n s u m p t i o n 
- 
- -   W o r k s p a c e   A r c h i t e c t   ` E M P L O Y E E _ L E A V E `   s c e n a r i o   p r o p o s e s   a   s i n g l e   ` d a t e - r a n g e `   H o l i d a y   P e r i o d   f i e l d   a n d   a   C a l e n d a r   r e q u i r e m e n t 
- 
- -   G e n e r i c   ` d a t e t i m e - r a n g e `   F o r m S c h e m a   f i e l d   t y p e   f o r   t i m e d   i n t e r v a l s   ( a p p o i n t m e n t s ,   b o o k i n g s ,   s h i f t s ) ,   w i t h   F r o m / T i l l   d a t e t i m e - l o c a l   i n p u t s ,   v a l i d a t i o n ,   R e c o r d   d i s p l a y ,   a n d   C a l e n d a r   E n g i n e   c o n s u m p t i o n 
- 
- -   W o r k s p a c e   A r c h i t e c t   ` B O O K I N G `   s c e n a r i o   p r o p o s e s   a   s i n g l e   ` d a t e t i m e - r a n g e `   A p p o i n t m e n t   T i m e   f i e l d 
- 
- -   S t e p   1 1 . 0   a r c h i t e c t u r e / r o a d m a p / p a c k a g e   a u d i t :   ` d o c s / M O D U L I T Y _ M A S T E R _ R O A D M A P . m d ` ,   ` d o c s / P A C K A G E _ A R C H I T E C T U R E . m d ` ,   a n d   A D R - 0 0 0 6   p a c k a g e   b o u n d a r i e s 
- 
- 
- 
- # # #   C h a n g e d 
- 
- -   ` b u i l t I n C a p a b i l i t y C a t a l o g . j s ` :   C a l e n d a r   a v a i l a b i l i t y   m o v e d   f r o m   ` A R C H I T E C T U R E _ O N L Y `   t o   ` A V A I L A B L E ` 
- 
- -   ` w o r k s p a c e A r c h i t e c t . j s ` :   c a p a b i l i t y R e q u i r e m e n t s   n o w   u s e   t h e   c a t a l o g ' s   a c t u a l   ` o p e r a t i o n a l `   f l a g   f o r   C a l e n d a r 
- 
- 
- 
- # # #   P e r s i s t e n c e 
- 
- -   O n e   n e w   w o r k s p a c e - s c o p e d   c o l l e c t i o n :   ` c a p a b i l i t y D e f i n i t i o n s ` .   N o   p r o j e c t e d   e v e n t   o r   b u s i n e s s - d a t a   c o l l e c t i o n s   w e r e   a d d e d . 
- 
- 
- 
- # #   S t e p   1 0 . 3   �� �   G e n e r i c   M o d u l e   &   F o r m   D e s i g n e r   F o u n d a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   O n e   r e s p o n s i v e   g e n e r i c   M o d u l e   D e s i g n e r   s h a r e d   b y   c r e a t e   a n d   e d i t   r o u t e s   f o r   m a n u a l   a n d   A u t o m a t - g e n e r a t e d   M o d u l e s 
- 
- -   R e g i s t r y - d e r i v e d   f i e l d   p a l e t t e ;   a d d / e d i t / r e m o v e / k e y b o a r d   r e o r d e r ,   r e q u i r e d / h e l p / p l a c e h o l d e r ,   n u m e r i c / t e x t   c o n s t r a i n t s ,   s e l e c t   o p t i o n s ,   C o r e / D o m a i n   E n t i t y R e f e r e n c e   t a r g e t s ,   a n d   l i s t F i e l d s 
- 
- -   B o u n d e d   d e t e r m i n i s t i c   D e s i g n e r   d r a f t   v a l i d a t i o n   a n d   u n s a f e   e x e c u t a b l e / p a t h   c o n f i g u r a t i o n   r e j e c t i o n 
- 
- -   L i v e   p r e v i e w   t h r o u g h   p r o d u c t i o n   F o r m R e n d e r e r ;   p r e v i e w   s u b m i s s i o n   n e v e r   c r e a t e s   c a n o n i c a l   R e c o r d s 
- 
- -   S a v e   D R A F T   /   P u b l i s h   v 1   /   p u b l i s h   A C T I V E   n e x t - v e r s i o n   b e h a v i o r   t h r o u g h   e x i s t i n g   M o d u l e S e r v i c e 
- 
- -   M o d u l e S e r v i c e   c u r r e n t - W o r k s p a c e   E n t i t y   T y p e   r e s o l u t i o n   f o r   E n t i t y R e f e r e n c e   c r e a t e / u p d a t e / a c t i v a t i o n 
- 
- -   D i r t y - s t a t e   i n d i c a t o r s ,   u n l o a d / c a n c e l   p r o t e c t i o n ,   r e s p o n s i v e   s e c t i o n s ,   a n d   f u t u r e   i n d e p e n d e n t   C a p a b i l i t y D e f i n i t i o n s   n o t i c e 
- 
- -   C a n o n i c a l   i n t e g r a t i o n   t e s t   p r o v i n g   V e h i c l e   I n s p e c t i o n   v 1 / v 2 ,   E n t i t y R e f e r e n c e s ,   R e c o r d s ,   a n d   i m m u t a b l e   h i s t o r i c a l   s n a p s h o t s 
- 
- -   L e d g e r   r e g i s t r a t i o n   t r a n s a c t i o n   r e t r y   b u d g e t   i n c r e a s e d   f o r   h i g h - c o n t e n t i o n   i d e m p o t e n t   s a m e - R e c o r d   r e g i s t r a t i o n   a f t e r   f u l l - s u i t e   c o n c u r r e n c y   e x p o s e d   e x h a u s t e d   d e f a u l t   r e t r i e s 
- 
- -   ` M O D U L E _ F O R M _ D E S I G N E R . m d `   d o c u m e n t i n g   o n e - s c h e m a / m u l t i p l e - a u t h o r ,   f u t u r e   P h o t o / P D F / A I   s e a m s ,   l i m i t s ,   v e r s i o n i n g ,   a n d   s e c u r i t y 
- 
- -   A u t h e n t i c a t e d   R e s e t   T e s t   H o t e l   v e r i f i c a t i o n :   g e n e r i c   V e h i c l e   I n s p e c t i o n   D e s i g n e r / p r e v i e w / p u b l i s h / R e c o r d   f l o w ,   c a n o n i c a l   V e h i c l e / E m p l o y e e   r e f e r e n c e s ,   A u t o m a t   R e s e r v a t i o n   v 1 �� � v 2   e d i t ,   h i s t o r i c a l   v 1   r e a d a b i l i t y ,   n e w   v 2   I n t e r n a l   N o t e s   R e c o r d ,   a n d   d e s k t o p / 7 6 8 p x / 3 7 5 p x   p a s s 
- 
- 
- 
- # # #   P e r s i s t e n c e 
- 
- -   E x i s t i n g   M o d u l e ,   M o d u l e   V e r s i o n ,   c o d e   r e s e r v a t i o n ,   E n t i t y   T y p e ,   a n d   R e c o r d   r e p o s i t o r i e s   a r e   r e u s e d .   N o   D e s i g n e r / f o r m   d r a f t   c o l l e c t i o n ,   i n d e x e s ,   r e s e t   p a t h ,   o r   c a n o n i c a l   l o c a l   s t o r a g e   w a s   a d d e d . 
- 
- 
- 
- # #   S t e p   1 0 . 2   �� �   C o m p o s a b l e   C a p a b i l i t y   E n g i n e   A r c h i t e c t u r e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   V e r s i o n e d   C a p a b i l i t y   E n g i n e   d e s c r i p t o r ,   D e f i n i t i o n ,   B i n d i n g ,   s o u r c e - r e f e r e n c e ,   l i f e c y c l e ,   a v a i l a b i l i t y ,   m o d e ,   d e p e n d e n c y ,   a n d   b o u n d s   c o n t r a c t s 
- 
- -   D e t e r m i n i s t i c   t r u s t e d   b u i l t - i n   C a p a b i l i t y   E n g i n e   R e g i s t r y   w i t h   d u p l i c a t e / v e r s i o n   v a l i d a t i o n ,   s t a b l e   o r d e r i n g ,   d e p e n d e n c y - c y c l e   d e t e c t i o n ,   g e n e r i c   v a l i d a t i o n ,   a n d   e n g i n e - s p e c i f i c   v a l i d a t o r   s e a m 
- 
- -   C a l e n d a r D e f i n i t i o n V 1   c o n t r a c t / v a l i d a t o r   p r o o f   f o r   R e s e r v a t i o n ,   H o l i d a y   R e q u e s t ,   a n d   M e e t i n g   s c h e m a s   w i t h o u t   C a l e n d a r   r u n t i m e ,   q u e r y ,   U I ,   o r   p e r s i s t e n c e 
- 
- -   C o d e - f r e e   c a p a b i l i t y   c a t a l o g   c o n s u m e d   b y   W o r k s p a c e S e m a n t i c M o d e l ;   C a l e n d a r   a n d   a l l   r e s e r v e d   f u t u r e   e n g i n e s   r e m a i n   t r u t h f u l l y   ` A R C H I T E C T U R E _ O N L Y ` 
- 
- -   P l a n n i n g - l e v e l   n o n - o p e r a t i o n a l   ` c a p a b i l i t y R e q u i r e m e n t s `   f o r   f u t u r e - c o m p a t i b l e   W o r k s p a c e   A r c h i t e c t   r e v i e w ;   t r u s t e d   a p p l y   w r i t e s   n o   c a p a b i l i t y   r e s o u r c e s 
- 
- -   S e c u r i t y   t e s t s   f o r   a r b i t r a r y   p a t h s ,   s c r i p t s ,   e x p r e s s i o n s ,   r e m o t e   m o d u l e   U R L s ,   f u n c t i o n s ,   u n k n o w n   s o u r c e s ,   f i e l d / t y p e   m i s m a t c h ,   a n d   c r o s s - W o r k s p a c e   r e f e r e n c e s 
- 
- -   A u t h e n t i c a t e d   R e s e t   T e s t   H o t e l   v e r i f i c a t i o n :   W o r k s p a c e   A r c h i t e c t   s h o w s   C a l e n d a r   t r u t h f u l l y   a s   ` A R C H I T E C T U R E _ O N L Y ` ,   n o n - o p e r a t i o n a l / n o n - a p p l i e d ,   w h i l e   r e s t a u r a n t   e v o l u t i o n   r e m a i n s   C R E A T E   0   /   R E U S E   2 0   a n d   E m p l o y e e / R o o m / R e s e r v a t i o n   f l o w s   r e m a i n   h e a l t h y 
- 
- -   D e d i c a t e d   ` C A P A B I L I T Y _ E N G I N E _ A R C H I T E C T U R E . m d `   a n d   A D R - 0 0 0 4   s e l e c t i n g   l o o s e l y   c o u p l e d   i n d e p e n d e n t   D e f i n i t i o n s   a n d   d e f e r r e d   p e r s i s t e n c e 
- 
- 
- 
- # # #   P e r s i s t e n c e 
- 
- -   N o   C a p a b i l i t y D e f i n i t i o n   c o l l e c t i o n ,   R u l e s ,   i n d e x e s ,   r e s e t   p a t h ,   m i g r a t i o n   f r a m e w o r k ,   o r   r u n t i m e   s t a t e   w a s   a d d e d .   P e r s i s t e n c e   i s   d e f e r r e d   t o   t h e   f i r s t   r e a l   E n g i n e   m i l e s t o n e . 
- 
- 
- 
- # #   S t e p   1 0 . 1   �� �   A u t o m a t   W o r k s p a c e   A r c h i t e c t   /   E v o l u t i o n   E n g i n e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   P r o v i d e r - n e u t r a l   ` W O R K S P A C E _ A R C H I T E C T `   A g e n t ,   b o u n d e d   W o r k s p a c e S e m a n t i c M o d e l ,   W o r k s p a c e E v o l u t i o n P l a n ,   c o n c i s e   d e c i s i o n   r a t i o n a l e ,   a n d   B u i l d P l a n   c o m p i l a t i o n 
- 
- -   R e u s e - b e f o r e - c r e a t e   s e m a n t i c   p l a n n i n g   f o r   C o r e / D o m a i n   E n t i t y   T y p e s ,   M o d u l e s ,   W o r k s e t s ,   W i d g e t s ,   a n d   R e p o r t s 
- 
- -   D e t e r m i n i s t i c   r e s t a u r a n t   e x p a n s i o n ,   r o o m   i n s p e c t i o n ,   v e h i c l e ,   s c h o o l ,   a n d   i n s t a l l a t i o n - c o m p a n y   s c e n a r i o s 
- 
- -   A m b i g u i t y   c l a r i f i c a t i o n ,   p r o m p t - i n j e c t i o n   r e s i s t a n c e ,   b o u n d e d - c o n t e x t   ` A N A L Y S I S _ I N C O M P L E T E ` ,   c o n f l i c t   d e t e c t i o n ,   s t a b l e   r e f s ,   a n d   n o - d e s t r u c t i v e / n o - o p e r a t i o n a l - d a t a   s a f e t y 
- 
- -   W o r k s p a c e   A r c h i t e c t   r e v i e w   U X   s h o w i n g   a n a l y z e d   r e s o u r c e s ,   R E U S E / C R E A T E   t o t a l s ,   d e c i s i o n s ,   c o n n e c t i o n s ,   q u e s t i o n s ,   a n d   e x i s t i n g   t r u s t e d   a p p r o v a l / a p p l y 
- 
- -   T r u s t e d   E m u l a t o r   i n t e g r a t i o n   p r o v i n g   r e s t a u r a n t   C R E A T E   t h e n   r e p e a t e d   R E U S E   w i t h o u t   d u p l i c a t e s   o r   f a b r i c a t e d   E n t i t y   i n s t a n c e s 
- 
- -   E n t i t y R e f e r e n c e - a w a r e   r e p e a t e d   E n t i t y   T y p e   c l a s s i f i c a t i o n   a c r o s s   s t a b l e   p l a n   r e f s   a n d   c a n o n i c a l   I D s 
- 
- -   A u t h e n t i c a t e d   ` R e s e t   T e s t   H o t e l `   v e r i f i c a t i o n :   r e s t a u r a n t   C R E A T E   1 5   /   R E U S E   5 ,   r e p e a t e d   C R E A T E   0   /   R E U S E   2 0 ,   R o o m   I n s p e c t i o n   p r o c e s s   r e a s o n i n g ,   a m b i g u i t y   s t o p - b e f o r e - a p p r o v a l ,   n o   f a b r i c a t e d   E n t i t i e s ,   n o   d u p l i c a t e s ,   a n d   r e s p o n s i v e   r e v i e w 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   A D R - 0 0 0 3   k e e p s   W o r k s p a c e   e v o l u t i o n   i n - m e m o r y   a n d   c o m p i l e s   i n t o   t h e   e x i s t i n g   A u t o m a t B u i l d P l a n / S t e p   9 . 2   t r u s t e d   a p p l y   b o u n d a r y 
- 
- -   S n a p s h o t   s u m m a r i e s   n o w   i n c l u d e   b o u n d e d   s e m a n t i c   d e s c r i p t i o n / c a t e g o r y / d i s p l a y   m e t a d a t a   w h i l e   f i n g e r p r i n t s   a n d   s t a l e - p l a n   p r o t e c t i o n   r e m a i n   a u t h o r i t a t i v e 
- 
- 
- 
- # #   S t e p   1 0 . 0   �� �   G e n e r i c   E n t i t y   M a n a g e m e n t   E x p e r i e n c e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   N a v i g a b l e   C o r e / D o m a i n   E n t i t y   T y p e   c a r d s   a n d   g e n e r i c   E n t i t y   T y p e   D e t a i l   w i t h   f i e l d s ,   E n t i t y   c o u n t s ,   M o d u l e   u s a g e ,   a n d   o p e r a t i o n a l   a c t i o n s 
- 
- -   E n t i t y   d i r e c t o r y   g r o u p e d   b y   E n t i t y   T y p e   w i t h   b o u n d e d   a g g r e g a t i o n   c o u n t s 
- 
- -   G e n e r i c   E n t i t y   T y p e - s c o p e d   l i s t / t a b l e   w i t h   s t a b l e   p a g i n a t i o n ,   b o u n d e d   p r e f i x   s e a r c h ,   l i f e c y c l e   f i l t e r s ,   s c h e m a - d e r i v e d   c o l u m n s ,   a n d   b a t c h e d   E n t i t y R e f e r e n c e   l a b e l s 
- 
- -   S c h e m a - r e n d e r e d   g e n e r i c   E n t i t y   c r e a t e / e d i t   f l o w s   t h r o u g h   t h e   c a n o n i c a l   E n t i t y S e r v i c e   a n d   s h a r e d   F o r m   R e n d e r e r 
- 
- -   E x t e n d e d   c a n o n i c a l   E n t i t y   D e t a i l   w i t h   s c h e m a   f o r m a t t i n g ,   E n t i t y R e f e r e n c e   l a b e l s ,   e d i t   a c t i o n ,   a n d   c o n t e x t - a w a r e   r e t u r n   n a v i g a t i o n 
- 
- -   E n t i t y   l i f e c y c l e   v a l i d a t i o n   i n   C o r e   a n d   R u l e s ;   p h y s i c a l   d e l e t e   r e m a i n s   d e n i e d   a n d   C o r e   d e f i n i t i o n s   r e m a i n   p r o t e c t e d 
- 
- -   A u t o m a t - c r e a t e d   D o m a i n   E n t i t y   T y p e s   r e c e i v e   t h e   s a m e   U I   w i t h o u t   b u s i n e s s - s p e c i f i c   c o m p o n e n t s 
- 
- -   R e q u i r e d   E n t i t y   i n d e x e s   a n d   c r o s s - W o r k s p a c e / P e r s o n a l / a u t h o r i z e d - m e m b e r   i n t e g r a t i o n   c o v e r a g e 
- 
- -   A u t h e n t i c a t e d   ` R e s e t   T e s t   H o t e l `   v e r i f i c a t i o n :   E m p l o y e e   c r e a t e / e d i t ,   R o o m   1 0 1 / 1 0 2   c o e x i s t e n c e ,   R e s e r v a t i o n �� � R o o m   1 0 2   E n t i t y R e f e r e n c e ,   g e n e r i c   E q u i p m e n t   f l o w ,   s t a b l e   f i e l d / c a r d   o r d e r i n g ,   a n d   d e s k t o p / 7 6 8 p x / 3 7 5 p x   p a s s 
- 
- 
- 
- # #   S t e p   9 . 2   �� �   T r u s t e d   A u t o m a t   B u i l d P l a n   A p p l i c a t i o n 
- 
- 
- 
- # # #   A d d e d 
- 
- -   T r u s t e d   ` a u t o m a t P l a n `   p e r s i s t e n c e / a p p r o v a l   a n d   ` a u t o m a t A p p l y P l a n `   a p p l y / s t a t u s   c a l l a b l e s   f o r   N o d e . j s   2 2   i n   ` e u r o p e - w e s t 1 ` 
- 
- -   S e r v e r   A u t h ,   P e r s o n a l - o w n e r / O r g a n i z a t i o n - O W N E R   a u t h o r i z a t i o n ,   d e v e l o p m e n t - p r o j e c t   e n t i t l e m e n t   b o u n d a r y ,   i m m u t a b l e   p l a n / c o n f i g u r a t i o n   S H A - 2 5 6   f i n g e r p r i n t s ,   a n d   s t a l e - p l a n   r e j e c t i o n 
- 
- -   W o r k s p a c e - s c o p e d   i m m u t a b l e   r e v i e w e d   p l a n s   p l u s   A d m i n - o n l y   W o r k s p a c e   l e a s e   l o c k ,   a p p l y   o p e r a t i o n   j o u r n a l ,   P l a n R e f e r e n c e   m a p p i n g ,   r e s o u r c e   r e s u l t s ,   a n d   e x t e r n a l   a u d i t   m e t a d a t a 
- 
- -   D e p e n d e n c y - o r d e r e d   c a n o n i c a l   E n t i t y   T y p e ,   A C T I V E   M o d u l e   +   i m m u t a b l e   V e r s i o n   1 / c o d e   r e s e r v a t i o n ,   W o r k s e t ,   W i d g e t D e f i n i t i o n ,   a n d   R e p o r t D e f i n i t i o n   a p p l i c a t i o n 
- 
- -   C R E A T E / R E U S E   s e m a n t i c s ,   a l l   S A F E _ U P D A T E   d i s a b l e d ,   C O N F L I C T   b l o c k i n g ,   n o   R E P L A C E _ D E L E T E ,   o p t i o n a l   U N S U P P O R T E D   t y p e - l e v e l   r e l a t i o n s h i p   r e c o m m e n d a t i o n s 
- 
- -   P a r t i a l - f a i l u r e   j o u r n a l i n g ,   s a f e   r e s u m e / r e t r y ,   p o s t - a p p l y   v e r i f i c a t i o n ,   d u r a b l e   A u d i t E n t r y ,   a n d   o n e   c o m p l e t i o n   N o t i f i c a t i o n 
- 
- -   A p p r o v a l / f i n a l - c o n f i r m a t i o n / p r o g r e s s / r e s u l t   U I   w i t h   W o r k s p a c e - s c o p e d   c a c h e   i n v a l i d a t i o n 
- 
- -   F i r e s t o r e   p l a n - r e a d / t r u s t e d - w r i t e   R u l e s ,   n e g a t i v e   t e s t s ,   r e s e t / a p p l y   m u t u a l   e x c l u s i o n ,   a n d   r e s e t   c l e a n u p   c o m p a t i b i l i t y 
- 
- -   A D R - 0 0 0 2   d o c u m e n t i n g   t h e   t r u s t e d   b o u n d a r y   a n d   d e f e r r e d   R e l a t i o n s h i p D e f i n i t i o n   a r c h i t e c t u r e 
- 
- -   P o s t - a p p l y   R e c o r d   i n t e g r a t i o n   h a r d e n i n g :   l o w e r c a s e   F i r e s t o r e   s o r t   d i r e c t i o n s ,   c o m p l e t e   a s c e n d i n g / d e s c e n d i n g   R e c o r d   i n d e x e s ,   g e n e r i c   s c h e m a - d r i v e n   M o d u l e   R e c o r d   c o l u m n s ,   b a t c h e d   E n t i t y R e f e r e n c e   l a b e l s ,   a c c e s s i b l e   c a n o n i c a l   r o w   n a v i g a t i o n ,   a n d   c o n t e x t - a w a r e   b a c k   n a v i g a t i o n 
- 
- -   D e p l o y m e n t / b r o w s e r   v e r i f i c a t i o n   o n   ` m o d u l i t y - 2 - d e v ` :   C R E A T E   1 4   h o t e l   r e s o u r c e s ,   c a n o n i c a l   R o o m / R e s e r v a t i o n   R e c o r d   f l o w ,   e q u i v a l e n t   C R E A T E   0   /   R E U S E   1 4   a p p l y ,   n o   d u p l i c a t e s ,   a n d   d e s k t o p / 7 6 8 p x / 3 7 5 p x   p a s s 
- 
- 
- 
- # # #   L i m i t a t i o n s 
- 
- -   S u b s c r i p t i o n - b a c k e d   s e r v e r   e n t i t l e m e n t   r e s o l u t i o n ,   S A F E _ U P D A T E   p o l i c i e s ,   t y p e - l e v e l   R e l a t i o n s h i p D e f i n i t i o n ,   d e s t r u c t i v e   m i g r a t i o n / r o l l b a c k ,   a n d   p r o d u c t i o n   b a c k g r o u n d   j o b s   r e m a i n   d e f e r r e d 
- 
- 
- 
- # #   S t e p   9 . 1   �� �   O r g a n i z a t i o n   A n a l y z e r   &   S y s t e m   P l a n n e r 
- 
- 
- 
- # # #   A d d e d 
- 
- -   S i x   r e g i s t e r e d   s p e c i a l i s t   s t a g e s   w i t h   s t r i c t   s t r u c t u r e d   h a n d o f f s :   O r g a n i z a t i o n   A n a l y z e r ,   D o m a i n   M o d e l ,   P r o c e s s ,   M o d u l e ,   W o r k s p a c e   E x p e r i e n c e ,   a n d   S y s t e m   R e v i e w e r 
- 
- -   D e t e r m i n i s t i c   p r o v i d e r - b a c k e d   o p e r a t i n g - d o m a i n   k n o w l e d g e   f o r   m e a n i n g f u l   h o t e l ,   t h e a t r e ,   a n d   s c h o o l   p l a n n i n g   w i t h o u t   i n d u s t r y   b r a n c h e s   i n   C o r e   v a l i d a t i o n 
- 
- -   S t r u c t u r e d   O r g a n i z a t i o n P r o f i l e ,   B u s i n e s s A r e a s ,   D o m a i n O b j e c t   c l a s s i f i c a t i o n / C o r e   r e u s e ,   P r o c e s s e s ,   C a p a b i l i t i e s ,   o p e r a t i o n a l   F o r m s ,   R e l a t i o n s h i p s ,   W o r k s e t s ,   W i d g e t s ,   R e p o r t s ,   a s s u m p t i o n s ,   q u e s t i o n s ,   a n d   r e v i e w e r   d i a g n o s t i c s 
- 
- -   S t a b l e   p l a n n i n g   i d e n t i t i e s   p l u s   e x i s t i n g   W o r k s p a c e   R E U S E   a n d   C O N F L I C T   b e h a v i o r 
- 
- -   B o u n d e d   s i x - q u e r y   W o r k s p a c e C o n f i g u r a t i o n S n a p s h o t   a s s e m b l y   w i t h   b e f o r e / a f t e r   n o - m u t a t i o n   f i n g e r p r i n t   v e r i f i c a t i o n 
- 
- -   L a z y   ` / a p p / a u t o m a t `   P l a n n e r   a n d   s e c t i o n e d   r e v i e w   U I   w i t h   e x p l i c i t   s t a t e s   a n d   d i s a b l e d   f u t u r e   A p p l y   c o n t r o l 
- 
- -   M a l f o r m e d / o v e r s i z e d   p r o v i d e r ,   m i s s i n g   s t a g e ,   t i m e o u t ,   f a i l u r e ,   s p e c i a l i z a t i o n   q u a l i t y ,   n o - m u t a t i o n ,   a n d   U I   s e t t l e m e n t   t e s t s 
- 
- -   A u t h e n t i c a t e d   ` R e s e t   T e s t   H o t e l `   h o t e l - p l a n   b r o w s e r   s m o k e   w i t h   c a n o n i c a l   e m p t y - s t a t e   p r e s e r v a t i o n   a n d   d e s k t o p / 7 6 8 p x / 3 7 5 p x   r e s p o n s i v e   v e r i f i c a t i o n 
- 
- 
- 
- # # #   S c o p e 
- 
- -   D e t e r m i n i s t i c   d e v e l o p m e n t   p r o v i d e r   o n l y ;   n o   p a i d / l i v e   A I ,   s e c r e t s ,   p l a n   p e r s i s t e n c e ,   c a n o n i c a l   w r i t e s ,   o r   S t e p   9 . 2   a p p l y   b e h a v i o r 
- 
- 
- 
- # #   S t e p   9 . 0   �� �   A g e n t   I n f r a s t r u c t u r e   &   A u t o m a t   C o n t r a c t s 
- 
- 
- 
- # # #   A d d e d 
- 
- -   P r o v i d e r - i n d e p e n d e n t   A g e n t D e f i n i t i o n / E x e c u t i o n   c o n t r a c t s ,   v e r s i o n e d   A g e n t   R e g i s t r y ,   e n t i t l e m e n t   b o u n d a r y ,   d e t e r m i n i s t i c   t e s t   a d a p t e r ,   a n d   t i m e o u t / e r r o r - n o r m a l i z i n g   O r c h e s t r a t o r 
- 
- -   D e c l a r a t i v e   A u t o m a t B u i l d P l a n ,   s t a b l e   t e m p o r a r y   p l a n   r e f e r e n c e s ,   e x p l i c i t   l i f e c y c l e / p r o v e n a n c e ,   a n d   b o u n d e d   W o r k s p a c e C o n f i g u r a t i o n S n a p s h o t 
- 
- -   D e t e r m i n i s t i c   B u i l d P l a n   v a l i d a t i o n   r e u s i n g   E n t i t y   T y p e ,   M o d u l e ,   F o r m ,   W i d g e t ,   a n d   R e p o r t   v a l i d a t o r s 
- 
- -   C R E A T E / R E U S E / C O N F L I C T   c l a s s i f i c a t i o n   w i t h o u t   d e s t r u c t i v e   r e p l a c e m e n t 
- 
- -   S t r i c t   O r g a n i z a t i o n   A n a l y z e r   i n p u t / o u t p u t   c o n t r a c t   f o r   S t e p   9 . 1   w i t h o u t   i m p l e m e n t i n g   a n a l y s i s 
- 
- -   G e n e r i c   h o t e l ,   e x i s t i n g   W o r k s p a c e   R E U S E ,   i n v a l i d   p l a n ,   m a l f o r m e d   p r o v i d e r ,   t i m e o u t ,   b o u n d s ,   a n d   p r o v e n a n c e   f i x t u r e s / t e s t s 
- 
- -   ` d o c s / A U T O M A T _ A R C H I T E C T U R E . m d `   a n d   a l i g n e d   A g e n t / A r c h i t e c t u r e / D a t a / S e c u r i t y / R o a d m a p   c o n t r a c t s 
- 
- 
- 
- # # #   S c o p e 
- 
- -   D o m a i n - o n l y :   n o   A g e n t E x e c u t i o n / B u i l d P l a n   p e r s i s t e n c e ,   F i r e s t o r e   c o l l e c t i o n ,   p r o v i d e r   s e c r e t ,   e x t e r n a l   A I ,   c a n o n i c a l   m u t a t i o n ,   R e a c t   p l a n n i n g   l o g i c ,   S t e p   9 . 1   i n t e l l i g e n c e ,   o r   S t e p   9 . 2   a p p l y   s e r v i c e 
- 
- -   O l d e r   a u t o m a t i o n   r u l e / w e b h o o k / A P I - t o k e n / e x t e r n a l - a g e n t   r o a d m a p   i t e m s   e x p l i c i t l y   d e f e r r e d 
- 
- 
- 
- # #   S t e p   8 . 1   �� �   S a f e   W o r k s p a c e   R e s e t 
- 
- 
- 
- # # #   A d d e d 
- 
- -   M i n i m a l   t r u s t e d   F i r e b a s e   c a l l a b l e / A d m i n   S D K   b o u n d a r y   f o r   W O R K S P A C E _ D A T A _ R E S E T 
- 
- -   D e t e r m i n i s t i c   a l l o w l i s t e d   R e s e t P l a n   w i t h   e s t i m a t e d   c o u n t s   a n d   p r e s e r v e d - r e s o u r c e   c o n t r a c t 
- 
- -   P e r s o n a l   o w n e r   a n d   O r g a n i z a t i o n   O W N E R   a u t h o r i z a t i o n 
- 
- -   A d m i n - o n l y   p e r - W o r k s p a c e   o p e r a t i o n   l o c k ,   i d e m p o t e n t   r e q u e s t   I D s ,   m i n i m a l   s u r v i v i n g   r e s e t   a u d i t ,   a n d   r e s e t   g e n e r a t i o n   m e t a d a t a 
- 
- -   T y p e d   W o r k s p a c e - n a m e   c o n f i r m a t i o n   D a n g e r   Z o n e   f o r   P e r s o n a l   a n d   O r g a n i z a t i o n   S e t t i n g s 
- 
- -   W o r k s p a c e - s c o p e d   c a c h e   i n v a l i d a t i o n   a n d   c l e a n   a p p   r e l o a d   a f t e r   s u c c e s s 
- 
- -   E m u l a t o r   i n t e g r a t i o n   f o r   P e r s o n a l / O r g a n i z a t i o n   r e s e t ,   m e m b e r   d e n i a l ,   m u l t i - W o r k s p a c e   i s o l a t i o n ,   i d e m p o t e n c y ,   c o n c u r r e n c y ,   e m p t y   r e s e t ,   a n a l y t i c s / C h a t / L e d g e r   n e s t e d   c l e a n u p ,   a n d   p o s t - r e s e t   r e u s e 
- 
- 
- 
- # # #   D e p l o y m e n t   s t a t u s 
- 
- -   C L O S E D   �� �   D E P L O Y M E N T   V E R I F I E D   o n   ` m o d u l i t y - 2 - d e v ` 
- 
- -   ` w o r k s p a c e R e s e t `   v 2   c a l l a b l e   d e p l o y e d   t o   ` e u r o p e - w e s t 1 `   o n   N o d e . j s   2 2 ;   A r t i f a c t   R e g i s t r y   c l e a n u p   s e t   t o   3 0   d a y s 
- 
- -   A u t h e n t i c a t e d   d i s p o s a b l e   O r g a n i z a t i o n   r e s e t ,   i m m e d i a t e   M o d u l e / R e c o r d   r e u s e ,   s e c o n d   r e s e t ,   P e r s o n a l   W o r k s p a c e   i s o l a t i o n ,   a u d i t / l o c k   s e t t l e m e n t ,   a n d   3 7 5 p x / 7 6 8 p x   c o n f i r m a t i o n   s m o k e   p a s s e d 
- 
- -   B r o w s e r   v e r i f i c a t i o n   f o u n d   a n d   f i x e d   t h e   n e w - O r g a n i z a t i o n   s t a l e   s w i t c h   r a c e   a n d   n o r m a l i z e d   ` u s e r I d `   M o d u l e   d e t a i l / e d i t   m i s m a t c h 
- 
- 
- 
- # # #   L i m i t a t i o n s 
- 
- -   F i l e   m e t a d a t a   i s   d e l e t e d ;   b i n a r y   s t o r a g e   c l e a n u p   a d a p t e r   i s   n o t   y e t   i m p l e m e n t e d 
- 
- -   R e s e t   l o c k   p r e v e n t s   c o n c u r r e n t   r e s e t s   b u t   n o r m a l   w r i t e s   d o   n o t   y e t   e n f o r c e   d a t a G e n e r a t i o n / w r i t e   e p o c h 
- 
- -   F i r e b a s e   F u n c t i o n s   d e p e n d e n c y   t r e e   h a s   a   t r a n s i t i v e   m o d e r a t e   u u i d   a d v i s o r y   w i t h o u t   a   c u r r e n t l y   c o m p a t i b l e   n o n - b r e a k i n g   r e m e d i a t i o n 
- 
- 
- 
- # #   S t e p   8   �� �   R e p o r t s   &   I n t e l l i g e n c e   E n g i n e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   C a n o n i c a l   w o r k s p a c e - s c o p e d   R e p o r t D e f i n i t i o n   p e r s i s t e n c e ,   l i f e c y c l e / v e r s i o n i n g ,   b u i l d e r ,   p r e v i e w ,   r u n ,   e d i t ,   a r c h i v e ,   t a b l e / s u m m a r y / b a s i c   c h a r t   r e n d e r i n g 
- 
- -   S h a r e d   d e t e r m i n i s t i c   a n a l y t i c s   p r i m i t i v e s   f o r   t y p e d   f i e l d   r e f e r e n c e s ,   f i l t e r s ,   U T C   p e r i o d s ,   s o r t i n g ,   g r o u p i n g ,   C O U N T / C O U N T _ D I S T I N C T / S U M / A V E R A G E / M I N / M A X 
- 
- -   C o n t r o l l e d   q u e r y   p l a n n e r   w i t h   a l l o w l i s t e d   R E C O R D S / E N T I T I E S / R E L A T I O N S H I P S   s o u r c e s ,   m a x i m u m   5   s o u r c e   M o d u l e s ,   5 0 0   s o u r c e   R e c o r d s ,   1 0 0   r o w s / g r o u p s ,   a n d   e x p l i c i t   L I M I T _ E X C E E D E D   b e h a v i o r 
- 
- -   M u l t i - M o d u l e   R e p o r t   e x e c u t i o n   p r e s e r v i n g   R e c o r d   M o d u l e / v e r s i o n   p r o v e n a n c e   a n d   m i s s i n g   h i s t o r i c a l   f i e l d s   a s   n u l l 
- 
- -   E x i s t i n g   W i d g e t D e f i n i t i o n   e x t e n d e d �� � n o t   r e p l a c e d �� � w i t h   e x e c u t a b l e   K P I ,   S T A T U S _ S U M M A R Y ,   R E C E N T _ R E C O R D S ,   T A B L E ,   a n d   c a n o n i c a l   R e l a t i o n s h i p   A S S I G N M E N T   W i d g e t s 
- 
- -   I n d e p e n d e n t   D a s h b o a r d   W i d g e t   e x e c u t i o n / e r r o r / l o a d i n g / c a c h e   b o u n d a r i e s 
- 
- -   B a t c h e d   E n t i t y R e f e r e n c e   d i s p l a y   r e s o l u t i o n   a n d   b o u n d e d   R e l a t i o n s h i p   r e a d s 
- 
- -   R e p o r t D e f i n i t i o n / W i d g e t   R u l e s   h a r d e n i n g ,   i n d e x e s ,   n e g a t i v e   s e c u r i t y   t e s t s ,   u n i t / U I   t e s t s ,   a n d   r e a l   E m u l a t o r   a n a l y t i c s   j o u r n e y 
- 
- 
- 
- # # #   S c o p e   d e c i s i o n 
- 
- -   P e r   e x p l i c i t   S t e p   8   a p p r o v a l ,   R O A D M A P   a g e n t   r e g i s t r y / o r c h e s t r a t o r   i t e m s   a r e   d e f e r r e d ;   S t e p   8   r e m a i n s   d e t e r m i n i s t i c   a n d   f u l l y   o p e r a t i o n a l   w i t h o u t   A I 
- 
- -   A I   R e p o r t / W i d g e t   g e n e r a t i o n ,   s c h e d u l i n g ,   e x p o r t s ,   t r u s t e d   s e r v e r   a n a l y t i c s ,   a n d   S t e p   9   A u t o m a t   a r e   n o t   i m p l e m e n t e d 
- 
- 
- 
- # #   S t e p   7 . 2   �� �   W o r k s p a c e   E x p e r i e n c e   C l o s u r e   &   I n t e g r a t i o n   A u d i t 
- 
- 
- 
- # # #   A d d e d 
- 
- -   M e m b e r s h i p - p r o t e c t e d   C h a t   f o u n d a t i o n :   C o n v e r s a t i o n ,   C o n v e r s a t i o n M e m b e r ,   M e s s a g e ,   b o u n d e d   q u e r i e s ,   s e r v e r   t i m e s t a m p s ,   s e r v i c e / r e p o s i t o r y ,   ` / a p p / c h a t ` ,   a n d   r e s p o n s i v e   h e a d e r   c o n t r o l 
- 
- -   W o r k s e t   e d i t   f l o w   f o r   n a m e ,   d e s c r i p t i o n ,   M o d u l e   m e m b e r s h i p ,   z e r o - m o d u l e   s t a t e ,   a r c h i v e d / u n a v a i l a b l e   M o d u l e   h a n d l i n g ,   a n d   a c t i v e   W o r k s e t   f i l t e r i n g   o n   M y   M o d u l e s 
- 
- -   R e a l   e m u l a t o r   j o u r n e y   c o n n e c t i n g   c a n o n i c a l   M o d u l e   �� �   W o r k s e t   �� �   p r e f e r e n c e   �� �   E n t i t y   �� �   R e c o r d   �� �   W i d g e t   �� �   N o t i f i c a t i o n   �� �   C o n v e r s a t i o n / M e s s a g e 
- 
- -   N e g a t i v e   C h a t   s e c u r i t y   t e s t s   f o r   n o n - m e m b e r s ,   s e n d e r   s p o o f i n g ,   c r o s s - w o r k s p a c e   p r o v e n a n c e ,   a n d   i m m u t a b l e   M e s s a g e s 
- 
- 
- 
- # # #   H a r d e n e d 
- 
- -   N o t i f i c a t i o n   c r e a t i o n   n o w   r e q u i r e s   a t t r i b u t a b l e   U S E R / s e l f   ` c r e a t e d B y ` ;   p r o v e n a n c e   i s   i m m u t a b l e 
- 
- -   N o t i f i c a t i o n   C e n t e r   u s e s   w o r k s p a c e   c a c h e   a n d   u p d a t e s   t h e   h e a d e r   u n r e a d   c o u n t   a f t e r   m a r k - r e a d 
- 
- -   C o n v e r s a t i o n   m e t a d a t a   q u e r y   u s e s   i m m u t a b l e   ` m e m b e r I d s ` ;   M e s s a g e   a c c e s s   r e q u i r e s   c a n o n i c a l   C o n v e r s a t i o n M e m b e r   d o c u m e n t s 
- 
- -   M o b i l e   h e a d e r   k e e p s   W o r k s p a c e ,   N o t i f i c a t i o n s ,   C h a t ,   a n d   a c c o u n t   a c t i o n s   r e a c h a b l e ;   R e c o r d s   t a b s   u s e   c o n t r o l l e d   h o r i z o n t a l   s c r o l l i n g 
- 
- 
- 
- # # #   A c t u a l   d e f e r r e d   s c o p e 
- 
- -   W i d g e t   m e t r i c / a g g r e g a t i o n   r e n d e r i n g   r e m a i n s   S t e p   8 ;   S t e p   7   s t o r e s   a n d   d i s p l a y s   d e t e r m i n i s t i c   d e f i n i t i o n s   o n l y 
- 
- -   C h a t   c o n v e r s a t i o n / m e m b e r   c r e a t i o n   U I ,   t y p i n g ,   a t t a c h m e n t s ,   r e a d   r e c e i p t s ,   a n d   r e a l t i m e   d e l i v e r y   r e m a i n   a   l a t e r   c o l l a b o r a t i o n   m i l e s t o n e 
- 
- -   F u l l   c u r s o r   p a g i n a t i o n   f o r   E n t i t i e s   r e m a i n s   f o l l o w - u p ;   c u r r e n t   r e a d   i s   b o u n d e d   t o   1 0 0 
- 
- 
- 
- # #   S t e p   7 . 1   �� �   W o r k s p a c e   R u n t i m e   B o o t s t r a p   H a r d e n i n g 
- 
- 
- 
- # # #   F i x e d 
- 
- -   E n a b l e d   a n d   i n i t i a l i z e d   t h e   m i s s i n g   ` ( d e f a u l t ) `   F i r e s t o r e   d a t a b a s e   f o r   ` m o d u l i t y - 2 - d e v ` ;   t h e   a b s e n t   b a c k e n d   c a u s e d   2 3 �� � 3 5   s e c o n d   S D K   o f f l i n e   f a l l b a c k s 
- 
- -   D e t e r m i n i s t i c   P e r s o n a l   W o r k s p a c e   I D s   ( ` p e r s o n a l _ { u s e r I d } ` )   m a k e   f i r s t - u s e r   b o o t s t r a p   i d e m p o t e n t   u n d e r   c o n c u r r e n c y 
- 
- -   W o r k s p a c e   s t a r t u p   n o w   r e n d e r s   a   v a l i d   P e r s o n a l   W o r k s p a c e   b e f o r e   o p t i o n a l   O r g a n i z a t i o n / w o r k s p a c e - e x p e r i e n c e   d i s c o v e r y   c o m p l e t e s 
- 
- -   O p t i o n a l   W o r k s e t / p r e f e r e n c e   e r r o r s   n o   l o n g e r   p o i s o n   t h e   c o r e   W o r k s p a c e   a v a i l a b i l i t y   s t a t e 
- 
- -   S t a l e / i n a c c e s s i b l e   l o c a l   W o r k s p a c e   s e l e c t i o n s   a r e   r e m o v e d   a n d   r e p l a c e d   w i t h   t h e   P e r s o n a l   W o r k s p a c e 
- 
- -   A u t h   o b s e r v e r   e r r o r s   n o w   s e t t l e   A u t h P r o v i d e r   i n s t e a d   o f   l e a v i n g   a u t h e n t i c a t i o n   l o a d i n g   i n d e f i n i t e l y 
- 
- -   L e d g e r   a n d   a l l   w o r k s p a c e   p a g e s   n o w   s e t t l e   m i s s i n g   w o r k s p a c e ,   e m p t y   q u e r y ,   a n d   q u e r y   f a i l u r e   s t a t e s   e x p l i c i t l y 
- 
- -   D a s h b o a r d   M o d u l e s ,   R e c o r d s ,   a n d   W i d g e t s   l o a d   i n d e p e n d e n t l y   i n s t e a d   o f   a   b l o c k i n g   ` P r o m i s e . a l l `   w a t e r f a l l 
- 
- -   M i s s i n g   u s e r   W o r k s p a c e   P r e f e r e n c e   d o c u m e n t s   c a n   b e   r e a d   s a f e l y   b e f o r e   f i r s t   c r e a t i o n 
- 
- 
- 
- # # #   P e r f o r m a n c e 
- 
- -   A d d e d   a   l i g h t w e i g h t   w o r k s p a c e - k e y e d   s t a l e - w h i l e - r e v a l i d a t e   q u e r y   c a c h e   w i t h o u t   t h i r d - p a r t y   s t a t e   d e p e n d e n c i e s 
- 
- -   C a c h e d   M o d u l e s ,   W o r k s e t s ,   W i d g e t s ,   E n t i t y   T y p e s ,   b o u n d e d   E n t i t i e s ,   L e d g e r   B o o k s ,   D a s h b o a r d   p r o j e c t i o n s ,   a n d   f i l t e r e d   R e c o r d s   f i r s t   p a g e s 
- 
- -   A d d e d   l o w - p r i o r i t y   i d l e   p r e f e t c h   f o r   b o u n d e d   M o d u l e s   a n d   u s e r   W o r k s e t s / W i d g e t s 
- 
- -   D i s t i n g u i s h e d   i n i t i a l   l o a d i n g   f r o m   b a c k g r o u n d   r e f r e s h i n g   s o   c a c h e d   c o n t e n t   r e m a i n s   v i s i b l e 
- 
- -   A d d e d   m u t a t i o n   i n v a l i d a t i o n   f o r   M o d u l e s ,   R e c o r d s ,   W o r k s e t s ,   W i d g e t s ,   E n t i t i e s ,   E n t i t y   T y p e s ,   a n d   L e d g e r   B o o k s 
- 
- -   B o u n d e d   E n t i t y   l i s t   r e a d s   t o   1 0 0   p e n d i n g   f u l l   c u r s o r   p a g i n a t i o n 
- 
- 
- 
- # # #   V a l i d a t i o n 
- 
- -   E m p t y   P e r s o n a l   W o r k s p a c e   e m u l a t o r   i n t e g r a t i o n   c o v e r s   c o n c u r r e n t   b o o t s t r a p   a n d   s e t t l e d   e m p t y   q u e r i e s   f o r   M o d u l e s ,   R e c o r d s ,   E n t i t i e s ,   E n t i t y   T y p e s ,   W o r k s e t s ,   W i d g e t s ,   N o t i f i c a t i o n s ,   P r e f e r e n c e s ,   a n d   L e d g e r 
- 
- -   D e v e l o p m e n t   s t a r t u p   o p e r a t i o n s   h a v e   a   d i a g n o s t i c   f a i l u r e   b o u n d a r y ;   n o   W o r k s p a c e   b o o t s t r a p   a w a i t   c a n   r e m a i n   p e n d i n g   i n d e f i n i t e l y 
- 
- -   C a c h e   t e s t s   c o v e r   w o r k s p a c e   i s o l a t i o n ,   d e t e r m i n i s t i c   k e y s ,   c o n c u r r e n t   r e q u e s t   d e d u p l i c a t i o n ,   s t a l e   r e f r e s h ,   a n d   t a r g e t e d   i n v a l i d a t i o n 
- 
- -   R e a l   b r o w s e r   v e r i f i c a t i o n :   ~ 2 s   s t e a d y - s t a t e   r e l o a d ;   f i r s t   u n c a c h e d   r o u t e s   b r i e f l y   l o a d ;   r e p e a t   M o d u l e s / L e d g e r   n a v i g a t i o n   r e n d e r s   i m m e d i a t e l y 
- 
- 
- 
- # #   S t e p   7   �� �   W o r k s p a c e   E x p e r i e n c e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   W o r k s p a c e - a w a r e   D a s h b o a r d   w i t h   q u i c k   a c t i o n s ,   a c t i v e   W o r k s e t   M o d u l e s ,   r e c e n t   R e c o r d s ,   a n d   W i d g e t   a r e a 
- 
- -   W o r k s e t   m o d e l / s e r v i c e / r e p o s i t o r y   a n d   u s e r - s p e c i f i c   a c t i v e   W o r k s e t   p r e f e r e n c e s 
- 
- -   W o r k s e t   l i s t ,   c r e a t i o n ,   d e t a i l ,   a c t i v a t i o n ,   a n d   a r c h i v e   U I 
- 
- -   C o n f i g u r a t i o n - o n l y   W i d g e t D e f i n i t i o n   m o d e l   w i t h   c o n t r o l l e d   s o u r c e s ,   f i e l d s ,   o p e r a t o r s ,   a n d   b o u n d e d   l i m i t s 
- 
- -   M y   W i d g e t s   U I   a n d   r e s p o n s i v e   d a s h b o a r d   g r i d 
- 
- -   N o t i f i c a t i o n   m o d e l / s e r v i c e / r e p o s i t o r y ,   s e l e c t i v e   ` r e c o r d . s e n t `   n o t i f i c a t i o n   b r i d g e ,   h e a d e r   u n r e a d   c o u n t ,   a n d   N o t i f i c a t i o n   C e n t e r 
- 
- -   W o r k s p a c e   E x p e r i e n c e   F i r e s t o r e   R u l e s   a n d   i n d e x e s   f o r   W o r k s e t s ,   W i d g e t s ,   N o t i f i c a t i o n s ,   a n d   p r e f e r e n c e s 
- 
- -   R e s p o n s i v e   g r o u p e d   s i d e b a r   n a v i g a t i o n   a n d   a c t i v e   W o r k s e t   h e a d e r   s e l e c t o r 
- 
- 
- 
- # # #   F i x e d 
- 
- -   W o r k s p a c e   a n d   p a g e   l o a d e r s   n o w   s e t t l e   w h e n   w o r k s p a c e / s e r v i c e s   a r e   u n a v a i l a b l e 
- 
- -   E n t i t y   T y p e s ,   E n t i t i e s ,   M o d u l e s ,   a n d   R e c o r d s   n o   l o n g e r   l e a v e   l o a d i n g   a c t i v e   w h e n   n o   w o r k s p a c e   o r   z e r o   d a t a   i s   a v a i l a b l e 
- 
- -   W o r k s p a c e   s w i t c h i n g   v a l i d a t e s   a c c e s s i b i l i t y ,   l o a d s   m e m b e r s h i p   b e f o r e   c o m m i t t i n g   t h e   s w i t c h ,   c l e a r s   s t a l e   w o r k s p a c e   v i e w s ,   a n d   r e p o r t s   e r r o r s 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   W o r k s e t   i s   n a v i g a t i o n   c o n t e x t ,   n e v e r   a u t h o r i z a t i o n 
- 
- -   W i d g e t   d e f i n i t i o n s   s t o r e   q u e r y   c o n f i g u r a t i o n ,   n e v e r   c o p i e d   b u s i n e s s   d a t a 
- 
- -   E v e n t ,   A u d i t ,   a n d   N o t i f i c a t i o n   r e m a i n   d i s t i n c t 
- 
- -   L o a d i n g ,   e m p t y ,   r e a d y ,   a n d   e r r o r   s t a t e s   a r e   s e p a r a t e 
- 
- 
- 
- # #   S t e p   6 . 1   �� �   L e d g e r   C o n s i s t e n c y ,   I d e m p o t e n c y   &   A u d i t   H a r d e n i n g 
- 
- 
- 
- # # #   F i x e d 
- 
- -   * * T r a n s a c t i o n - l e v e l   i d e m p o t e n c y * *   �� �   a u t h o r i t a t i v e   i d e m p o t e n c y   c h e c k   m o v e d   i n s i d e   t h e   s a m e   F i r e s t o r e   ` r u n T r a n s a c t i o n `   t h a t   a l l o c a t e s   s e q u e n c e   n u m b e r s .   T h e   o u t e r   ` g e t B y B o o k A n d R e c o r d ( ) `   i s   n o w   a n   o p t i m i z a t i o n   o n l y ,   n o t   t h e   c o r r e c t n e s s   b o u n d a r y . 
- 
- -   * * C r e a t e - o n c e   L e d g e r E n t r y   s e m a n t i c s * *   �� �   e x i s t i n g   e n t r i e s   a r e   n e v e r   o v e r w r i t t e n   b y   r e t r y .   U s e s   ` _ i d e m p o t e n t `   f l a g   t o   d i s t i n g u i s h   f i r s t - c r e a t i o n   f r o m   i d e m p o t e n t   r e t u r n . 
- 
- -   * * A t o m i c   R e c o r d �� � L e d g e r   l i n k a g e * *   �� �   R e c o r d   ` l e d g e r E n t r y I d ` / ` l e d g e r B o o k I d ` / ` r e f e r e n c e N u m b e r `   u p d a t e d   i n s i d e   t h e   s a m e   t r a n s a c t i o n   t h a t   c r e a t e s   t h e   L e d g e r E n t r y . 
- 
- -   * * A t o m i c   L e d g e r B o o k   b o o t s t r a p * *   �� �   c o d e   r e s e r v a t i o n   +   b o o k   +   i n i t i a l   b l o c k   +   ` c u r r e n t B l o c k I d `   i n   a   s i n g l e   ` r u n T r a n s a c t i o n ` .   N o   o r p h a n   c o d e   r e s e r v a t i o n s   o n   f a i l u r e . 
- 
- -   * * A u d i t   d u p l i c a t i o n   p r e v e n t i o n * *   �� �   L e d g e r S e r v i c e   o w n s   d u r a b l e   a u d i t   f o r   l e d g e r   o p e r a t i o n s ;   A u d i t B r i d g e   h a n d l e s   n o n - l e d g e r   e v e n t s   o n l y .   L e d g e r   e v e n t s   e x c l u d e d   f r o m   b r i d g e   m a p p i n g . 
- 
- -   * * S e r v e r - a u t h o r i t a t i v e   t i m e s t a m p s * *   �� �   a l l   L e d g e r / A u d i t   o p e r a t i o n s   u s e   F i r e s t o r e   ` s e r v e r T i m e s t a m p ( ) `   f o r   a u t h o r i t a t i v e   h i s t o r i c a l   t i m e .   C l i e n t   I S O   s t r i n g s   a r e   d i s p l a y - o n l y . 
- 
- 
- 
- # # #   A d d e d 
- 
- -   * * P r o v e n a n c e   v a l i d a t i o n   i n   F i r e s t o r e   R u l e s * *   �� �   L e d g e r E n t r y   c r e a t e   r e q u i r e s :   r e f e r e n c e d   R e c o r d   e x i s t s   i n   s a m e   w o r k s p a c e ,   r e f e r e n c e d   L e d g e r B o o k   e x i s t s   i n   s a m e   w o r k s p a c e ,   i n i t i a l   ` e n t r y S t a t u s `   m u s t   b e   ` A C T I V E ` 
- 
- -   * * M u l t i p l e - L e d g e r B o o k - p e r - R e c o r d   p o l i c y * *   �� �   e x p l i c i t   s u p p o r t ;   ` l e d g e r E n t r y R e p o . l i s t B y R e c o r d ( ) `   r e t u r n s   e n t r i e s   a c r o s s   a l l   b o o k s 
- 
- -   * * E m u l a t o r   c o n c u r r e n c y   i n t e g r a t i o n   t e s t s * *   �� �   2 0   c o n c u r r e n t   s a m e - r e c o r d   r e g i s t r a t i o n s   ( 1   e n t r y ,   1   s e q u e n c e   c o n s u m e d ) ,   5 0   c o n c u r r e n t   d i s t i n c t   r e c o r d s   ( 5 0   u n i q u e   c o n t i g u o u s   s e q u e n c e s ) ,   b l o c k   r o l l o v e r   u n d e r   c o n c u r r e n c y ,   c a n c e l l e d   n u m b e r   g a p   p r e s e r v a t i o n 
- 
- -   * * P r o v e n a n c e   s e c u r i t y   t e s t s * *   �� �   n o n e x i s t e n t   R e c o r d / B o o k   r e j e c t e d ,   n o n - A C T I V E   i n i t i a l   s t a t u s   r e j e c t e d 
- 
- -   * * A u d i t   o w n e r s h i p   m o d e l * *   �� �   d o c u m e n t e d :   e a c h   a u d i t   a c t i o n   h a s   e x a c t l y   o n e   o w n e r   ( s e r v i c e   o r   b r i d g e ) 
- 
- -   * * A u d i t   f a i l u r e   s e m a n t i c s * *   �� �   d o c u m e n t e d :   b e s t - e f f o r t ,   a u d i t   f a i l u r e   d o e s   n o t   r o l l   b a c k   b u s i n e s s   o p e r a t i o n s 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   I d e m p o t e n c y   c h e c k   i s   i n s i d e   t h e   t r a n s a c t i o n   t h a t   a l l o c a t e s   t h e   s e q u e n c e 
- 
- -   R e c o r d   l i n k a g e   i s   a t o m i c   w i t h   L e d g e r E n t r y   c r e a t i o n 
- 
- -   L e d g e r B o o k   b o o t s t r a p   i s   a t o m i c   ( c o d e   +   b o o k   +   b l o c k   +   c u r r e n t B l o c k I d ) 
- 
- -   A u d i t   i s   b e s t - e f f o r t   �� �   n o t   g u a r a n t e e d   p e r m a n e n t   u n l e s s   m o v e d   b e h i n d   C l o u d   F u n c t i o n 
- 
- -   S e q u e n c e   a l l o c a t i o n   i s   c o n c u r r e n c y - s a f e   f o r   h o n e s t   c l i e n t s   b u t   n o t   t a m p e r - r e s i s t a n t   w i t h o u t   t r u s t e d   b a c k e n d 
- 
- 
- 
- # #   S t e p   6   �� �   L e d g e r   &   A u d i t   E n g i n e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   * * L e d g e r B o o k * *   �� �   n u m b e r e d   r e g i s t e r   m o d e l   w i t h   w o r k s p a c e - s c o p e d   c o d e   u n i q u e n e s s ,   c o n f i g u r a b l e   b l o c k   s i z e   ( 2 5 �� � 1 0 0 0 0 ) ,   r e f e r e n c e   p r e f i x ,   m o d u l e / r e c o r d T y p e   s c o p i n g 
- 
- -   * * L e d g e r B l o c k * *   �� �   p h y s i c a l - b o o k   b l o c k   m o d e l   w i t h   a u t o m a t i c   r o l l o v e r   w h e n   c a p a c i t y   r e a c h e d 
- 
- -   * * L e d g e r E n t r y * *   �� �   i m m u t a b l e   r e g i s t r a t i o n   r e c o r d   l i n k i n g   c a n o n i c a l   R e c o r d s   t o   L e d g e r   i d e n t i t y   w i t h   u n i q u e   s e q u e n c e   n u m b e r s   a n d   h u m a n - r e a d a b l e   r e f e r e n c e   n u m b e r s 
- 
- -   * * A u d i t E n t r y * *   �� �   a p p e n d - o n l y   d u r a b l e   a c c o u n t a b i l i t y   h i s t o r y ,   d i s t i n c t   f r o m   r u n t i m e   E v e n t   B u s 
- 
- -   * * A u d i t   A c t i o n   R e g i s t r y * *   �� �   c o n t r o l l e d   v o c a b u l a r y   o f   3 0 +   s t a b l e   a c t i o n   n a m e s   a c r o s s   r e c o r d s ,   m o d u l e s ,   e n t i t i e s ,   d e l i v e r i e s ,   f o r m   r e q u e s t s ,   l e d g e r ,   a n d   s e c u r e   s h a r e s 
- 
- -   * * A u d i t   B r i d g e * *   �� �   m a p s   s e l e c t e d   E v e n t   B u s   r u n t i m e   e v e n t s   t o   d u r a b l e   A u d i t E n t r y   p e r s i s t e n c e 
- 
- -   * * L e d g e r   S e r v i c e * *   �� �   a t o m i c   s e q u e n c e   a l l o c a t i o n ,   i d e m p o t e n t   r e g i s t r a t i o n ,   c a n c e l l a t i o n / v o i d i n g ,   b o o k   l i f e c y c l e   m a n a g e m e n t 
- 
- -   * * L e d g e r   Q u e r y   S e r v i c e * *   �� �   p a g i n a t e d ,   f i l t e r e d   L e d g e r   E n t r y   q u e r i e s   w i t h   s t a b l e   o r d e r i n g 
- 
- -   * * A u d i t   S e r v i c e * *   �� �   d u r a b l e   a u d i t   r e c o r d i n g ,   r e s o u r c e / a c t o r / g e n e r a l   h i s t o r y   q u e r i e s 
- 
- -   * * M o d u l e   l e d g e r C o n f i g * *   �� �   o p t i o n a l   L e d g e r   c o n f i g u r a t i o n   o n   M o d u l e   a n d   M o d u l e   V e r s i o n   ( e n a b l e d ,   l e d g e r B o o k I d ,   r e g i s t e r O n S u b m i t ) 
- 
- -   * * R e c o r d   �� �   L e d g e r   l i n k a g e * *   �� �   i m m u t a b l e   ` l e d g e r E n t r y I d ` ,   ` l e d g e r B o o k I d ` ,   ` r e f e r e n c e N u m b e r `   f i e l d s   o n   R e c o r d 
- 
- -   * * L e d g e r   U I * *   �� �   b o o k   l i s t ,   b o o k   d e t a i l   w i t h   p a g i n a t e d   e n t r i e s ,   e n t r y   d e t a i l ,   b o o k   c r e a t i o n   f o r m 
- 
- -   * * R e c o r d   H i s t o r y   U I * *   �� �   a u d i t   t i m e l i n e   o n   R e c o r d   d e t a i l   p a g e   s h o w i n g   c h r o n o l o g i c a l   a c c o u n t a b i l i t y   t r a i l 
- 
- -   * * F i r e s t o r e   S e c u r i t y   R u l e s * *   �� �   L e d g e r   B o o k s ,   B l o c k s ,   E n t r i e s ,   C o d e s ,   A u d i t   E n t r i e s   w i t h   w o r k s p a c e   i s o l a t i o n ,   i m m u t a b i l i t y   e n f o r c e m e n t ,   a p p e n d - o n l y   a u d i t ,   a c t o r   v a l i d a t i o n 
- 
- -   * * C o m p o s i t e   i n d e x e s * *   �� �   1 0   n e w   F i r e s t o r e   i n d e x e s   f o r   L e d g e r   a n d   A u d i t   q u e r i e s 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   L e d g e r   E n t r y   n e v e r   r e p l a c e s   o r   c o p i e s   t h e   c a n o n i c a l   R e c o r d 
- 
- -   S e q u e n c e   n u m b e r s   a l l o c a t e d   a t o m i c a l l y   v i a   F i r e s t o r e   t r a n s a c t i o n s 
- 
- -   B l o c k   r o l l o v e r   i s   c o n c u r r e n c y - s a f e 
- 
- -   R e g i s t r a t i o n   i s   i d e m p o t e n t   ( s a m e   b o o k I d   +   r e c o r d I d   =   s a m e   e n t r y ) 
- 
- -   C a n c e l l e d / v o i d e d   e n t r i e s   r e t a i n   t h e i r   s e q u e n c e   n u m b e r   p e r m a n e n t l y 
- 
- -   A u d i t   i s   a p p e n d - o n l y   a n d   s e p a r a t e   f r o m   t h e   r u n t i m e   E v e n t   B u s 
- 
- -   S e r v e r - a u t h o r i t a t i v e   t i m e s t a m p s   f o r   a l l   h i s t o r i c a l   o p e r a t i o n s 
- 
- -   C l i e n t s   c a n n o t   c l a i m   t r u s t e d   a g e n t / i n t e g r a t i o n   i d e n t i t i e s   i n   a u d i t 
- 
- 
- 
- # #   [ S t e p   5 . 1 ]   �� �   T r a n s a c t i o n ,   I d e m p o t e n c y   &   C o n c u r r e n c y   H a r d e n i n g 
- 
- 
- 
- # # #   F i x e d 
- 
- -   * * F o r m R e q u e s t   A t o m i c   C o m p l e t i o n * *   �� �   C o m p l e t i o n   n o w   u s e s   a   F i r e s t o r e   ` r u n T r a n s a c t i o n `   t o   a t o m i c a l l y   c r e a t e   t h e   R e c o r d   A N D   m a r k   t h e   r e q u e s t   C O M P L E T E D .   P r e v i o u s l y   t h e s e   w e r e   s e p a r a t e   w r i t e s   t h a t   c o u l d   l e a v e   o r p h a n   d u p l i c a t e s   o n   n e t w o r k   f a i l u r e . 
- 
- -   * * F o r m R e q u e s t   I d e m p o t e n c y * *   �� �   D e t e r m i n i s t i c   R e c o r d   I D   ( ` r e q _ { r e q u e s t I d } ` )   e n s u r e s   a t   m o s t   O N E   R e c o r d   p e r   F o r m R e q u e s t .   R e t r y i n g   a   c o m p l e t e d   r e q u e s t   r e t u r n s   t h e   e x i s t i n g   r e s u l t   i n s t e a d   o f   c r e a t i n g   a   d u p l i c a t e . 
- 
- -   * * E x a c t   M o d u l e   V e r s i o n   V a l i d a t i o n * *   �� �   C o m p l e t i o n   n o w   l o a d s   t h e   i m m u t a b l e   M o d u l e   V e r s i o n   S N A P S H O T   ( ` g e t V e r s i o n S n a p s h o t ` )   i n s t e a d   o f   t h e   c u r r e n t   M o d u l e   d o c u m e n t .   I f   r e q u e s t   l o c k s   v 2   b u t   M o d u l e   i s   n o w   v 5 ,   v a l i d a t i o n   a n d   r e c o r d T y p e   p r o v e n a n c e   u s e   v 2 . 
- 
- -   * * S e c u r e S h a r e   R e d e m p t i o n   C o n c u r r e n c y * *   �� �   T o k e n   r e d e m p t i o n   u s e s   a   F i r e s t o r e   ` r u n T r a n s a c t i o n `   f o r   a t o m i c   c h e c k - a n d - i n c r e m e n t   o f   r e d e m p t i o n C o u n t .   T w o   c o n c u r r e n t   r e d e m p t i o n s   a g a i n s t   m a x R e d e m p t i o n s = 1   r e s u l t   i n   e x a c t l y   o n e   s u c c e s s . 
- 
- -   * * S u b m i t t e d   R e c o r d   D a t a   I m m u t a b i l i t y * *   �� �   F i r e s t o r e   R u l e s   n o w   e n f o r c e   t h a t   ` d a t a ` ,   ` e n t i t y R e f e r e n c e s ` ,   a n d   ` e n t i t y R e f e r e n c e I d s `   a r e   i m m u t a b l e   o n   S U B M I T T E D / A C T I V E / C O M P L E T E D / C A N C E L L E D / A R C H I V E D   r e c o r d s .   D R A F T   r e c o r d s   r e m a i n   f r e e l y   e d i t a b l e . 
- 
- -   * * A R C H I V E D   Q u e r y   N o r m a l i z a t i o n * *   �� �   A R C H I V E D   b u c k e t   n o w   f o r c e s   ` s t a t u s :   ' A R C H I V E D ' `   r e g a r d l e s s   o f   a n y   c o n f l i c t i n g   s t a t u s   f i l t e r ,   p r e v e n t i n g   i n c o m p a t i b l e   d u a l   c o n s t r a i n t s . 
- 
- -   * * P a g i n a t i o n   C u r s o r   S t a b i l i t y * *   �� �   A d d e d   e x p l i c i t   ` d o c u m e n t I d ( ) `   t i e - b r e a k e r   o r d e r i n g   t o   p r e v e n t   d u p l i c a t e s / s k i p s   w h e n   R e c o r d s   s h a r e   i d e n t i c a l   s o r t - f i e l d   t i m e s t a m p s . 
- 
- 
- 
- # # #   A d d e d 
- 
- -   * * s o u r c e R e q u e s t I d * *   �� �   N e w   i m m u t a b l e   p r o v e n a n c e   f i e l d   o n   R e c o r d .   N o r m a l   R e c o r d s :   n u l l .   R e c o r d s   f r o m   F o r m R e q u e s t   c o m p l e t i o n :   t h e   o r i g i n a t i n g   r e q u e s t I d .   L i n k s   R e c o r d   �� �   F o r m R e q u e s t   d e t e r m i n i s t i c a l l y . 
- 
- -   * * A r c h i v e   P r o v e n a n c e * *   �� �   ` a r c h i v e d A t `   ( s e r v e r - a u t h o r i t a t i v e   t i m e s t a m p )   a n d   ` a r c h i v e d B y `   ( c a n o n i c a l   A c t o r R e f )   w r i t t e n   w h e n   a r c h i v i n g ,   c l e a r e d   o n   u n a r c h i v e .   R e a d y   f o r   S t e p   6   L e d g e r / A u d i t . 
- 
- -   * * R e c i p i e n t   M e m b e r s h i p   V a l i d a t i o n * *   �� �   B o t h   R e c o r d D e l i v e r y S e r v i c e   a n d   F o r m R e q u e s t S e r v i c e   n o w   v e r i f y   t h e   r e c i p i e n t   i s   a n   A C T I V E   m e m b e r   o f   t h e   O r g a n i z a t i o n   W o r k s p a c e   ( o r   t h e   o w n e r   f o r   P e r s o n a l   W o r k s p a c e s ) .   S u s p e n d e d / L E F T / n o n - m e m b e r   r e c i p i e n t s   a r e   r e j e c t e d . 
- 
- -   * * D a t e   R a n g e   F i l t e r s * *   �� �   ` c r e a t e d F r o m `   a n d   ` c r e a t e d T o `   i m p l e m e n t e d   e n d - t o - e n d :   R e c o r d Q u e r y   d o m a i n ,   F i r e s t o r e   r e p o s i t o r y   ( s e r v e r - s i d e   ` _ c r e a t e d A t `   T i m e s t a m p   f i l t e r i n g ) ,   a n d   c l i e n t - s i d e   f i l t e r i n g   f o r   c o l l a b o r a t i o n   b u c k e t   r e s u l t s . 
- 
- -   * * r e s u l t R e c o r d I d   I m m u t a b i l i t y * *   �� �   O n c e   s e t   o n   a   F o r m R e q u e s t ,   ` r e s u l t R e c o r d I d `   c a n n o t   b e   c h a n g e d   v i a   F i r e s t o r e   R u l e s .   P r e v e n t s   p o i n t i n g   a   c o m p l e t e d   r e q u e s t   a t   a n   a r b i t r a r y   R e c o r d . 
- 
- -   * * L e g a c y   Q u e r y   B o u n d i n g * *   �� �   ` l i s t B y W o r k s p a c e ( ) ` ,   ` l i s t B y S t a t u s ( ) ` ,   ` l i s t B y E n t i t y R e f ( ) ` ,   a n d   ` q u e r y R e c o r d s ( ) `   n o w   e n f o r c e   a n   i n t e r n a l   h a r d   c a p   o f   5 0 0   r e s u l t s .   B r o w s e   o p e r a t i o n s   s h o u l d   u s e   ` p a g i n a t e d Q u e r y ( ) ` . 
- 
- -   * * U n i t   T e s t s * *   �� �   f o r m R e q u e s t S e r v i c e ,   s e c u r e S h a r e S e r v i c e ,   r e c o r d O p e r a t i o n S e r v i c e ,   r e c o r d D e l i v e r y S e r v i c e ,   r e c o r d Q u e r y S e r v i c e   s e r v i c e - l e v e l   t e s t s   ( i d e m p o t e n c y ,   c o n c u r r e n c y ,   m e m b e r s h i p   v a l i d a t i o n ,   p r o v e n a n c e ,   b u c k e t   s e m a n t i c s ) 
- 
- -   * * E m u l a t o r   S e c u r i t y   T e s t s * *   �� �   S u b m i t t e d   R e c o r d   d a t a / e n t i t y R e f e r e n c e s / s o u r c e R e q u e s t I d   i m m u t a b i l i t y ,   p r i o r i t y - o n l y   u p d a t e   a l l o w e d ,   p r i o r i t y + d a t a   d e n i e d ,   D R A F T   d a t a   u p d a t e   a l l o w e d ,   a r c h i v e - o n l y   u p d a t e   a l l o w e d ,   F o r m R e q u e s t   r e s u l t R e c o r d I d   i m m u t a b i l i t y 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   F o r m R e q u e s t   c o m p l e t i o n   n o   l o n g e r   d e p e n d s   o n   R e c o r d S e r v i c e .   I t   b u i l d s   t h e   R e c o r d   d o m a i n   o b j e c t   d i r e c t l y   a n d   w r i t e s   v i a   ` c o m p l e t e R e q u e s t A t o m i c `   F i r e s t o r e   t r a n s a c t i o n . 
- 
- -   S e c u r e S h a r e   r e d e m p t i o n   n o   l o n g e r   u s e s   r e a d - t h e n - u p d a t e .   U s e s   ` r e d e e m T o k e n A t o m i c `   F i r e s t o r e   t r a n s a c t i o n . 
- 
- -   S e r v i c e s   r e c e i v e   ` m e m b e r s h i p R e p o `   a n d   ` w o r k s p a c e R e p o `   f o r   r e c i p i e n t   v a l i d a t i o n   a t   t h e   a p p l i c a t i o n   l a y e r   ( n o t   j u s t   U I   c h e c k s ) . 
- 
- 
- 
- # #   [ S t e p   5 ]   �� �   R e c o r d   O p e r a t i o n s   &   C o l l a b o r a t i o n   E n g i n e 
- 
- 
- 
- # # #   A d d e d 
- 
- -   * * R e c o r d   Q u e r y   E n g i n e * *   �� �   P a g i n a t e d ,   f i l t e r e d ,   s o r t e d   R e c o r d   q u e r i e s   w i t h   b u c k e t   v i e w s   ( A L L ,   O W N ,   S T A R R E D ,   S E N T ,   R E C E I V E D ,   A R C H I V E D ) 
- 
- -   * * R e c o r d   O p e r a t i o n   S e r v i c e * *   �� �   P r i o r i t y   c h a n g e s ,   a r c h i v e / u n a r c h i v e ,   b u l k   o p e r a t i o n s   ( u p   t o   5 0 ) ,   s u b m i t t e d - d a t a   i m m u t a b i l i t y   e n f o r c e m e n t 
- 
- -   * * R e c o r d   D e l i v e r y   S e r v i c e * *   �� �   R e c o r d   s h a r i n g / s e n d i n g   w i t h   l i f e c y c l e   s t a t e   m a c h i n e   ( P E N D I N G   �� �   D E L I V E R E D   �� �   O P E N E D   �� �   A C K N O W L E D G E D   �� �   A C C E P T E D / D E C L I N E D   �� �   C O M P L E T E D / R E V O K E D ) 
- 
- -   * * R e c o r d   F o l d e r   S e r v i c e * *   �� �   W o r k s p a c e   a n d   u s e r - s c o p e d   f o l d e r s ,   f o l d e r   i t e m s ,   s t a r r e d   s t a t e 
- 
- -   * * F o r m   R e q u e s t   S e r v i c e * *   �� �   F o r m   r e q u e s t   c r e a t i o n   w i t h   l o c k e d   M o d u l e   V e r s i o n ,   r e c i p i e n t   l i f e c y c l e ,   a t o m i c   c o m p l e t i o n   c r e a t i n g   c a n o n i c a l   R e c o r d 
- 
- -   * * S e c u r e   S h a r e   S e r v i c e * *   �� �   Q R / l i n k   f o u n d a t i o n   w i t h   S H A - 2 5 6   t o k e n   h a s h i n g ,   r e v o c a t i o n ,   e x p i r a t i o n ,   r e d e m p t i o n   l i m i t s 
- 
- -   * * R e c o r d   L i s t   U I * *   �� �   G l o b a l   R e c o r d   l i s t   p a g e   ( ` / a p p / r e c o r d s ` )   w i t h   b u c k e t   t a b s ,   f i l t e r i n g ,   s o r t i n g ,   p a g i n a t i o n ,   b u l k   o p e r a t i o n s 
- 
- -   * * M o d u l e   R e c o r d   L i s t   U I * *   �� �   M o d u l e - s c o p e d   R e c o r d   l i s t   ( ` / a p p / m o d u l e s / : m o d u l e I d / r e c o r d s ` )   w i t h   " V i e w   R e c o r d s "   l i n k   f r o m   M o d u l e   d e t a i l 
- 
- -   * * R e c o r d   T a b l e   c o m p o n e n t * *   �� �   R e u s a b l e   s o r t a b l e   t a b l e   w i t h   s e l e c t i o n ,   s t a r r i n g ,   s t a t u s / p r i o r i t y   b a d g e s 
- 
- -   * * F i r e s t o r e   S e c u r i t y   R u l e s * *   �� �   R u l e s   f o r   d e l i v e r i e s ,   f o r m R e q u e s t s ,   f o l d e r s ,   f o l d e r   i t e m s ,   u s e r R e c o r d S t a t e ,   s h a r e T o k e n s 
- 
- -   * * F i r e s t o r e   I n d e x e s * *   �� �   C o m p o s i t e   i n d e x e s   f o r   a l l   n e w   c o l l e c t i o n s   ( f i r e s t o r e . i n d e x e s . j s o n ) 
- 
- -   * * U n i t   t e s t s * *   �� �   D o m a i n   m o d e l   t e s t s   f o r   r e c o r d Q u e r y ,   d e l i v e r y ,   f o r m R e q u e s t ,   f o l d e r ,   u s e r R e c o r d S t a t e ,   s e c u r e S h a r e 
- 
- -   * * E m u l a t o r   s e c u r i t y   t e s t s * *   �� �   R u l e s   t e s t s   f o r   a l l   n e w   c o l l e c t i o n s   ( d e l i v e r y ,   f o r m R e q u e s t ,   f o l d e r ,   u s e r R e c o r d S t a t e ,   s h a r e T o k e n ) 
- 
- -   * * I n f r a s t r u c t u r e   w i r i n g * *   �� �   A l l   n e w   r e p o s i t o r i e s   a n d   s e r v i c e s   r e g i s t e r e d   i n   s e r v i c e s . j s / r e p o s i t o r i e s . j s 
- 
- 
- 
- # # #   A r c h i t e c t u r e 
- 
- -   R e c o r d S e r v i c e   r e m a i n s   f o c u s e d   o n   c a n o n i c a l   R e c o r d   C R U D   +   l i f e c y c l e 
- 
- -   S i x   n e w   f o c u s e d   s e r v i c e s   p r e v e n t   m o n o l i t h   a c c u m u l a t i o n 
- 
- -   A l l   s e r v i c e s   u s e   f a c t o r y   p a t t e r n   w i t h   d e p e n d e n c y   i n j e c t i o n 
- 
- -   W o r k s p a c e   i s o l a t i o n   e n f o r c e d   a t   F i r e s t o r e   S e c u r i t y   R u l e s   l e v e l 
- 
- -   U s e r   R e c o r d   S t a t e   i s o l a t e d   p e r - u s e r   ( n o   c r o s s - u s e r   l e a k a g e ) 
- 
- -   F o r m   R e q u e s t s   l o c k   M o d u l e   V e r s i o n   a t   c r e a t i o n   ( i m m u t a b l e   p r o v e n a n c e ) 
- 
- -   S h a r e   t o k e n s   s t o r e   o n l y   S H A - 2 5 6   h a s h e s   ( p l a i n t e x t   n e v e r   p e r s i s t e d ) 
- 
- 
- 
- # #   [ U n r e l e a s e d ] 
- 
- 
- 
- # # #   A d d e d 
- 
- 
- 
- -   S t e p   0 :   A r c h i t e c t u r e   B l u e p r i n t   &   P r o j e c t   C o n s t i t u t i o n . 
- 
-     -   C r e a t e d   a r c h i t e c t u r e   d o c u m e n t a t i o n   i n   ` d o c s / ` . 
- 
-     -   C r e a t e d   m i n i m a l   p r o j e c t   s c a f f o l d i n g :   V i t e   +   R e a c t   +   T a i l w i n d   C S S   +   E S L i n t   +   P r e t t i e r   +   V i t e s t   +   P l a y w r i g h t . 
- 
-     -   D e f i n e d   d e s i g n   s y s t e m   t o k e n s   a n d   p r o j e c t   s t r u c t u r e . 
- 
- -   S t e p   1 :   A p p l i c a t i o n   F o u n d a t i o n . 
- 
-     -   C e n t r a l i z e d   c o n f i g u r a t i o n   l o a d e r   i n   ` s r c / i n f r a s t r u c t u r e / c o n f i g / ` . 
- 
-     -   P r o v i d e r - i n d e p e n d e n t   i d e n t i t y   c o n t r a c t   a n d   F i r e b a s e   A u t h   a d a p t e r . 
- 
-     -   U s e r   m o d e l   b o u n d a r y   m a p p i n g   F i r e b a s e   U s e r   t o   ` U s e r I d e n t i t y ` . 
- 
-     -   A u t h   P r o v i d e r ,   p r o t e c t e d / g u e s t   r o u t e s ,   l o g i n   a n d   r e g i s t r a t i o n   p a g e s . 
- 
-     -   R e s p o n s i v e   a u t h e n t i c a t e d   s h e l l   w i t h   h e a d e r ,   s i d e b a r ,   a n d   m o b i l e   d r a w e r . 
- 
-     -   F i r s t   D e s i g n   S y s t e m   c o m p o n e n t s :   B u t t o n ,   I c o n B u t t o n ,   I n p u t ,   P a s s w o r d I n p u t ,   L a b e l ,   C a r d ,   B a d g e ,   A l e r t ,   D i a l o g ,   D r a w e r ,   D r o p d o w n ,   S p i n n e r ,   L o a d i n g S t a t e ,   E r r o r S t a t e ,   E m p t y S t a t e ,   P a g e C o n t a i n e r ,   P a g e H e a d e r . 
- 
-     -   A p p l i c a t i o n   e r r o r   m o d e l   t r a n s l a t i n g   p r o v i d e r   e r r o r s   t o   u s e r - s a f e   m e s s a g e s . 
- 
-     -   U n i t   t e s t s   f o r   c o n f i g u r a t i o n ,   i d e n t i t y   m a p p i n g ,   a u t h   s t a t e ,   p r o t e c t e d   r o u t e s ,   f o r m   v a l i d a t i o n ,   a n d   D e s i g n   S y s t e m   p r i m i t i v e s . 
- 
-     -   G i t H u b   A c t i o n s   C I   w o r k f l o w   r u n n i n g   i n s t a l l ,   l i n t ,   t e s t ,   a n d   b u i l d . 
- 
- 
- 
- -   S t e p   2 :   W o r k s p a c e   &   P e o p l e   F o u n d a t i o n . 
- 
-     -   C o r e   d o m a i n   m o d e l s :   W o r k s p a c e ,   O r g a n i z a t i o n ,   M e m b e r s h i p ,   R o l e ,   P e r s o n / P r o f i l e ,   G r o u p ,   I n v i t a t i o n . 
- 
-     -   R e p o s i t o r y   c o n t r a c t   p a t t e r n :   c o n t r a c t s   i n   ` c o r e / w o r k s p a c e / ` ,   F i r e s t o r e   i m p l e m e n t a t i o n s   i n   ` i n f r a s t r u c t u r e / f i r e b a s e / ` . 
- 
-     -   A p p l i c a t i o n   s e r v i c e s :   W o r k s p a c e S e r v i c e ,   O r g a n i z a t i o n S e r v i c e ,   M e m b e r s h i p S e r v i c e ,   G r o u p S e r v i c e   ( R e a c t - i n d e p e n d e n t ) . 
- 
-     -   E v e n t   b u s   f o u n d a t i o n   ( ` c o r e / e v e n t s / e v e n t B u s . j s ` )   w i t h   e v e n t   e n v e l o p e   s c h e m a . 
- 
-     -   W o r k s p a c e P r o v i d e r / C o n t e x t   w i t h   w o r k s p a c e   s w i t c h i n g ,   l o c a l S t o r a g e   p e r s i s t e n c e ,   a n d   a c c e s s   v e r i f i c a t i o n . 
- 
-     -   P e r s o n a l   W o r k s p a c e   a u t o - c r e a t i o n   o n   f i r s t   l o g i n   ( i d e m p o t e n t ) . 
- 
-     -   O r g a n i z a t i o n   c r e a t i o n   f l o w :   c r e a t e s   o r g   +   w o r k s p a c e   +   O W N E R   m e m b e r s h i p   a s   o n e   l o g i c a l   o p e r a t i o n . 
- 
-     -   R o l e / c a p a b i l i t y   a u t h o r i z a t i o n   b o u n d a r y   w i t h   O W N E R ,   A D M I N ,   M E M B E R   s y s t e m   r o l e s . 
- 
-     -   O w n e r   s a f e t y   i n v a r i a n t :   o r g a n i z a t i o n   c a n n o t   e n d   u p   w i t h   z e r o   o w n e r s . 
- 
-     -   W o r k s p a c e   S w i t c h e r   i n   h e a d e r   w i t h   " C r e a t e   O r g a n i z a t i o n "   a c t i o n . 
- 
-     -   W o r k s p a c e - a w a r e   s i d e b a r :   o r g a n i z a t i o n   n a v   i t e m s   ( P e o p l e ,   G r o u p s ,   S e t t i n g s )   o n l y   s h o w n   f o r   o r g a n i z a t i o n   w o r k s p a c e s . 
- 
-     -   D a s h b o a r d   p a g e   s h o w i n g   c u r r e n t   w o r k s p a c e   a n d   u s e r   i n f o . 
- 
-     -   C r e a t e   O r g a n i z a t i o n   p a g e   w i t h   v a l i d a t e d   f o r m . 
- 
-     -   O r g a n i z a t i o n   S e t t i n g s   p a g e   w i t h   v i e w / e d i t   c a p a b i l i t y . 
- 
-     -   P e o p l e   p a g e   s h o w i n g   o r g a n i z a t i o n   m e m b e r s   w i t h   n a m e ,   e m a i l ,   r o l e ,   s t a t u s . 
- 
-     -   G r o u p s   p a g e   w i t h   c r e a t e / d e l e t e   f u n c t i o n a l i t y . 
- 
-     -   F i r e s t o r e   i n t e g r a t i o n   v i a   ` f i r e b a s e / f i r e s t o r e `   w i t h   e m u l a t o r   s u p p o r t . 
- 
-     -   F i r e s t o r e   S e c u r i t y   R u l e s   i n   ` f i r e s t o r e . r u l e s ` . 
- 
-     -   R o u t e - l e v e l   l a z y   l o a d i n g   f o r   f e a t u r e   p a g e s . 
- 
-     -   P l a t f o r m   e v e n t s   e m i t t e d   f o r   w o r k s p a c e / o r g a n i z a t i o n / m e m b e r s h i p / g r o u p   o p e r a t i o n s . 
- 
-     -   ` d o c s / W O R K S P A C E _ M O D E L . m d `   e x p l a i n i n g   w o r k s p a c e ,   m e m b e r s h i p ,   a n d   p e o p l e   c o n c e p t s . 
- 
-     -   1 0 7   u n i t   t e s t s   a c r o s s   2 1   t e s t   f i l e s   ( 6 1   n e w   t e s t s   f o r   S t e p   2 ) . 
- 
- 
- 
- -   S t e p   2 . 1 :   F i r e s t o r e   S e c u r i t y   H a r d e n i n g . 
- 
-     -   R e d e s i g n e d   m e m b e r s h i p   s t o r a g e :   s u b c o l l e c t i o n s   a t   ` o r g a n i z a t i o n s / { o r g I d } / m e m b e r s / { u s e r I d } `   f o r   d e t e r m i n i s t i c   S e c u r i t y   R u l e s   l o o k u p s . 
- 
-     -   M o v e d   g r o u p s   t o   ` o r g a n i z a t i o n s / { o r g I d } / g r o u p s / { g r o u p I d } `   s u b c o l l e c t i o n . 
- 
-     -   M o v e d   i n v i t a t i o n s   t o   ` o r g a n i z a t i o n s / { o r g I d } / i n v i t a t i o n s / { i n v i t a t i o n I d } `   s u b c o l l e c t i o n . 
- 
-     -   A d d e d   ` u s e r M e m b e r s h i p s / { u s e r I d } / o r g s / { o r g I d } `   r e v e r s e   i n d e x   f o r   e f f i c i e n t   u s e r   m e m b e r s h i p   q u e r i e s . 
- 
-     -   R e w r o t e   ` f i r e s t o r e . r u l e s `   w i t h   o r g a n i z a t i o n   i s o l a t i o n ,   r o l e - b a s e d   e n f o r c e m e n t ,   f i e l d   i m m u t a b i l i t y ,   a n d   d e n y - b y - d e f a u l t . 
- 
-     -   O r g a n i z a t i o n   c r e a t i o n   n o w   u s e s   a t o m i c   ` w r i t e B a t c h ( ) `   ( o r g   +   w o r k s p a c e   +   m e m b e r s h i p   +   i n d e x   i n   o n e   c o m m i t ) . 
- 
-     -   A d d e d   ` f i r e s t o r e O r g a n i z a t i o n B o o t s t r a p . j s `   f o r   a t o m i c   o r g   c r e a t i o n . 
- 
-     -   S e c u r i t y   R u l e s   p r e v e n t :   c r o s s - o r g   a c c e s s ,   s e l f - p r o m o t i o n ,   O W N E R   e s c a l a t i o n   b y   n o n - O W N E R ,   f i e l d   t a m p e r i n g   ( o r g a n i z a t i o n I d ,   u s e r I d ,   t y p e ,   o w n e r U s e r I d ,   c r e a t e d B y U s e r I d ) ,   s u s p e n d e d   m e m b e r   a c c e s s ,   u n a u t h o r i z e d   i n v i t a t i o n   c r e a t i o n / r e a d ,   a n d   a c c e s s   t o   u n k n o w n   c o l l e c t i o n s . 
- 
-     -   A d d e d   6 4   F i r e b a s e   E m u l a t o r   S e c u r i t y   R u l e s   t e s t s   c o v e r i n g   a l l   a t t a c k   v e c t o r s . 
- 
-     -   U p d a t e d   ` d o c s / S E C U R I T Y _ M O D E L . m d `   w i t h   r u l e   p a t t e r n s ,   t r u s t e d   o p e r a t i o n s ,   a n d   f u t u r e   c o l l e c t i o n   r e q u i r e m e n t s . 
- 
-     -   U p d a t e d   ` d o c s / W O R K S P A C E _ M O D E L . m d `   w i t h   n e w   d a t a   a r c h i t e c t u r e . 
- 
-     -   A d d e d   ` n p m   r u n   t e s t : r u l e s `   c o m m a n d   f o r   e m u l a t o r - b a s e d   S e c u r i t y   R u l e s   t e s t i n g . 
- 
- 
- 
- -   S t e p   3 :   U n i v e r s a l   D a t a   C o r e . 
- 
-     -   C o r e   d o m a i n   m o d e l s :   A c t o r R e f ,   E n t i t y T y p e ,   E n t i t y ,   R e l a t i o n s h i p ,   R e c o r d ,   F i l e M e t a . 
- 
-     -   E n t i t y   T y p e   R e g i s t r y   w i t h   C O R E   a n d   D O M A I N   c a t e g o r i e s . 
- 
-     -   8   C o r e   E n t i t y   T y p e s   s e e d e d   i d e m p o t e n t l y :   P E R S O N ,   E M P L O Y E E ,   C U S T O M E R ,   S U P P L I E R ,   V E H I C L E ,   E Q U I P M E N T ,   L O C A T I O N ,   D O C U M E N T . 
- 
-     -   S c h e m a   c o n t r a c t   f o r   E n t i t y   T y p e   f i e l d   d e f i n i t i o n s   ( t e x t ,   n u m b e r ,   d a t e ,   b o o l e a n ,   s e l e c t ,   e n t i t y - r e f e r e n c e ,   f i l e - r e f e r e n c e ) . 
- 
-     -   E n t i t y   R e f e r e n c e   c o n t r a c t   f o r   t y p e d ,   w o r k s p a c e - s c o p e d   c r o s s - o b j e c t   l i n k s . 
- 
-     -   R e f e r e n c e   R e s o l v e r   w i t h   w o r k s p a c e   i s o l a t i o n   e n f o r c e m e n t . 
- 
-     -   R e l a t i o n s h i p   m o d e l   s u p p o r t i n g   t y p e d ,   w o r k s p a c e - s c o p e d   l i n k s   b e t w e e n   o b j e c t s . 
- 
-     -   R e c o r d   f o u n d a t i o n   w i t h   m u l t i - a c t o r   m o d e l   ( c r e a t e d B y ,   s u b m i t t e d B y ) ,   l i f e c y c l e   ( D R A F T   t h r o u g h   A R C H I V E D ) ,   a n d   e n t i t y   r e f e r e n c e   v a l i d a t i o n . 
- 
-     -   F i l e / A t t a c h m e n t   m e t a d a t a   m o d e l   w i t h   p r o v i d e r - i n d e p e n d e n t   s t o r a g e   c o n t r a c t . 
- 
-     -   R e p o s i t o r y   c o n t r a c t s :   E n t i t y T y p e R e p o s i t o r y ,   E n t i t y R e p o s i t o r y ,   R e l a t i o n s h i p R e p o s i t o r y ,   R e c o r d R e p o s i t o r y ,   F i l e R e p o s i t o r y . 
- 
-     -   F i r e s t o r e   a d a p t e r s   f o r   a l l   5   n e w   c o l l e c t i o n s   u n d e r   ` w o r k s p a c e s / { w o r k s p a c e I d } / ` . 
- 
-     -   A p p l i c a t i o n   s e r v i c e s :   E n t i t y T y p e S e r v i c e ,   E n t i t y S e r v i c e ,   R e l a t i o n s h i p S e r v i c e ,   R e c o r d S e r v i c e ,   F i l e S e r v i c e   ( a l l   R e a c t - i n d e p e n d e n t ) . 
- 
-     -   F i r e s t o r e   S e c u r i t y   R u l e s   f o r   e n t i t y T y p e s ,   e n t i t i e s ,   r e l a t i o n s h i p s ,   r e c o r d s ,   f i l e s   �� �   w o r k s p a c e   o w n e r s h i p ,   i m m u t a b l e   f i e l d s ,   C O R E   t y p e   p r o t e c t i o n ,   d e n y - b y - d e f a u l t . 
- 
-     -   3 5   n e w   F i r e b a s e   E m u l a t o r   s e c u r i t y   t e s t s   ( 9 9   t o t a l )   c o v e r i n g   p o s i t i v e ,   n e g a t i v e ,   c r o s s - w o r k s p a c e ,   i m m u t a b l e   f i e l d ,   a n d   d e n y - b y - d e f a u l t   s c e n a r i o s . 
- 
-     -   8 3   n e w   u n i t   t e s t s   ( 1 9 0   t o t a l )   f o r   a l l   d o m a i n   m o d e l s ,   v a l i d a t i o n ,   s c h e m a   c o n t r a c t ,   a n d   c o r e   e n t i t y   t y p e s . 
- 
-     -   M i n i m a l   E n t i t y   b r o w s e r / d e t a i l   U I :   E n t i t y T y p e s P a g e ,   E n t i t i e s P a g e ,   E n t i t y D e t a i l P a g e . 
- 
-     -   E n t i t y   T y p e   m a n a g e m e n t   U I   w i t h   D o m a i n   t y p e   c r e a t i o n   i n c l u d i n g   f i e l d   d e f i n i t i o n s . 
- 
-     -   E n t i t y   d e t a i l   s h o w s   t y p e ,   s t a t u s ,   d a t a ,   r e l a t i o n s h i p s ,   a n d   r e l a t e d   r e c o r d   c o u n t . 
- 
-     -   P l a t f o r m   e v e n t s   e m i t t e d   f o r   e n t i t y _ t y p e ,   e n t i t y ,   r e l a t i o n s h i p ,   r e c o r d ,   a n d   f i l e   o p e r a t i o n s . 
- 
-     -   ` d o c s / U N I V E R S A L _ D A T A _ C O R E . m d `   d o c u m e n t i n g   f u l l   a r c h i t e c t u r e ,   q u e r y   s t r a t e g y ,   s e c u r i t y   r u l e s ,   m u l t i - i n d u s t r y   p r o o f . 
- 
-     -   U p d a t e d   ` d o c s / A R C H I T E C T U R E . m d ` ,   ` d o c s / D A T A _ M O D E L . m d ` ,   ` d o c s / S E C U R I T Y _ M O D E L . m d ` ,   ` A G E N T S . m d ` . 
- 
- 
- 
- -   S t e p   3 . 1 :   U n i v e r s a l   D a t a   I n t e g r i t y   H a r d e n i n g . 
- 
-     -   F u l l   f i e l d   t y p e   v a l i d a t i o n :   t e x t   ( s t r i n g ,   m i n L e n g t h ,   m a x L e n g t h ) ,   n u m b e r   ( f i n i t e ,   m i n ,   m a x ) ,   d a t e   ( I S O   8 6 0 1 ) ,   b o o l e a n ,   s e l e c t   ( o p t i o n   s e t ) ,   e n t i t y - r e f e r e n c e   ( c a n o n i c a l   s t r u c t u r e ) ,   f i l e - r e f e r e n c e   ( n o n - e m p t y   s t r i n g ) . 
- 
-     -   U n k n o w n - f i e l d   p o l i c y :   u n d e c l a r e d   f i e l d s   i n   E n t i t y   d a t a   a r e   r e j e c t e d . 
- 
-     -   F i e l d   d e f i n i t i o n   h a r d e n i n g :   k e y   f o r m a t   v a l i d a t i o n   ( ` / ^ [ a - z A - Z ] [ a - z A - Z 0 - 9 _ ] * $ / ` ) ,   d u p l i c a t e   k e y   r e j e c t i o n ,   s e l e c t   o p t i o n s   r e q u i r e d ,   m i n / m a x   c o n s i s t e n c y ,   m i n L e n g t h / m a x L e n g t h   c o n s i s t e n c y ,   r e q u i r e d   m u s t   b e   b o o l e a n . 
- 
-     -   ` v a l i d a t e F i e l d D e f i n i t i o n s ( ) `   v a l i d a t e s   e n t i r e   f i e l d   s e t   i n c l u d i n g   c r o s s - f i e l d   u n i q u e n e s s . 
- 
-     -   C a n o n i c a l   ` v a l i d a t e E n t i t y R e f e r e n c e ( ) `   s h a r e d   a c r o s s   E n t i t y S e r v i c e ,   R e c o r d S e r v i c e ,   a n d   f u t u r e   c o n s u m e r s . 
- 
-     -   E n t i t y   R e f e r e n c e   t y p e   i n t e g r i t y :   ` r e f . e n t i t y T y p e I d `   m u s t   m a t c h   r e s o l v e d   e n t i t y ' s   a c t u a l   ` e n t i t y T y p e I d ` . 
- 
-     -   R e c o r d   r e f e r e n c e   d u a l - s t o r a g e :   c a n o n i c a l   ` e n t i t y R e f e r e n c e s [ ] `   ( s o u r c e   o f   t r u t h )   +   d e r i v e d   ` e n t i t y R e f e r e n c e I d s [ ] `   ( q u e r y   i n d e x ) . 
- 
-     -   E n t i t y   T y p e   e x i s t e n c e   a n d   A C T I V E   s t a t u s   c h e c k   b e f o r e   E n t i t y   c r e a t i o n . 
- 
-     -   E n t i t y   u p d a t e   r e v a l i d a t i o n :   d a t a   c h a n g e s   r e v a l i d a t e d   a g a i n s t   E n t i t y   T y p e   s c h e m a . 
- 
-     -   R e c o r d   d r a f t   u p d a t e   r e v a l i d a t i o n :   e n t i t y R e f e r e n c e s ,   d a t a ,   a t t a c h m e n t s   r e v a l i d a t e d ;   e n t i t y R e f e r e n c e I d s   r e c o m p u t e d . 
- 
-     -   A c t o r   i d e n t i t y   e n f o r c e m e n t   i n   F i r e s t o r e   R u l e s :   ` i s V a l i d C l i e n t A c t o r ( ) `   e n f o r c e s   ` a c t o r T y p e   = =   ' U S E R ' `   a n d   ` a c t o r I d   = =   r e q u e s t . a u t h . u i d `   f o r   a l l   w o r k s p a c e   d a t a   c r e a t e s . 
- 
-     -   I N T E R N A L _ A G E N T   a n d   E X T E R N A L _ I N T E G R A T I O N   r e j e c t e d   f r o m   c l i e n t   w r i t e s . 
- 
-     -   1 3   n e w   F i r e b a s e   E m u l a t o r   s e c u r i t y   t e s t s   ( 1 1 2   t o t a l )   c o v e r i n g   a c t o r   s p o o f i n g ,   t r u s t e d   a c t o r   t y p e   r e j e c t i o n ,   c r o s s - c o l l e c t i o n   a c t o r   i d e n t i t y ,   a n d   i m m u t a b l e   a c t o r   f i e l d s . 
- 
-     -   5 3   n e w   u n i t   t e s t s   ( 2 4 3   t o t a l )   f o r   f i e l d   t y p e   v a l i d a t i o n ,   f i e l d   d e f i n i t i o n   v a l i d a t i o n ,   e n t i t y   r e f e r e n c e   v a l i d a t i o n ,   r e c o r d   r e f e r e n c e   i n d e x i n g ,   a n d   a c t o r   r e f   e d g e   c a s e s . 
- 
-     -   U p d a t e d   ` d o c s / U N I V E R S A L _ D A T A _ C O R E . m d ` ,   ` d o c s / D A T A _ M O D E L . m d ` ,   ` d o c s / S E C U R I T Y _ M O D E L . m d ` ,   ` A G E N T S . m d ` ,   ` C H A N G E L O G . m d ` . 
- 
- 
- 
- -   S t e p   4 :   M o d u l e   E n g i n e   +   F o r m   S c h e m a   +   F o r m   R e n d e r e r . 
- 
-     -   M o d u l e   D e f i n i t i o n   d o m a i n   m o d e l   ( ` s r c / m o d u l e s / m o d u l e . j s ` )   w i t h   m o d u l e I d ,   w o r k s p a c e I d ,   m o d u l e C o d e ,   n a m e ,   d e s c r i p t i o n ,   c a t e g o r y ,   s t a t u s ,   v e r s i o n ,   f o r m S c h e m a ,   r e c o r d C o n f i g ,   d i s p l a y C o n f i g ,   p r i m a r y E n t i t y T y p e I d ,   c r e a t e d B y ,   t i m e s t a m p s . 
- 
-     -   M o d u l e   i d e n t i t y :   ` m o d u l e I d `   i s   i m m u t a b l e   i n t e r n a l   I D ,   ` m o d u l e C o d e `   i s   s t a b l e   h u m a n / d e v e l o p e r - f a c i n g   c o d e   ( u n i q u e   w i t h i n   w o r k s p a c e ,   i m m u t a b l e   a f t e r   c r e a t i o n ) . 
- 
-     -   M o d u l e   l i f e c y c l e :   D R A F T   �� �   A C T I V E   �� �   I N A C T I V E / A R C H I V E D .   D R A F T   f r e e l y   e d i t a b l e .   A C T I V E   m o d u l e s   i n c r e m e n t   v e r s i o n   o n   s c h e m a   c h a n g e s .   A r c h i v e d   m o d u l e s   p r e s e r v e d   f o r   h i s t o r i c a l   R e c o r d   i n t e r p r e t a t i o n . 
- 
-     -   M o d u l e   v e r s i o n i n g :   i n t e g e r   ` v e r s i o n `   o n   M o d u l e ;   R e c o r d s   s t o r e   ` m o d u l e I d `   +   ` m o d u l e V e r s i o n ` . 
- 
-     -   S h a r e d   f i e l d   s y s t e m :   e x t e n d e d   ` F I E L D _ T Y P E S `   i n   ` e n t i t y T y p e . j s `   w i t h   f o r m - o r i e n t e d   t y p e s   ( t e x t a r e a ,   e m a i l ,   p h o n e ,   u r l ,   d a t e t i m e ) .   O n e   c o h e r e n t   f i e l d   s y s t e m   w i t h   ` E N T I T Y _ F I E L D _ T Y P E S `   s u b s e t   f o r   E n t i t y   T y p e   v a l i d a t i o n   a n d   f u l l   s e t   f o r   F o r m   S c h e m a   v a l i d a t i o n . 
- 
-     -   V a l i d a t i o n   p a t t e r n s :   ` I S O _ D A T E T I M E _ P A T T E R N ` ,   ` E M A I L _ P A T T E R N ` ,   ` P H O N E _ P A T T E R N ` ,   ` U R L _ P A T T E R N `   a d d e d   t o   c o r e   f i e l d   v a l i d a t o r s . 
- 
-     -   F o r m   S c h e m a   e m b e d d e d   i n   M o d u l e   D e f i n i t i o n :   ` {   s c h e m a V e r s i o n ,   f i e l d s [ ]   } `   w i t h   o r d e r e d   f i e l d   d e f i n i t i o n s . 
- 
-     -   F o r m   S c h e m a   V a l i d a t o r   ( ` s r c / m o d u l e s / f o r m s / f o r m S c h e m a V a l i d a t o r . j s ` ) :   v a l i d a t e s   s c h e m a   s t r u c t u r e ,   v a l i d a t e s   f o r m   v a l u e s   a g a i n s t   s c h e m a ,   e x t r a c t s   e n t i t y   r e f e r e n c e s ,   r e j e c t s   u n d e c l a r e d   f i e l d s ,   e n f o r c e s   e n t i t y   r e f e r e n c e   i n t e g r i t y . 
- 
-     -   S t r u c t u r e d   v a l i d a t i o n   e r r o r   m o d e l :   ` {   v a l i d :   b o o l e a n ,   e r r o r s :   {   [ f i e l d K e y ] :   s t r i n g   }   } ` . 
- 
-     -   F i e l d   R e g i s t r y   ( ` s r c / m o d u l e s / f o r m s / f i e l d R e g i s t r y . j s ` ) :   d e t e r m i n i s t i c   m a p p i n g   f r o m   f i e l d   t y p e   t o   R e a c t   c o m p o n e n t ,   f a l l s   b a c k   t o   ` U n s u p p o r t e d F i e l d `   f o r   u n k n o w n   t y p e s . 
- 
-     -   G e n e r i c   F o r m   R e n d e r e r   ( ` s r c / m o d u l e s / f o r m s / F o r m R e n d e r e r . j s x ` ) :   s c h e m a - d r i v e n ,   r e n d e r s   f i e l d s   i n   s c h e m a   o r d e r   v i a   F i e l d   R e g i s t r y ,   c l i e n t - s i d e   v a l i d a t i o n ,   s u b m i t / d r a f t   b u t t o n s ,   a c c e s s i b l e ,   n o   m o d u l e - s p e c i f i c   h a r d c o d e d   J S X . 
- 
-     -   1 2   f i e l d   c o m p o n e n t s :   T e x t F i e l d ,   T e x t a r e a F i e l d ,   N u m b e r F i e l d ,   D a t e F i e l d ,   D a t e T i m e F i e l d ,   B o o l e a n F i e l d ,   S e l e c t F i e l d ,   E m a i l F i e l d ,   P h o n e F i e l d ,   U r l F i e l d ,   E n t i t y R e f e r e n c e F i e l d ,   F i l e R e f e r e n c e F i e l d ,   p l u s   U n s u p p o r t e d F i e l d   f a l l b a c k . 
- 
-     -   F i e l d W r a p p e r   c o m p o n e n t   f o r   c o n s i s t e n t   l a b e l ,   r e q u i r e d   i n d i c a t o r ,   h e l p   t e x t ,   e r r o r   d i s p l a y ,   a n d   a c c e s s i b i l i t y   ( a r i a - i n v a l i d ,   a r i a - d e s c r i b e d b y ) . 
- 
-     -   E n t i t y R e f e r e n c e F i e l d :   l o a d s   e n t i t i e s   f r o m   w o r k s p a c e   f i l t e r e d   b y   e n t i t y T y p e I d ,   s t o r e s   c a n o n i c a l   ` {   e n t i t y I d ,   e n t i t y T y p e I d ,   w o r k s p a c e I d   } ` . 
- 
-     -   F i l e R e f e r e n c e F i e l d :   t e x t   i n p u t   p l a c e h o l d e r   f o r   f i l e   r e f e r e n c e   I D s   ( f u l l   u p l o a d   d e f e r r e d ) . 
- 
-     -   D i s p l a y   F o r m a t t e r   ( ` s r c / m o d u l e s / f o r m s / d i s p l a y F o r m a t t e r . j s ` ) :   f o r m a t s   c a n o n i c a l   R e c o r d   v a l u e s   f o r   h u m a n   d i s p l a y . 
- 
-     -   M o d u l e S e r v i c e   ( ` s r c / m o d u l e s / m o d u l e S e r v i c e . j s ` ) :   C R U D ,   l i f e c y c l e   t r a n s i t i o n s ,   c o d e   u n i q u e n e s s ,   v e r s i o n   m a n a g e m e n t ,   i m m u t a b l e   f i e l d   p r o t e c t i o n ,   f o r m   s c h e m a   v a l i d a t i o n . 
- 
-     -   M o d u l e S u b m i s s i o n S e r v i c e   ( ` s r c / m o d u l e s / m o d u l e S u b m i s s i o n S e r v i c e . j s ` ) :   o r c h e s t r a t o r   t h a t   l o a d s   M o d u l e ,   v a l i d a t e s   s t a t u s ,   v a l i d a t e s   f o r m   v a l u e s ,   e x t r a c t s / r e s o l v e s   e n t i t y   r e f e r e n c e s ,   d e l e g a t e s   t o   R e c o r d S e r v i c e ,   c r e a t e s   e x a c t l y   O N E   c a n o n i c a l   R e c o r d ,   e m i t s   p l a t f o r m   e v e n t s . 
- 
-     -   M o d u l e   R e p o s i t o r y   c o n t r a c t   ( ` s r c / m o d u l e s / m o d u l e R e p o s i t o r y . j s ` )   a n d   F i r e s t o r e   a d a p t e r   ( ` s r c / i n f r a s t r u c t u r e / f i r e b a s e / f i r e s t o r e M o d u l e R e p o s i t o r y . j s ` ) . 
- 
-     -   W i r e d   i n t o   ` i n f r a s t r u c t u r e / r e p o s i t o r i e s . j s `   a n d   ` i n f r a s t r u c t u r e / s e r v i c e s . j s ` . 
- 
-     -   M o d u l e   m a n a g e m e n t   U I :   M o d u l e s P a g e   ( l i s t ) ,   C r e a t e M o d u l e P a g e   ( m a n u a l   b u i l d e r ) ,   M o d u l e D e t a i l P a g e   ( d e t a i l   +   p r e v i e w ) ,   E d i t M o d u l e P a g e   ( D R A F T   e d i t i n g ) ,   M o d u l e F o r m P a g e   ( s u b m i s s i o n   f l o w ) ,   R e c o r d D e t a i l P a g e   ( r e c o r d   d i s p l a y ) . 
- 
-     -   M a n u a l   M o d u l e   B u i l d e r :   d e f i n e   m o d u l e   n a m e ,   c o d e ,   c a t e g o r y ,   f o r m   f i e l d s   w i t h   t y p e   s e l e c t i o n ,   o p t i o n s ,   e n t i t y   t y p e ,   r e q u i r e d   s t a t e ,   f i e l d   o r d e r i n g . 
- 
-     -   R o u t e - l e v e l   l a z y   l o a d i n g   f o r   a l l   m o d u l e / r e c o r d   p a g e s . 
- 
-     -   " M y   M o d u l e s "   s i d e b a r   l i n k   e n a b l e d . 
- 
-     -   D e m o   m o d u l e s :   R O O M _ I N S P E C T I O N   ( e n t i t y - r e f e r e n c e ,   d a t e ,   s e l e c t ,   t e x t a r e a ,   f i l e - r e f e r e n c e )   a n d   V E H I C L E _ I N S P E C T I O N   ( t e x t ,   n u m b e r ,   d a t e ,   b o o l e a n ,   s e l e c t ,   t e x t a r e a ) . 
- 
-     -   F i r e s t o r e   S e c u r i t y   R u l e s   f o r   ` w o r k s p a c e s / { w o r k s p a c e I d } / m o d u l e s / { m o d u l e I d } ` :   w o r k s p a c e   o w n e r s h i p ,   a u t h e n t i c a t e d   a c c e s s ,   a c t o r   v a l i d a t i o n   ( U S E R   +   o w n   u i d ) ,   i m m u t a b l e   f i e l d s   ( w o r k s p a c e I d ,   m o d u l e I d ,   m o d u l e C o d e ,   c r e a t e d B y ,   c r e a t e d A t ) ,   a r c h i v e d   m o d u l e   p r o t e c t i o n ,   o r g   w o r k s p a c e   r e q u i r e s   A D M I N / O W N E R   f o r   c r e a t e / u p d a t e ,   d e l e t e   d e n i e d . 
- 
-     -   2 1   n e w   F i r e b a s e   E m u l a t o r   s e c u r i t y   t e s t s   ( 1 3 3   t o t a l ) :   m o d u l e   c r e a t e / r e a d   f o r   p e r s o n a l / o r g   w o r k s p a c e s ,   c r o s s - w o r k s p a c e   i s o l a t i o n ,   a c t o r   s p o o f i n g ,   w o r k s p a c e   m i s m a t c h ,   i m m u t a b l e   f i e l d   c h a n g e s ,   a r c h i v e d   m o d u l e   p r o t e c t i o n ,   d e l e t e   p r o t e c t i o n ,   u n a u t h e n t i c a t e d   a c c e s s . 
- 
-     -   7 9   n e w   u n i t   t e s t s   ( 3 2 2   t o t a l ) :   M o d u l e   d o m a i n   m o d e l ,   v a l i d a t e M o d u l e C o d e ,   M o d u l e S e r v i c e   ( C R U D ,   l i f e c y c l e ,   v e r s i o n i n g ,   i m m u t a b i l i t y ) ,   F o r m   S c h e m a   v a l i d a t i o n ,   f o r m   v a l u e s   v a l i d a t i o n ,   e n t i t y   r e f e r e n c e   e x t r a c t i o n ,   M o d u l e S u b m i s s i o n S e r v i c e   ( s u b m i s s i o n   p i p e l i n e ,   s t a t u s   c h e c k s ,   v a l i d a t i o n ,   d r a f t / s u b m i t ) ,   d e m o   m o d u l e   s c h e m a s ,   F i e l d   R e g i s t r y ,   D i s p l a y   F o r m a t t e r . 
- 
-     -   U p d a t e d   ` A G E N T S . m d ` ,   ` C H A N G E L O G . m d ` ,   ` d o c s / A R C H I T E C T U R E . m d ` ,   ` d o c s / D A T A _ M O D E L . m d ` ,   ` d o c s / S E C U R I T Y _ M O D E L . m d ` ,   ` d o c s / U N I V E R S A L _ D A T A _ C O R E . m d ` . 
- 
- 
- 
- -   S t e p   4 . 1 :   M o d u l e   V e r s i o n   H i s t o r y   &   R e c o r d   P r o v e n a n c e   H a r d e n i n g . 
- 
-     -   R e c o r d   d o m a i n   m o d e l :   a d d e d   ` m o d u l e V e r s i o n `   f i e l d   ( p o s i t i v e   i n t e g e r ,   i m m u t a b l e   a f t e r   c r e a t i o n ) . 
- 
-     -   M o d u l e   V e r s i o n   S n a p s h o t s :   ` w o r k s p a c e s / { w o r k s p a c e I d } / m o d u l e s / { m o d u l e I d } / v e r s i o n s / { v e r s i o n } `   �� �   i m m u t a b l e   h i s t o r i c a l   s c h e m a   s n a p s h o t s . 
- 
-     -   M o d u l e   V e r s i o n   s n a p s h o t   d o m a i n   m o d e l :   ` s r c / m o d u l e s / m o d u l e V e r s i o n . j s `   w i t h   f r o z e n   v a l u e   o b j e c t s . 
- 
-     -   V e r s i o n   c r e a t i o n   l i f e c y c l e :   f i r s t   a c t i v a t i o n   c r e a t e s   V e r s i o n   1   s n a p s h o t ;   A C T I V E   s c h e m a   c h a n g e s   c r e a t e   n e x t   v e r s i o n   a t o m i c a l l y . 
- 
-     -   A t o m i c   ` m o d u l e C o d e `   r e s e r v a t i o n :   ` w o r k s p a c e s / { w o r k s p a c e I d } / m o d u l e C o d e s / { c o d e } `   u s i n g   ` w r i t e B a t c h ` .   C o d e s   a r e   n e v e r   r e u s e d ,   e v e n   a f t e r   a r c h i v i n g . 
- 
-     -   M o d u l e S u b m i s s i o n S e r v i c e   p a s s e s   e x a c t   ` m o d u l e V e r s i o n `   t o   R e c o r d S e r v i c e ;   R e c o r d   p e r s i s t s   ` m o d u l e I d ` ,   ` m o d u l e V e r s i o n ` ,   ` r e c o r d T y p e `   a s   i m m u t a b l e   p r o v e n a n c e . 
- 
-     -   R e c o r d S e r v i c e   s t r i p s   ` m o d u l e I d ` ,   ` m o d u l e V e r s i o n ` ,   ` r e c o r d T y p e `   f r o m   d r a f t   u p d a t e s   ( p r o v e n a n c e   i m m u t a b l e ) . 
- 
-     -   R e c o r d D e t a i l P a g e   l o a d s   h i s t o r i c a l   M o d u l e   V e r s i o n   s c h e m a   v i a   ` r e c o r d . m o d u l e I d `   +   ` r e c o r d . m o d u l e V e r s i o n ` .   F a l l s   b a c k   t o   c u r r e n t   s c h e m a   w i t h   w a r n i n g   i f   v e r s i o n   s n a p s h o t   n o t   f o u n d . 
- 
-     -   M o d u l e S e r v i c e :   ` g e t M o d u l e V e r s i o n ( ) `   a n d   ` l i s t M o d u l e V e r s i o n s ( ) `   f o r   h i s t o r i c a l   s c h e m a   r e t r i e v a l . 
- 
-     -   F i r e s t o r e   M o d u l e   R e p o s i t o r y :   v e r s i o n   s n a p s h o t   C R U D ,   c o d e   r e s e r v a t i o n ,   ` w r i t e B a t c h `   a t o m i c i t y   f o r   v e r s i o n   c r e a t i o n   +   m o d u l e   u p d a t e . 
- 
-     -   F i r e s t o r e   R u l e s :   v e r s i o n   s n a p s h o t s   ( c r e a t e   +   r e a d   a l l o w e d ,   u p d a t e   +   d e l e t e   d e n i e d ) ,   m o d u l e   c o d e   r e s e r v a t i o n s   ( c r e a t e   +   r e a d   a l l o w e d ,   u p d a t e   +   d e l e t e   d e n i e d ) ,   R e c o r d   ` m o d u l e I d ` / ` m o d u l e V e r s i o n ` / ` r e c o r d T y p e `   i m m u t a b l e   o n   u p d a t e . 
- 
-     -   2 4   n e w   u n i t   t e s t s   ( 3 4 6   t o t a l ) :   M o d u l e   V e r s i o n   s n a p s h o t   d o m a i n   m o d e l   ( 8 ) ,   M o d u l e S e r v i c e   v e r s i o n   s n a p s h o t s   ( 7 ) ,   c o d e   u n i q u e n e s s   ( 2 ) ,   M o d u l e S u b m i s s i o n S e r v i c e   ` m o d u l e V e r s i o n `   p r o v e n a n c e   ( 4 ) ,   R e c o r d   ` m o d u l e V e r s i o n `   d o m a i n   m o d e l   ( 6   n e w   a s s e r t i o n s   a c r o s s   t e s t s ) . 
- 
-     -   2 8   n e w   F i r e b a s e   E m u l a t o r   s e c u r i t y   t e s t s   ( 1 6 1   t o t a l ) :   v e r s i o n   s n a p s h o t   i m m u t a b i l i t y   ( 1 3 ) ,   m o d u l e   c o d e   r e s e r v a t i o n   ( 1 1 ) ,   R e c o r d   p r o v e n a n c e   i m m u t a b i l i t y   ( 5 ) . 
- 
-     -   U p d a t e d   ` A G E N T S . m d ` ,   ` C H A N G E L O G . m d ` ,   ` d o c s / A R C H I T E C T U R E . m d ` ,   ` d o c s / D A T A _ M O D E L . m d ` ,   ` d o c s / S E C U R I T Y _ M O D E L . m d ` ,   ` d o c s / M O D U L E _ C O N T R A C T . m d ` . 
- 
- 
- 
- # # #   N o t e s 
- 
- 
- 
- -   N o   M o d u l i t y   V 1   c o d e   i m p o r t e d . 
- 
- -   L i s t V i e w ,   T a b l e V i e w ,   L e d g e r ,   W i d g e t s ,   R e p o r t s ,   C h a t ,   N o t i f i c a t i o n s ,   A g e n t s ,   B i l l i n g   c h e c k o u t ,   E x t e r n a l   A P I   a r e   i n t e n t i o n a l l y   n o t   i m p l e m e n t e d   i n   S t e p   4 / 4 . 1 . 
- 
- -   I n v i t a t i o n   a c c e p t a n c e ,   o w n e r s h i p   t r a n s f e r ,   O W N E R   r o l e   e s c a l a t i o n   s t i l l   r e q u i r e   C l o u d   F u n c t i o n s . 
- 
- -   F i l e   u p l o a d   b i n a r y   h a n d l i n g   i s   d e f e r r e d   �� �   o n l y   m e t a d a t a   m o d e l   a n d   s t o r a g e   c o n t r a c t   e s t a b l i s h e d .   F i l e R e f e r e n c e F i e l d   u s e s   t e x t   i n p u t   p l a c e h o l d e r . 
- 
- -   S c h e m a   m i g r a t i o n   f r a m e w o r k   i s   d o c u m e n t e d   c o n c e p t u a l l y   b u t   n o t   i m p l e m e n t e d . 
- 
- -   C r o s s - w o r k s p a c e   s h a r i n g   i s   d e n i e d   b y   d e f a u l t ;   f u t u r e   s h a r i n g   s y s t e m   d e f e r r e d . 
- 
- -   M o d u l e   c o d e   u n i q u e n e s s   i s   n o w   e n f o r c e d   v i a   a t o m i c   ` w r i t e B a t c h `   r e s e r v a t i o n   i n   ` w o r k s p a c e s / { w o r k s p a c e I d } / m o d u l e C o d e s / { c o d e } ` .   C o n c u r r e n t   c r e a t e s   f a i l   a t o m i c a l l y   �� �   t h e   r a c e   c o n d i t i o n   f r o m   S t e p   4   i s   r e s o l v e d . 
- 
- -   S u b m i t t e d   R e c o r d   t r u s t   b o u n d a r y :   a p p l i c a t i o n - l a y e r   v a l i d a t i o n   v i a   M o d u l e S u b m i s s i o n S e r v i c e ;   F i r e s t o r e   R u l e s   e n f o r c e   s t o r a g e   a u t h o r i z a t i o n   a n d   p r o v e n a n c e   i m m u t a b i l i t y ;   f u t u r e   t r u s t e d   b a c k e n d   e n f o r c e m e n t   m a y   b e   n e e d e d   f o r   s t r o n g e r   v a l i d a t i o n   g u a r a n t e e s .   B r o w s e r   f o r m   v a l i d a t i o n   i s   U X ;   a p p l i c a t i o n   s e r v i c e   v a l i d a t i o n   i s   d e t e r m i n i s t i c   b u s i n e s s   v a l i d a t i o n ;   F i r e s t o r e   R u l e s   c a n n o t   r e p r o d u c e   a r b i t r a r y   M o d u l e   F o r m   S c h e m a   v a l i d a t i o n . 
- 
- -   R i c h   t e x t ,   s i g n a t u r e ,   l o c a t i o n ,   i m a g e ,   c u r r e n c y ,   m u l t i s e l e c t ,   r a d i o ,   d o m a i n - e n t i t y - r e f e r e n c e ,   u s e r - r e f e r e n c e   f i e l d   t y p e s   a r e   d o c u m e n t e d   i n   M O D U L E _ C O N T R A C T . m d   b u t   n o t   y e t   i m p l e m e n t e d   i n   t h e   F i e l d   R e g i s t r y   ( U n s u p p o r t e d F i e l d   f a l l b a c k   r e n d e r s ) . 
- 
- -   * * I N V A R I A N T :   A   h i s t o r i c a l   R e c o r d   m u s t   a l w a y s   b e   i n t e r p r e t a b l e   u s i n g   t h e   e x a c t   M o d u l e   V e r s i o n   t h a t   c r e a t e d   i t .   C h a n g i n g   a   M o d u l e   t o m o r r o w   m u s t   n e v e r   c h a n g e   t h e   m e a n i n g   o f   a   R e c o r d   c r e a t e d   y e s t e r d a y . * * 
- 
- 
+## Step 26 — Simulation / Dry-Run Engine
+
+### Added
+- `src/core/simulation/simulationEngine.js` — canonical simulation primitive:
+  explicit immutable state overlays, event projection through Rule evaluations, bounded
+  cycle guards, no production writes, no network calls, no wall-clock dependency.
+- `simulateScenario` — multi-step projection of BusinessEvent chains for Context
+  evaluation with cycle detection.
+- Existing Rule engine (Step 23) and Permission authority (Step 24) reused; the simulator
+  never lives as a standalone evaluator. Production never becomes simulation input.
+
+### Held
+- simulation can never publish configuration; it only reports eligibility.
+- Simulation always invocable as a recommendation through a trusted Runtime broker.
+
+## Step 25 — Configuration Lifecycle & Versioning
+
+## Step 25 — Configuration Lifecycle & Versioning
+
+### Added
+- `src/core/configuration/configurationLifecycle.js` — canonical pipeline around four
+  configuration statuses: DRAFT → VALIDATED → PROPOSED / PENDING_APPROVAL → PUBLISHED
+- Immutable revisions hold stable logical identity ("configurationId + revision") with
+  earlier historical versions preserved
+- Publication boundary: DRAFT never becomes PUBLISHED directly; APPROVAL_REQUIRED is
+  distinguished from AUTO_EXECUTE — do not expose discrepant pathway by mutation; DENY is
+  dispositional willpower (politically barrier step).
+- Rule config uses Step 23 validator on required RUN control fields — RuleDefinitions aren't
+  validated twice — reuse overall,
+- Rollback is a NEW revision rather than deletion; history is preserved forever.
+- Capability Registry now includes 'configuration-lifecycle' (available, our policy
+  base dependency)
+
+### Held
+- Nothing is published silently. All trusted engines record it, then emit only through the
+  shared trusted event backbone.
+- Rollback never means revert deletion.
+
+## Step 24 — Permission / Policy / Authority + Temporal Grants
+
+### Added
+- `src/core/permissions/policyAuthority.js` — canonical small decision surface:
+  CREATE_AUTHORITY_GRANT (immutable), grantApplies temporal bounds on unit bounds
+  (start-open, end-exclusive), decideAuthorization yielding AUTO_EXECUTE / APPROVAL_REQUIRED / DENY.
+- Rules subsystem reuse leverages Step 23 deterministic evaluator — the module handles all assessments.
+- Capability Registry: registered 'policy-authority' as AVAILABLE with dependency on 'rules'
+
+### Merged into the trusted pipeline
+
+The trusted decision chain now is the long-known sequence:
+
+```
+BusinessEvent → Rules → TransitionIntent → Permission → Authority/TemporalGrant
+  → Policy → AUTO_EXECUTE | APPROVAL_REQUIRED | DENY → Trusted command / canonical engine
+```
+
+### Held
+- Approval Engine and evaluation approval records ships in a later milestone — Step
+  24 reports APPROVAL_REQUIRED but doesn't create approval objects.
+- No new client-writable policy/grants storage; Step 25's configuration lifecycle is the place.
+
+## Step 23 — Rules / Decision Engine
+
+## Step 22 — Business Event Backbone
+
+### Added
+- `src/core/events/businessEvent.js` — canonical immutable BusinessEvent entity
+  (identity, type, workspace, source, actor, objectRef, payload, idempotencyKey,
+  correlationId, causeEventId, timestamps, contract version)
+- `functions/src/businessEventEngine.js` — trusted emission surface, reads inside
+  the same transaction the trusted command finishes (no extra event-write commit)
+- `functions/src/fakeDbHarness.js` — official deterministic in-memory Firestore
+  harness for trusted Engine test suites (replaces ad-hoc mocks from Step 19+)
+- recordCommandEngine integration: `CREATE_RECORD` now emits `record.created` inside
+  the same trusted commit (proven by fire tests)
+- `function Registry` descriptors via `BUILT_IN_CAPABILITY_DESCRIPTORS` include
+  `business-event` with emit/retrieve/correlate/cause-link capabilities
+- `firestore.rules` — `workspaces/{wsId}/businessEvents/{eventId}` is readable,
+  never writable by any browser; Step 22 durable append-only boundary
+- `workspaceResetContract` sweeps business events with workspace records
+- `undoer` Event write is tried AFTER trusted operations records (Command engine
+  writes them directly inside transactions) — while NO duplicate write attempts
+- Function Suites restructured: business event tests run in the canonical
+  harness and indirectly validate the trusted transaction order
+
+### Verification
+- Unit/UI: 945 green (945 updated projects including BusinessEvent tests)
+- Functions: 83 green (create + retry idempotency + negative source checks + deny-trusted
+  source — no event-NOtification/ledger)(now in our new fake harness)
+- Rules/emulator: 304 green on the new businessEvents rule set
+- Build: ✓ Lint: 4 warnings persist from after Step 17.
+
+### Architecture compliance
+- EVENT != COMMAND (commands write, events are emitted)
+- EVENT != AUDIT (Audit continues as before, both branches invite your event)
+- EVENT != LEDGER (Ledger registration called accordingly)
+- EVENT != NOTIFICATION (notification never consumed an event)
+- Reset policy included. Canonical = future events only.
+
+## Step 21 — Capability Registry & Dependency Graph
+
+### Added
+- `src/capabilities/capabilityRegistry.js` — canonical read-side registry facade:
+  deterministic list/has/get/resolve for every registered capability,
+  engine-bounded dependencies, reverse dependents, cycle diagnostics,
+  and explicit resolution statuses: OK, UNKNOWN_CAPABILITY, MISSING_DEPENDENCY,
+  DEPENDENCY_CYCLE
+- Central descriptor catalog now surfaces through `services.capability`; Future
+  framework consumers (Platform Gateway, Integrations, WordPress) use this
+  canonical meaning; nothing new was introduced to re-register
+- GAP-014 closes correctly — capability contracts are now canonical
+  machine-readable metadata
+
+### Held
+- No business logic change; existing Step 0–20 suites remain green
+- Engine Development Guide's first "reference implementation" target (Business
+  Event Backbone @ Step 22) remains on roadmap — not implemented in Step 21
+
+
+## Step 20 — Next Platform Architecture, Roadmap Realignment & Development Continuity
+
+An architecture checkpoint. Zero code changes; all work is documentation + roadmap realignment.
+
+### Added
+- `docs/NEXT_PLATFORM_ARCHITECTURE.md` — platform boundary, gateway, events/rules/policy split, temporal authority, sim vs production
+- `docs/ENGINE_DEVELOPMENT_GUIDE.md` — value contract for any future Engine (dependencies, canonical boundaries, prohibitions)
+- `HANDOFF_AGENT_CONTINUITY.md` extended with the Fresh Agent Continuation Test + Development Continuity Contract + multi-Agent protocol + Reviewer role
+- ADR-0015 — the platform realignment decision is a recorded, non-negotiable milestone decision
+- MODULITY_MASTER_ROADMAP.md: Step 21+ section rewritten to be dependency-aware (`Requires/Provides/Unlocks` for every row)
+
+### Deferred by design (still future work)
+
+No runtime implementation below Step 20 — all new architecture is reserved for future milestones. See KNOWN_GAPS_REGISTER for the current inventory.
+
+
+## Step 19 v2 — Organization, Chat Rooms, Communication Context & UX Stability (FINAL v2)
+
+### Added
+- `ROOM` Conversation type with explicit topic, description, INVITE_ONLY / WORKSPACE_VISIBLE visibility, owner semantics, memberIds; CREATE_ROOM_CONVERSATION command resolves invited Groups SERVER-SIDE (trusted Group expansion: current membership snapshot; future group changes do NOT grant old invite-only Room access — GAP-017 closed correctly this time)
+- `ROOM_ADD_MEMBER` / `ROOM_REMOVE_MEMBER` — Room owner only, trusted, transactional
+- Room creation UX: topic + optional description + visibility radio + People/Groups invite checkboxes in Create Chat Room dialog
+- Notification event `chat.room_invited` — one deterministic notification per invited recipient; retries cannot duplicate
+- Room badges on the conversation list (ROOM · INVITE / ROOM · WORKSPACE)
+- People / Groups / Ledger revisit now live through `workspaceQueryCache` (carried from Step 19 final scope)
+- HANDOFF_AGENT_CONTINUITY.md — permanent multi-agent rules now linked from AGENTS.md
+
+### Changed
+- GAP-010 module/category reorder now uses accessible Up/Down arrows on the categories page (Stage-appropriate; drag & drop can follow later)
+- Step 18 chat Contracts remain: CHAT_ROOM_INVITED added to the canonical event vocabulary
+- Step 19 FINAL v2 acceptance: GAP-017 is CLOSED as a whole (Group snapshot invites) — the previously reported residual "Group→Channel member resolution deferred" is superseded
+
+### Deferred (Known Gaps unchanged)
+- GAP-018 message edit/delete and nesting review at Step 20.1
+- GAP-019 context conversation access semantics review at Step 20.1
+
+- Ledger, People, Groups pages now load from `workspaceQueryCache` (revisits are instant, silent revalidation replaces instead of blanking)
+- Groups expanded with memberIds on the canonical model (createGroup) and workspace-member picker in GroupsPage; groupService provides addGroupMember/removeGroupMember
+- Chat "New Direct" empty state now has an "Invite person" CTA resolving to the People / invite surface
+- Chat "New Channel" retains its member multi-select with improved empty-state handling
+- Category ordering via accessible Up/Down arrows on ModuleCategoriesPage (GAP-010 closes without introducing drag-drop UX debt yet)
+- `docs/HANDOFF_AGENT_CONTINUITY.md` — permanent multi-agent handoff rules; AGENTS.md now links to it
+- E2E `step19.e2e.spec.js`: revisit stability, Direct CTA, channel create+send, reset ghost check
+
+### Changed
+- GAP-017 closed: Groups provide real member management with intent through the existing groupService (no new trusted-command surface required — organizational, not security-sensitive)
+- Secured favorites intent path keeps delegating to `folder.toggleStar` (already canonical); sharing intact through `secureShareService` / `recordFolderService`
+
+### Deferred (Known Gaps)
+- GAP-018 message edit/delete and deep thread trees remain deferred to Step 20.1
+- GAP-019 context conversation access semantics remain a product/security decision for Step 20.1
+
+
+## Step 18 — Workspace Chat & Contextual Conversations (+ Calendar / Records acceptance fixes)
+
+### Added
+- `chatCommand` trusted callable (6 commands) with journal replay, idempotency, deterministic DM/context ids
+- `src/core/chat/chatDomain.js` + `chatCommandContract.js` — canonical Conversation/Message model with typed contextReference
+- `ContextConversationLink` on Record Detail / Entity Detail / Module Detail
+- Notification events `chat.direct_message`, `chat.mentioned`, `chat.context_message` via Step 17 channel
+- Read-state per user for unread indicators
+- Calendar revisit uses day-normalized cache windows (no flash on revisit)
+- Records list waits for module metadata before rendering titles; stable placeholder replaces technical fallback during cold load
+- Rules lock conversations/members/messages/readStates to the chatCommand boundary
+- E2E `step18.e2e.spec.js`: channel creation, messaging, Record context conversation, reset ghost-check
+
+### Deferred (Known Gaps)
+- WORKSPACE-type conversations (GAP-017 — Step 19)
+- Message edit/delete + nested threads (GAP-018 — Step 20.1 review)
+- Restricted context conversations (GAP-019 — Step 20.1 review)
+
+## Step 17.4 — Technical Identifier UX Hardening
+
+## Step 17.3 — Trusted Entity & Module Administration + Change History
+
+### Added
+- `adminCommand` callable with versioned contract covering 20 typed commands:
+  Entity Type, Entity, Module, Module Category lifecycle (create / update / archive / restore / delete)
+- Typed, closed-registry dependency analyzer blocking hard Deletes with human-readable reasons
+- Server-generated technical identifiers for all admin creates (`technicalCode.js` collision-safe strategy)
+- Durable before/after Audit on every admin mutation, committed in the same transaction; history outlives deleted documents
+- CONTACT Core Entity Type (`core:contact`) — business contact, never an auth principal
+- UI: `AdminActions` shared strip, `AdminHistoryPage` with filters + before/after diff view, `ModuleCategoriesPage`, admin-wired Entity Type/Entity/Module pages
+- Function suite for the trusted engine (13 tests: authorization, forge-rejection, lifecycle idempotency, dependency blocking, retry dedupe, CONTACT)
+
+### Changed
+- Core services route mutations through trusted commands while keeping repo reads; signatures preserved for all callers
+- Browsers can no longer create Modules, entity Types, Entities, or Module Categories directly; existing Rules now enforce server-only administration writes
+- Legacy/pre-17.3 objects remain fully usable; history starts at 17.3 (no fabricated legacy audit)
+
+## Step 17.2 — Module Organization, Categories & Personal Module Selection
+
+### Added
+- Canonical Module Category model (`moduleCategories`, workspace-scoped, ACTIVE/ARCHIVED) — one taxonomy shared by manual and Automat-generated Modules
+- `categoryId` on Modules; legacy free-text `category` kept as a historical snapshot
+- Personal Module selection preferences on `userWorkspacePreferences` (`moduleSelection`: selected ids, order, viewMode) — validated against real workspace Modules on write
+- My Modules upgrade: search, category filter, grouped/flat toggle, Customize panel with checkbox selection and deterministic order controls
+- Header `All Modules` navigator: grouped authorized discovery over the same canonical category data — ignores personal selection, so hidden-but-authorized Modules remain discoverable
+- Module Designer: canonical category selector with inline "+ New Category"; Module Code field optional and auto-generated from Name
+- `src/core/utils/technicalCode.js` — deterministic technical identifier generation with collision-safe suffixes
+- Automat apply normalizes proposal areas into the canonical category collection (same model as manual UI)
+- Rules for `moduleCategories`; per-user preference isolation negative tests
+- Workspace Reset now also removes `moduleCategories`
+- ADR-0012, MODULE_ORGANIZATION_ARCHITECTURE.md
+- Live E2E `tests/e2e/step17_2.e2e.spec.js` covering category create/assign/auto-code, Uncategorized fallback, personal selection + order + mode persistence across reload, All Modules discovery (hidden-but-authorized stays visible), and reset
+
+### Changed
+- Create Module no longer requires typing a technical code — the platform generates it collision-safely
+- Module Detail Category is a live selector that reassigns organizational grouping without touching Records/Ledger/ModuleVersion history
+
+### Regression
+- Step 17 / 17.1 / 17.1.1 live E2E remain green (17.1 got a viewer fix: FormRenderer actions are now fully unmounted in hideActions mode instead of the `hidden` attribute trap)
+
+## Step 17.1.1 — Configurable Ledger Books & Universal Ledger Sources
+
+### Added
+- Typed declarative `sourceDefinition` on Ledger Books (closed union; v1: `{ type: 'MODULE', moduleId }`) — never arbitrary query config
+- `provisionedBy` (`AUTO`|`USER`) server-derived provenance on books
+- Trusted routing: submissions prefer the USER-configured ACTIVE register for the Module; per-Module AUTO book remains the evidence fallback
+- Deterministic historical backfill on book creation: eligible Records (_createdAt order, ≤1000) register via the ordinary trusted path with `backfill-{opId}-{recordId}` op ids; journal replays continue idempotently
+- Create Ledger Book page: Module source selector, auto-suggested code/prefix, inline trusted errors
+- Contract `ledgerCommand` 1.1.0 (1.0.0 still accepted; additive)
+- Function tests for source validation, forged-source rejection, backfill idempotency/order, routing preference (58 total)
+- UI tests for the configuration page; core contract tests for `ledgerSourceDefinition`
+- Live E2E `tests/e2e/step17_1_1.e2e.spec.js`: hidden auto evidence → configure book → backfill → routing → void stays consumed → reset clean rebuild
+- ADR-0011
+
+### Changed
+- Ledger main page: "Ledger Book" rows (Auto badge), Used/Voided/Remaining counters wording, honest empty state
+
+## Step 17.1 — Universal Form Ledger & Historical Form Viewer
+
+### Added
+- Server-side auto-registration: trusted `SUBMIT_RECORD` (and non-draft `CREATE_RECORD`) chains `ensureModuleLedgerBook` + `REGISTER_LEDGER_ENTRY` with deterministic operation id `auto-register-{operationId}` — every official submission gets register identity; retries never consume a second sequence
+- Trusted `CANCEL_RECORD` chains `cancelLedgerRegistrationForRecord`: entries become CANCELLED (never deleted), sequence stays consumed
+- Form Books main view: book rows with block, capacity, filled/voided/remaining counters, status
+- Form Book page: block strip, status/reference filters, entries table
+- Read-only Historical Form Viewer (`FormRenderer` readOnly) with Previous/Next navigation through the register, preserving the historical Module Version schema
+- Composite index `(ledgerBookId, ledgerBlockId, sequenceNumber)` on `ledgerEntries`
+- `tests/rules/ledgerReset.integration.test.js` — reset wipes ledgerBooks/blocks/entries/codes/records/modules/recordOperations (no ghost journals)
+- Live E2E `tests/e2e/step17_1.e2e.spec.js` — submit → auto-register → counters → viewer → cancel evidence → reset ghost-free + fresh register from 000001
+- ADR-0010
+
+### Changed
+- Workspace reset contract now also deletes `recordOperations`
+
+## Step 17 — Generic Notification Capability
+
+### Added
+- Canonical Notification domain under `src/core/notifications/`:
+  - `notificationContract.js` — versioned contract (1.0.0) with intent validation (no authority fields, no executables), deterministic Notification id per (operationId, eventType, recipient), context-reference model (pointers, never copies)
+  - `notificationPolicy.js` — controlled presentation templates per event
+  - `recipientResolution.js` — `SELF_FROM_ACTOR` / `EXPLICIT_USER` strategies with actor-redundancy opt-out
+  - `deliveryRouter.js` — adapter seam; `IN_APP` implemented, EMAIL/PUSH/WEBHOOK documented future adapters
+- Trusted server `functions/src/notificationEngine.js` — the single creation path for canonical Notifications; recipient workspace access re-verified server-side
+- Function-level tests: creation, read-state-preserving 10× retry dedupe, distinct-operation dual notifications, recipient access control (personal/org/inactive), forged-intent rejection (9 tests)
+- `docs/NOTIFICATION_ARCHITECTURE.md` + ADR-0009
+
+### Changed
+- `recordCommand` now emits Notifications through the generic engine (`record.created`, `record.draft_saved`) instead of ad-hoc post-tx writes
+- Notification Center rewritten: unread/read badges, attention priority badge, bounded cursor pagination (25/page with "Load older"), per-item Mark read, Mark all read, timestamps, deep links, empty/loading/error states
+- `createCanonicalNotification` keeps legacy `type`/`resourceType`/`resourceId` fields for compatibility
+
+### Security
+- Firestore Rules: browsers may no longer CREATE notifications at all; recipients may flip ONLY their own `status`/`readAt`; everything else immutable
+- Legacy browser `notificationBridge` removed (delivery-domain notifications are deferred until delivery gets a trusted command — no forged fill-in)
+- Recipient resolution can never grant access to referenced canonical objects
+
+## Step 16 — Trusted Ledger & Audit Backend
+
+### Added
+- Trusted `ledgerCommand` callable (europe-west1, contract 1.0.0):
+  - `CREATE_LEDGER_BOOK` — atomic code reservation + book + initial block
+  - `REGISTER_LEDGER_ENTRY` — server-derived sequence, reference number, actor, timestamps, block rollover, Record linkage
+- Shared operation-journal helpers (`functions/src/operationJournal.js`) reused by recordCommand and ledgerCommand
+- Record Detail trusted "Register in Ledger" panel (when an ACTIVE book matches, and status allows)
+- Function-level concurrency tests: 20 same-Record registrations converge to one entry/sequence; 50 distinct Records get unique contiguous sequences with rollover; replay does not re-consume sequences
+- `docs/LEDGER_ARCHITECTURE.md`, `docs/AUDIT_ARCHITECTURE.md`, ADR-0008
+
+### Changed
+- Authoritative Audit evidence (recordCommand + ledgerCommand) now commits **in the same Firestore transaction** as the domain mutation — a trusted mutation cannot commit without its evidence; `_timestamp` is a server timestamp (matches the History query)
+- Audit document ids are deterministic (`op_{operationId}_{action}`) — retries cannot duplicate logical history
+- Legacy browser AuditBridge retired (removed from `bootstrapServices`, file deleted) — browser telemetry can no longer masquerade as canonical Audit
+- Record History continues to read the same durable `auditEntries` collection
+- Ledger book list page and Record Detail survive the rules tightening via read-only browser access
+
+### Security
+- Firestore Rules: browsers may no longer create/update/delete Ledger entries, blocks, books, or ledger code reservations; cannot set Record Ledger linkage; cannot create/update/delete Audit entries. Reads preserved.
+- Admin SDK functions perform explicit authorization (workspace owner / active org member) because they bypass Rules.
+- Trusted cancel/void of Ledger entries and book close stay reserved for a future trusted command (no prior client UX).
+
+### Fixed
+- Trusted server transactions now obey Firestore's reads-before-writes rule (caught by the new concurrency suite)
+- Draft "Create Ledger Book" form can no longer silently no-op when the workspace context is still resolving (submit is disabled until the workspace is ready)
+
+### Known findings
+- FormRequest completion still attempts a client-transaction Record CREATE (rules-blocked since Step 12). DEFERRED: requires its own recipient-scoped trusted command — recorded as follow-up, Rules not weakened.
+- Pre-Step-16 audit entries written by the old server path lack `_timestamp` and won't appear in History orderings (dev data only).
+
+## Step 15 — Generic Record Actions & Lifecycle Foundation
+
+### Added
+- Trusted mutation commands on the existing `recordCommand` boundary (contract `1.1.0`, backward compatible with `1.0.0` CREATE clients):
+  - `UPDATE_DRAFT` — trusted DRAFT content update (historical Module Version schema, partial/type-checked values, server EntityReference validation)
+  - `SUBMIT_RECORD` — trusted DRAFT → SUBMITTED transition with server-derived actor, timestamps and full required-field validation
+  - `SET_PRIORITY`, `ARCHIVE_RECORD`, `RESTORE_RECORD`, `CANCEL_RECORD`
+- Pure Record Action Policy (`recordActionPolicy.js`) — `evaluateRecordAction({ actorContext, record, module, action })` with stable machine-readable reason codes
+- Pure lifecycle transition model (`recordLifecycle.js`) — the command implies the transition; clients never select a target status
+- `getAvailableRecordActions` UI action-discovery (Record Detail: Submit/Archive/Restore/Cancel with confirmation dialogs, plus existing Edit/Copy/Print/Export)
+- Rule: DRAFT creation now tolerates incomplete values (required fields enforced at SUBMIT_RECORD); draft saves stay trusted
+- `record.draft_updated` audit action
+- Functions executor tests: UPDATE_DRAFT/SUBMIT_RECORD idempotency, 10× concurrent duplicate safety, cross-workspace denial, impersonation rejection (24 tests)
+- Playwright `tests/e2e/step15.e2e.spec.js` — live trusted lifecycle: draft autosave → rejected submit (required field) → editor submit → SUBMITTED → Archive/Restore → History → zero direct browser Record mutations
+
+### Changed
+- RecordEditPage autosave migrated to trusted `UPDATE_DRAFT`; each save gets a fresh `operationId`, identical-payload retries replay the same one
+- `RecordEditPage` exposes "Submit record" (flushes pending saves first)
+- `moduleSubmission.submitDraft` delegates to trusted `SUBMIT_RECORD`
+- Global list bulk archive now issues one trusted `ARCHIVE_RECORD` per Record
+- Operation journal + Record mutation now commit in ONE transaction for mutations; journal replay precedes current-state policy
+- Audit/Notification side effects write deterministic `op_<operationId>` docs (recovery retries no longer duplicate)
+
+### Security
+- Firestore Rules deny browser updates to Record `data`, `entityReferences`, `status`, `priority`, archive/cancel provenance, `submittedAt`, `attachments` — every state
+- Emulator negative tests: draft data mutation, status transitions, priority change, archive field set, `submittedAt`/`submittedBy` impersonation all denied from browsers; legitimate reads preserved; Ledger linkage set-once interim exception documented until Step 16
+- ADR-0007: Trusted Record Actions and Lifecycle Boundary
+
+### Deferred
+- Approval/Workflow/Task/Scheduling/Inventory/Document engines; DRAFT→SUBMIT for FormRequest completion path (pre-existing client-transaction gap); Ledger backend server move (Step 16); notification fan-out for mutations (Step 17)
+
+## Step 14 — Record UX Hardening
+
+### Added
+- Deterministic Record display labels: `getRecordDisplayLabel` (`displayConfig.primaryField` → first text-like schema value → Module name + short ID)
+- Shared `useRecordWithSchema` hook: loads Record + Module + historical Module Version schema + Entity display names for detail/edit views
+- Record Detail actions: Edit draft (DRAFT only), Create copy (prefilled Module form), Print, Export JSON
+- `RecordEditPage` (`/app/records/:recordId/edit`): DRAFT-only editing through the existing client-authoritative draft UPDATE path, with debounced autosave (Unsaved/Saving/Saved/Save failed) that always updates the same Draft Record
+- `FormRenderer` now supports `onValuesChange` (autosave hook) and `validateOnSubmit={false}` (partial draft saves)
+- `buildRecordCopyValues` / `buildRecordExport` helpers: copy only schema values (no identity/provenance), export a sanitized single-Record JSON (actor labels, no internal index fields)
+- Print stylesheet (`@media print`): app shell chrome, navigation links and action rows hidden via `no-print`
+- Playwright `tests/e2e/step14.e2e.spec.js`: detail assertions, trusted copy flow (new Record, different ID, original unchanged), draft edit + autosave, global list search/filter, `recordCommand` vs direct-CREATE network verification
+- `docs/RECORD_UX.md`: canonical Record UX architecture, trust boundaries, deferred items
+
+### Changed
+- Record List rebuilt on the design-system `DataGrid` with bucket `Tabs`, canonical `Select` filters (status/priority/module/sort whitelist + created-date window), page-scoped search with explicit no-match state, and cursor-stack `Pagination` on both Global and Module lists
+- Record Detail header now shows display label, status/priority `Badge`s, linked Module, Workspace, actor labels, and schema-source indicator
+- Entity references on Record Detail link to Entity Detail when resolvable and degrade to an explicit "unavailable" marker otherwise
+- Bulk-archive on the Global list now resets the pagination cursor stack before reloading
+
+### Security / Trust boundaries
+- Canonical Record CREATE stays server-authoritative via `recordCommand`; browser E2E confirms zero direct browser Record CREATEs during detail/copy/draft flows
+- Draft autosave reuses the existing DRAFT-only UPDATE boundary (Rules allow `data`/`entityReferences` mutations while a Record is DRAFT and freeze them afterwards); no new mutation authority was added
+- Finding: DRAFT→SUBMITTED from the client is blocked by Rules (`submittedBy` immutable) — the trusted submit transition is deferred to Step 15
+
+### Deferred
+- Attachments, Signature, Send/Share UI, Comments, bulk lifecycle actions, saved views, Global Search, generated PDF (Document Engine)
+
+## Step 13 — Design-System Primitives
+
+### Added
+- Canonical design-system primitives under `src/design-system/components/`:
+  - `Select`, `Textarea`, `Table` + table subcomponents, `DataGrid`, `Pagination`, `Toast` + `ToastProvider`, `FileUpload`, `Tabs`
+- Public design-system barrel export at `src/design-system/index.js`
+- Focused unit tests for each new primitive (rendering, callbacks, keyboard/accessibility, disabled/error/empty/loading states)
+- `docs/DESIGN_SYSTEM.md` documenting primitive inventory, layer boundary, conventions, accessibility, and FileUpload limitation
+
+### Changed
+- `EntityListPage` now uses `Select`, `DataGrid`, and `Pagination`
+- `EntityFormPage` lifecycle status now uses `Select`
+- `ModuleDesigner` description field now uses `Textarea`
+- `ModuleCapabilitiesPanel` capability field mapping now uses `Select`
+- `WorkspaceResetPanel` success state now uses `Toast` via global `ToastProvider`
+- `AppRouter` wraps the application in `ToastProvider` so any feature can show transient feedback
+- `vite.config.js` excludes `tests/e2e/**` from Vitest discovery so Playwright specs are not collected by the unit runner
+
+### Security / Architecture
+- Design-system primitives remain presentation-only: no Firebase imports, no business authorization, no feature state ownership
+- Verified dependency direction: features → design-system; no design-system → feature or backend imports
+
+## Step 12.1 — Record Command Recovery, Module Policy & Real Browser Verification
+
+### Added
+- Server-side command fingerprint and operation lease to prevent stale `PROCESSING` operations from blocking legitimate retries
+- Deterministic recovery for stale `PROCESSING` operations:
+  - If Record exists, reconcile operation to `COMPLETED` and return existing Record
+  - If lease expired and Record does not exist, reacquire operation and retry creation
+- `OPERATION_IN_PROGRESS` and `OPERATION_MISMATCH` error codes in `RECORD_COMMAND_ERROR_CODES`
+- DRAFT Module rejection in the trusted command engine
+- Server-only Firestore Rules for `workspaces/{workspaceId}/recordOperations/{operationId}`
+- Function-level unit tests for recovery, mismatch, concurrent duplicate requests, and DRAFT policy
+
+### Changed
+- `recordCommandEngine.js` now validates `operationId` ownership, command fingerprint, and lease expiry inside the Firestore transaction
+- `recordCommandEngine.js` rejects `DRAFT`/`INACTIVE`/`ARCHIVED` Modules; only `ACTIVE` Modules may receive canonical Records
+- `vite.config.js` excludes `functions/**` from Vitest test discovery so Node.js `node:test` files can coexist
+- `docs/TRUSTED_RECORD_COMMANDS.md` updated with recovery semantics, lease design, fingerprint design, and DRAFT policy
+- `docs/MODULITY_MASTER_ROADMAP.md` updated with Step 12.1
+
+### Security
+- `recordOperations` collection is inaccessible to browser clients
+- Same `operationId` with different command returns `OPERATION_MISMATCH` instead of an unrelated existing Record
+- DRAFT Module submission is explicitly rejected server-side
+
+## Step 12 — Trusted Record Submission & Server Authority Foundation
+
+### Added
+- Versioned `RecordCommand` contract (`src/core/recordCommands/recordCommandContract.js`) with `CREATE_RECORD` support and extensible future command types
+- Pure `recordCommandEngine.js` for deterministic command validation and canonical Record construction
+- Server-authoritative `recordCommand` Firebase callable (`functions/src/recordCommandEngine.js`) with:
+  - Firebase Auth identity verification
+  - Workspace authorization (Personal owner / active Organization member)
+  - Module resolution, status/version authority, and FormSchema validation
+  - EntityReference existence, workspace, and type verification
+  - Deterministic `recordId` derived from `operationId`
+  - Operation journal for idempotent retries
+  - Server-authoritative timestamps and actor fields
+  - Best-effort Audit and Notification side effects
+- Client adapter `src/infrastructure/firebase/recordCommandClient.js` to keep Firebase SDK calls inside infrastructure
+- Local test adapter `src/infrastructure/recordCommandLocalAdapter.js` for unit/integration tests outside the Functions emulator
+
+### Changed
+- `ModuleSubmissionService` now routes submission through an injected trusted `recordCommand` executor when available; direct local path remains as test fallback
+- `services.js` wires the trusted `recordCommand` client into `moduleSubmission`
+- `firestore.rules` denies direct browser `CREATE` on canonical Records; creation flows through the trusted callable
+- `functions/scripts/build-shared.mjs` copies the Record command contract and engine into Functions generated contracts
+- Integration tests updated to use privileged (rules-disabled) Firestore contexts for Record creation paths
+
+### Security
+- Direct client Record creation is rejected by Firestore Rules
+- Actor identity, workspace/module authority, schema validation, and reference integrity are enforced server-side
+- `operationId` idempotency prevents duplicate Records on retry
+
+### Documentation
+- `docs/TRUSTED_RECORD_COMMANDS.md` documenting contract, trust boundary, idempotency, transaction scope, failure semantics, and migration
+- `AGENTS.md` updated with Step 12 durable rule: canonical Record creation must cross a trusted server-authoritative command boundary
+
+## Step 11.1 — Physical Architecture Package Reorganization
+
+### Changed
+- Moved generic capability infrastructure from `src/core/capabilities/` to `src/capabilities/`: contracts, registry, definition domain, and runtime factory
+- Moved Calendar engine runtime, validation, and domain model to `src/engines/calendar/` with a public `index.js` API
+- Removed hardcoded calendar branch in `capabilityRuntime`; added `registerEngineFactory` seam and wired calendar validator/factory in `services.js`
+- Moved `automatPlanning.js` from `src/infrastructure/` to `src/agents/infrastructure/` to fix infrastructure→agents layer direction
+- Extracted presentation helpers (`entityPresentation.js`, `recordListPresentation.js`) to `src/shared/presentation/`
+- Extracted `WidgetCard` to `src/shared/ui/WidgetCard.jsx` and made it presentational; dashboard feature now owns widget execution query state
+- Added design-system `WorksetSelector` primitive and replaced inline selects in `Header` and `Sidebar`
+- Extracted authenticated route table from `AppShell.jsx` into `src/app/routes.jsx`
+- Removed import-time Audit/Notification bridge side effects from `services.js`; added explicit `bootstrapServices()` called in `main.jsx`
+- Injected field services (`loadEntities`) into `FormRenderer` via `FormFieldServicesContext`, removing the `src/modules/`→`src/infrastructure/` direct import from `EntityReferenceField`
+- Updated `functions/scripts/build-shared.mjs` copy list for new capability contract path
+
+### Fixed
+- Layer-direction violations: capabilities no longer import engines; shared/ui no longer imports infrastructure; modules no longer imports infrastructure from a field component
+
+## Step 10.4 — Calendar & Scheduling Engine Foundation
+
+### Added
+- Generic CapabilityDefinition persistence: model, repository contract, Firestore repository, and service with Workspace authorization and lifecycle management
+- CapabilityDefinitions stored in `workspaces/{workspaceId}/capabilityDefinitions/{definitionId}` with bounded, executable-free declarative configuration
+- Firestore Security Rules for CapabilityDefinitions: workspace scope, manager-only writes, immutable identity/provenance, safe configuration rejection, and lifecycle enforcement
+- Negative Rules/Emulator tests for unauthenticated access, cross-Workspace, MEMBER writes, spoofed workspaceId, unsafe config, and delete behavior
+- Calendar Engine runtime: loads CalendarDefinitions, resolves Module sources, queries canonical Records in bounded windows, maps to rebuildable `CalendarEventProjection`s, resolves EntityReference labels, and isolates invalid definitions
+- Calendar View components: Month, Week, and Day with responsive navigation, filter chips, and event click navigation to canonical Record Detail
+- Manage Calendars page for creating and activating/deactivating CalendarDefinitions with constrained field selection
+- Module Designer "Capabilities" seam now shows Calendar as operational and allows CalendarDefinition creation without embedding config in FormSchema
+- Workspace Architect capability catalog reflects Calendar as `AVAILABLE`; trusted Automat apply for CapabilityDefinitions remains deferred
+- Calendar capability added to App Shell routes and Sidebar
+- Workspace Reset integration removes CapabilityDefinitions while preserving identity, memberships, core entity types, and audit evidence
+- Unit tests for CapabilityDefinition domain model, Calendar Engine projections, and Calendar View rendering
+- `CALENDAR_ENGINE.md` documenting architecture, date semantics, bounded queries, authorization, views, and limitations
+- Year View with 12 Monday-first mini-months, activity indicators, bounded day-summary popover, and Year → Day navigation
+- All/individual CalendarDefinition visibility controls
+- Generic `date-range` FormSchema field type with From/Till date pickers, canonical `{ start, end }` ISO date value, deterministic validation, Record List / Record Detail formatting, and Calendar Engine consumption
+- Workspace Architect `EMPLOYEE_LEAVE` scenario proposes a single `date-range` Holiday Period field and a Calendar requirement
+- Generic `datetime-range` FormSchema field type for timed intervals (appointments, bookings, shifts), with From/Till datetime-local inputs, validation, Record display, and Calendar Engine consumption
+- Workspace Architect `BOOKING` scenario proposes a single `datetime-range` Appointment Time field
+- Step 11.0 architecture/roadmap/package audit: `docs/MODULITY_MASTER_ROADMAP.md`, `docs/PACKAGE_ARCHITECTURE.md`, and ADR-0006 package boundaries
+
+### Changed
+- `builtInCapabilityCatalog.js`: Calendar availability moved from `ARCHITECTURE_ONLY` to `AVAILABLE`
+- `workspaceArchitect.js`: capabilityRequirements now use the catalog's actual `operational` flag for Calendar
+
+### Persistence
+- One new workspace-scoped collection: `capabilityDefinitions`. No projected event or business-data collections were added.
+
+## Step 10.3 — Generic Module & Form Designer Foundation
+
+### Added
+- One responsive generic Module Designer shared by create and edit routes for manual and Automat-generated Modules
+- Registry-derived field palette; add/edit/remove/keyboard reorder, required/help/placeholder, numeric/text constraints, select options, Core/Domain EntityReference targets, and listFields
+- Bounded deterministic Designer draft validation and unsafe executable/path configuration rejection
+- Live preview through production FormRenderer; preview submission never creates canonical Records
+- Save DRAFT / Publish v1 / publish ACTIVE next-version behavior through existing ModuleService
+- ModuleService current-Workspace Entity Type resolution for EntityReference create/update/activation
+- Dirty-state indicators, unload/cancel protection, responsive sections, and future independent CapabilityDefinitions notice
+- Canonical integration test proving Vehicle Inspection v1/v2, EntityReferences, Records, and immutable historical snapshots
+- Ledger registration transaction retry budget increased for high-contention idempotent same-Record registration after full-suite concurrency exposed exhausted default retries
+- `MODULE_FORM_DESIGNER.md` documenting one-schema/multiple-author, future Photo/PDF/AI seams, limits, versioning, and security
+- Authenticated Reset Test Hotel verification: generic Vehicle Inspection Designer/preview/publish/Record flow, canonical Vehicle/Employee references, Automat Reservation v1→v2 edit, historical v1 readability, new v2 Internal Notes Record, and desktop/768px/375px pass
+
+### Persistence
+- Existing Module, Module Version, code reservation, Entity Type, and Record repositories are reused. No Designer/form draft collection, indexes, reset path, or canonical local storage was added.
+
+## Step 10.2 — Composable Capability Engine Architecture
+
+### Added
+- Versioned Capability Engine descriptor, Definition, Binding, source-reference, lifecycle, availability, mode, dependency, and bounds contracts
+- Deterministic trusted built-in Capability Engine Registry with duplicate/version validation, stable ordering, dependency-cycle detection, generic validation, and engine-specific validator seam
+- CalendarDefinitionV1 contract/validator proof for Reservation, Holiday Request, and Meeting schemas without Calendar runtime, query, UI, or persistence
+- Code-free capability catalog consumed by WorkspaceSemanticModel; Calendar and all reserved future engines remain truthfully `ARCHITECTURE_ONLY`
+- Planning-level non-operational `capabilityRequirements` for future-compatible Workspace Architect review; trusted apply writes no capability resources
+- Security tests for arbitrary paths, scripts, expressions, remote module URLs, functions, unknown sources, field/type mismatch, and cross-Workspace references
+- Authenticated Reset Test Hotel verification: Workspace Architect shows Calendar truthfully as `ARCHITECTURE_ONLY`, non-operational/non-applied, while restaurant evolution remains CREATE 0 / REUSE 20 and Employee/Room/Reservation flows remain healthy
+- Dedicated `CAPABILITY_ENGINE_ARCHITECTURE.md` and ADR-0004 selecting loosely coupled independent Definitions and deferred persistence
+
+### Persistence
+- No CapabilityDefinition collection, Rules, indexes, reset path, migration framework, or runtime state was added. Persistence is deferred to the first real Engine milestone.
+
+## Step 10.1 — Automat Workspace Architect / Evolution Engine
+
+### Added
+- Provider-neutral `WORKSPACE_ARCHITECT` Agent, bounded WorkspaceSemanticModel, WorkspaceEvolutionPlan, concise decision rationale, and BuildPlan compilation
+- Reuse-before-create semantic planning for Core/Domain Entity Types, Modules, Worksets, Widgets, and Reports
+- Deterministic restaurant expansion, room inspection, vehicle, school, and installation-company scenarios
+- Ambiguity clarification, prompt-injection resistance, bounded-context `ANALYSIS_INCOMPLETE`, conflict detection, stable refs, and no-destructive/no-operational-data safety
+- Workspace Architect review UX showing analyzed resources, REUSE/CREATE totals, decisions, connections, questions, and existing trusted approval/apply
+- Trusted Emulator integration proving restaurant CREATE then repeated REUSE without duplicates or fabricated Entity instances
+- EntityReference-aware repeated Entity Type classification across stable plan refs and canonical IDs
+- Authenticated `Reset Test Hotel` verification: restaurant CREATE 15 / REUSE 5, repeated CREATE 0 / REUSE 20, Room Inspection process reasoning, ambiguity stop-before-approval, no fabricated Entities, no duplicates, and responsive review
+
+### Architecture
+- ADR-0003 keeps Workspace evolution in-memory and compiles into the existing AutomatBuildPlan/Step 9.2 trusted apply boundary
+- Snapshot summaries now include bounded semantic description/category/display metadata while fingerprints and stale-plan protection remain authoritative
+
+## Step 10.0 — Generic Entity Management Experience
+
+### Added
+- Navigable Core/Domain Entity Type cards and generic Entity Type Detail with fields, Entity counts, Module usage, and operational actions
+- Entity directory grouped by Entity Type with bounded aggregation counts
+- Generic Entity Type-scoped list/table with stable pagination, bounded prefix search, lifecycle filters, schema-derived columns, and batched EntityReference labels
+- Schema-rendered generic Entity create/edit flows through the canonical EntityService and shared Form Renderer
+- Extended canonical Entity Detail with schema formatting, EntityReference labels, edit action, and context-aware return navigation
+- Entity lifecycle validation in Core and Rules; physical delete remains denied and Core definitions remain protected
+- Automat-created Domain Entity Types receive the same UI without business-specific components
+- Required Entity indexes and cross-Workspace/Personal/authorized-member integration coverage
+- Authenticated `Reset Test Hotel` verification: Employee create/edit, Room 101/102 coexistence, Reservation→Room 102 EntityReference, generic Equipment flow, stable field/card ordering, and desktop/768px/375px pass
+
+## Step 9.2 — Trusted Automat BuildPlan Application
+
+### Added
+- Trusted `automatPlan` persistence/approval and `automatApplyPlan` apply/status callables for Node.js 22 in `europe-west1`
+- Server Auth, Personal-owner/Organization-OWNER authorization, development-project entitlement boundary, immutable plan/configuration SHA-256 fingerprints, and stale-plan rejection
+- Workspace-scoped immutable reviewed plans plus Admin-only Workspace lease lock, apply operation journal, PlanReference mapping, resource results, and external audit metadata
+- Dependency-ordered canonical Entity Type, ACTIVE Module + immutable Version 1/code reservation, Workset, WidgetDefinition, and ReportDefinition application
+- CREATE/REUSE semantics, all SAFE_UPDATE disabled, CONFLICT blocking, no REPLACE_DELETE, optional UNSUPPORTED type-level relationship recommendations
+- Partial-failure journaling, safe resume/retry, post-apply verification, durable AuditEntry, and one completion Notification
+- Approval/final-confirmation/progress/result UI with Workspace-scoped cache invalidation
+- Firestore plan-read/trusted-write Rules, negative tests, reset/apply mutual exclusion, and reset cleanup compatibility
+- ADR-0002 documenting the trusted boundary and deferred RelationshipDefinition architecture
+- Post-apply Record integration hardening: lowercase Firestore sort directions, complete ascending/descending Record indexes, generic schema-driven Module Record columns, batched EntityReference labels, accessible canonical row navigation, and context-aware back navigation
+- Deployment/browser verification on `modulity-2-dev`: CREATE 14 hotel resources, canonical Room/Reservation Record flow, equivalent CREATE 0 / REUSE 14 apply, no duplicates, and desktop/768px/375px pass
+
+### Limitations
+- Subscription-backed server entitlement resolution, SAFE_UPDATE policies, type-level RelationshipDefinition, destructive migration/rollback, and production background jobs remain deferred
+
+## Step 9.1 — Organization Analyzer & System Planner
+
+### Added
+- Six registered specialist stages with strict structured handoffs: Organization Analyzer, Domain Model, Process, Module, Workspace Experience, and System Reviewer
+- Deterministic provider-backed operating-domain knowledge for meaningful hotel, theatre, and school planning without industry branches in Core validation
+- Structured OrganizationProfile, BusinessAreas, DomainObject classification/Core reuse, Processes, Capabilities, operational Forms, Relationships, Worksets, Widgets, Reports, assumptions, questions, and reviewer diagnostics
+- Stable planning identities plus existing Workspace REUSE and CONFLICT behavior
+- Bounded six-query WorkspaceConfigurationSnapshot assembly with before/after no-mutation fingerprint verification
+- Lazy `/app/automat` Planner and sectioned review UI with explicit states and disabled future Apply control
+- Malformed/oversized provider, missing stage, timeout, failure, specialization quality, no-mutation, and UI settlement tests
+- Authenticated `Reset Test Hotel` hotel-plan browser smoke with canonical empty-state preservation and desktop/768px/375px responsive verification
+
+### Scope
+- Deterministic development provider only; no paid/live AI, secrets, plan persistence, canonical writes, or Step 9.2 apply behavior
+
+## Step 9.0 — Agent Infrastructure & Automat Contracts
+
+### Added
+- Provider-independent AgentDefinition/Execution contracts, versioned Agent Registry, entitlement boundary, deterministic test adapter, and timeout/error-normalizing Orchestrator
+- Declarative AutomatBuildPlan, stable temporary plan references, explicit lifecycle/provenance, and bounded WorkspaceConfigurationSnapshot
+- Deterministic BuildPlan validation reusing Entity Type, Module, Form, Widget, and Report validators
+- CREATE/REUSE/CONFLICT classification without destructive replacement
+- Strict Organization Analyzer input/output contract for Step 9.1 without implementing analysis
+- Generic hotel, existing Workspace REUSE, invalid plan, malformed provider, timeout, bounds, and provenance fixtures/tests
+- `docs/AUTOMAT_ARCHITECTURE.md` and aligned Agent/Architecture/Data/Security/Roadmap contracts
+
+### Scope
+- Domain-only: no AgentExecution/BuildPlan persistence, Firestore collection, provider secret, external AI, canonical mutation, React planning logic, Step 9.1 intelligence, or Step 9.2 apply service
+- Older automation rule/webhook/API-token/external-agent roadmap items explicitly deferred
+
+## Step 8.1 — Safe Workspace Reset
+
+### Added
+- Minimal trusted Firebase callable/Admin SDK boundary for WORKSPACE_DATA_RESET
+- Deterministic allowlisted ResetPlan with estimated counts and preserved-resource contract
+- Personal owner and Organization OWNER authorization
+- Admin-only per-Workspace operation lock, idempotent request IDs, minimal surviving reset audit, and reset generation metadata
+- Typed Workspace-name confirmation Danger Zone for Personal and Organization Settings
+- Workspace-scoped cache invalidation and clean app reload after success
+- Emulator integration for Personal/Organization reset, member denial, multi-Workspace isolation, idempotency, concurrency, empty reset, analytics/Chat/Ledger nested cleanup, and post-reset reuse
+
+### Deployment status
+- CLOSED — DEPLOYMENT VERIFIED on `modulity-2-dev`
+- `workspaceReset` v2 callable deployed to `europe-west1` on Node.js 22; Artifact Registry cleanup set to 30 days
+- Authenticated disposable Organization reset, immediate Module/Record reuse, second reset, Personal Workspace isolation, audit/lock settlement, and 375px/768px confirmation smoke passed
+- Browser verification found and fixed the new-Organization stale switch race and normalized `userId` Module detail/edit mismatch
+
+### Limitations
+- File metadata is deleted; binary storage cleanup adapter is not yet implemented
+- Reset lock prevents concurrent resets but normal writes do not yet enforce dataGeneration/write epoch
+- Firebase Functions dependency tree has a transitive moderate uuid advisory without a currently compatible non-breaking remediation
+
+## Step 8 — Reports & Intelligence Engine
+
+### Added
+- Canonical workspace-scoped ReportDefinition persistence, lifecycle/versioning, builder, preview, run, edit, archive, table/summary/basic chart rendering
+- Shared deterministic analytics primitives for typed field references, filters, UTC periods, sorting, grouping, COUNT/COUNT_DISTINCT/SUM/AVERAGE/MIN/MAX
+- Controlled query planner with allowlisted RECORDS/ENTITIES/RELATIONSHIPS sources, maximum 5 source Modules, 500 source Records, 100 rows/groups, and explicit LIMIT_EXCEEDED behavior
+- Multi-Module Report execution preserving Record Module/version provenance and missing historical fields as null
+- Existing WidgetDefinition extended—not replaced—with executable KPI, STATUS_SUMMARY, RECENT_RECORDS, TABLE, and canonical Relationship ASSIGNMENT Widgets
+- Independent Dashboard Widget execution/error/loading/cache boundaries
+- Batched EntityReference display resolution and bounded Relationship reads
+- ReportDefinition/Widget Rules hardening, indexes, negative security tests, unit/UI tests, and real Emulator analytics journey
+
+### Scope decision
+- Per explicit Step 8 approval, ROADMAP agent registry/orchestrator items are deferred; Step 8 remains deterministic and fully operational without AI
+- AI Report/Widget generation, scheduling, exports, trusted server analytics, and Step 9 Automat are not implemented
+
+## Step 7.2 — Workspace Experience Closure & Integration Audit
+
+### Added
+- Membership-protected Chat foundation: Conversation, ConversationMember, Message, bounded queries, server timestamps, service/repository, `/app/chat`, and responsive header control
+- Workset edit flow for name, description, Module membership, zero-module state, archived/unavailable Module handling, and active Workset filtering on My Modules
+- Real emulator journey connecting canonical Module → Workset → preference → Entity → Record → Widget → Notification → Conversation/Message
+- Negative Chat security tests for non-members, sender spoofing, cross-workspace provenance, and immutable Messages
+
+### Hardened
+- Notification creation now requires attributable USER/self `createdBy`; provenance is immutable
+- Notification Center uses workspace cache and updates the header unread count after mark-read
+- Conversation metadata query uses immutable `memberIds`; Message access requires canonical ConversationMember documents
+- Mobile header keeps Workspace, Notifications, Chat, and account actions reachable; Records tabs use controlled horizontal scrolling
+
+### Actual deferred scope
+- Widget metric/aggregation rendering remains Step 8; Step 7 stores and displays deterministic definitions only
+- Chat conversation/member creation UI, typing, attachments, read receipts, and realtime delivery remain a later collaboration milestone
+- Full cursor pagination for Entities remains follow-up; current read is bounded to 100
+
+## Step 7.1 — Workspace Runtime Bootstrap Hardening
+
+### Fixed
+- Enabled and initialized the missing `(default)` Firestore database for `modulity-2-dev`; the absent backend caused 23–35 second SDK offline fallbacks
+- Deterministic Personal Workspace IDs (`personal_{userId}`) make first-user bootstrap idempotent under concurrency
+- Workspace startup now renders a valid Personal Workspace before optional Organization/workspace-experience discovery completes
+- Optional Workset/preference errors no longer poison the core Workspace availability state
+- Stale/inaccessible local Workspace selections are removed and replaced with the Personal Workspace
+- Auth observer errors now settle AuthProvider instead of leaving authentication loading indefinitely
+- Ledger and all workspace pages now settle missing workspace, empty query, and query failure states explicitly
+- Dashboard Modules, Records, and Widgets load independently instead of a blocking `Promise.all` waterfall
+- Missing user Workspace Preference documents can be read safely before first creation
+
+### Performance
+- Added a lightweight workspace-keyed stale-while-revalidate query cache without third-party state dependencies
+- Cached Modules, Worksets, Widgets, Entity Types, bounded Entities, Ledger Books, Dashboard projections, and filtered Records first pages
+- Added low-priority idle prefetch for bounded Modules and user Worksets/Widgets
+- Distinguished initial loading from background refreshing so cached content remains visible
+- Added mutation invalidation for Modules, Records, Worksets, Widgets, Entities, Entity Types, and Ledger Books
+- Bounded Entity list reads to 100 pending full cursor pagination
+
+### Validation
+- Empty Personal Workspace emulator integration covers concurrent bootstrap and settled empty queries for Modules, Records, Entities, Entity Types, Worksets, Widgets, Notifications, Preferences, and Ledger
+- Development startup operations have a diagnostic failure boundary; no Workspace bootstrap await can remain pending indefinitely
+- Cache tests cover workspace isolation, deterministic keys, concurrent request deduplication, stale refresh, and targeted invalidation
+- Real browser verification: ~2s steady-state reload; first uncached routes briefly load; repeat Modules/Ledger navigation renders immediately
+
+## Step 7 — Workspace Experience
+
+### Added
+- Workspace-aware Dashboard with quick actions, active Workset Modules, recent Records, and Widget area
+- Workset model/service/repository and user-specific active Workset preferences
+- Workset list, creation, detail, activation, and archive UI
+- Configuration-only WidgetDefinition model with controlled sources, fields, operators, and bounded limits
+- My Widgets UI and responsive dashboard grid
+- Notification model/service/repository, selective `record.sent` notification bridge, header unread count, and Notification Center
+- Workspace Experience Firestore Rules and indexes for Worksets, Widgets, Notifications, and preferences
+- Responsive grouped sidebar navigation and active Workset header selector
+
+### Fixed
+- Workspace and page loaders now settle when workspace/services are unavailable
+- Entity Types, Entities, Modules, and Records no longer leave loading active when no workspace or zero data is available
+- Workspace switching validates accessibility, loads membership before committing the switch, clears stale workspace views, and reports errors
+
+### Architecture
+- Workset is navigation context, never authorization
+- Widget definitions store query configuration, never copied business data
+- Event, Audit, and Notification remain distinct
+- Loading, empty, ready, and error states are separate
+
+## Step 6.1 — Ledger Consistency, Idempotency & Audit Hardening
+
+### Fixed
+- **Transaction-level idempotency** — authoritative idempotency check moved inside the same Firestore `runTransaction` that allocates sequence numbers. The outer `getByBookAndRecord()` is now an optimization only, not the correctness boundary.
+- **Create-once LedgerEntry semantics** — existing entries are never overwritten by retry. Uses `_idempotent` flag to distinguish first-creation from idempotent return.
+- **Atomic Record↔Ledger linkage** — Record `ledgerEntryId`/`ledgerBookId`/`referenceNumber` updated inside the same transaction that creates the LedgerEntry.
+- **Atomic LedgerBook bootstrap** — code reservation + book + initial block + `currentBlockId` in a single `runTransaction`. No orphan code reservations on failure.
+- **Audit duplication prevention** — LedgerService owns durable audit for ledger operations; AuditBridge handles non-ledger events only. Ledger events excluded from bridge mapping.
+- **Server-authoritative timestamps** — all Ledger/Audit operations use Firestore `serverTimestamp()` for authoritative historical time. Client ISO strings are display-only.
+
+### Added
+- **Provenance validation in Firestore Rules** — LedgerEntry create requires: referenced Record exists in same workspace, referenced LedgerBook exists in same workspace, initial `entryStatus` must be `ACTIVE`
+- **Multiple-LedgerBook-per-Record policy** — explicit support; `ledgerEntryRepo.listByRecord()` returns entries across all books
+- **Emulator concurrency integration tests** — 20 concurrent same-record registrations (1 entry, 1 sequence consumed), 50 concurrent distinct records (50 unique contiguous sequences), block rollover under concurrency, cancelled number gap preservation
+- **Provenance security tests** — nonexistent Record/Book rejected, non-ACTIVE initial status rejected
+- **Audit ownership model** — documented: each audit action has exactly one owner (service or bridge)
+- **Audit failure semantics** — documented: best-effort, audit failure does not roll back business operations
+
+### Architecture
+- Idempotency check is inside the transaction that allocates the sequence
+- Record linkage is atomic with LedgerEntry creation
+- LedgerBook bootstrap is atomic (code + book + block + currentBlockId)
+- Audit is best-effort — not guaranteed permanent unless moved behind Cloud Function
+- Sequence allocation is concurrency-safe for honest clients but not tamper-resistant without trusted backend
+
+## Step 6 — Ledger & Audit Engine
+
+### Added
+- **LedgerBook** — numbered register model with workspace-scoped code uniqueness, configurable block size (25–10000), reference prefix, module/recordType scoping
+- **LedgerBlock** — physical-book block model with automatic rollover when capacity reached
+- **LedgerEntry** — immutable registration record linking canonical Records to Ledger identity with unique sequence numbers and human-readable reference numbers
+- **AuditEntry** — append-only durable accountability history, distinct from runtime Event Bus
+- **Audit Action Registry** — controlled vocabulary of 30+ stable action names across records, modules, entities, deliveries, form requests, ledger, and secure shares
+- **Audit Bridge** — maps selected Event Bus runtime events to durable AuditEntry persistence
+- **Ledger Service** — atomic sequence allocation, idempotent registration, cancellation/voiding, book lifecycle management
+- **Ledger Query Service** — paginated, filtered Ledger Entry queries with stable ordering
+- **Audit Service** — durable audit recording, resource/actor/general history queries
+- **Module ledgerConfig** — optional Ledger configuration on Module and Module Version (enabled, ledgerBookId, registerOnSubmit)
+- **Record ↔ Ledger linkage** — immutable `ledgerEntryId`, `ledgerBookId`, `referenceNumber` fields on Record
+- **Ledger UI** — book list, book detail with paginated entries, entry detail, book creation form
+- **Record History UI** — audit timeline on Record detail page showing chronological accountability trail
+- **Firestore Security Rules** — Ledger Books, Blocks, Entries, Codes, Audit Entries with workspace isolation, immutability enforcement, append-only audit, actor validation
+- **Composite indexes** — 10 new Firestore indexes for Ledger and Audit queries
+
+### Architecture
+- Ledger Entry never replaces or copies the canonical Record
+- Sequence numbers allocated atomically via Firestore transactions
+- Block rollover is concurrency-safe
+- Registration is idempotent (same bookId + recordId = same entry)
+- Cancelled/voided entries retain their sequence number permanently
+- Audit is append-only and separate from the runtime Event Bus
+- Server-authoritative timestamps for all historical operations
+- Clients cannot claim trusted agent/integration identities in audit
+
+## [Step 5.1] — Transaction, Idempotency & Concurrency Hardening
+
+### Fixed
+- **FormRequest Atomic Completion** — Completion now uses a Firestore `runTransaction` to atomically create the Record AND mark the request COMPLETED. Previously these were separate writes that could leave orphan duplicates on network failure.
+- **FormRequest Idempotency** — Deterministic Record ID (`req_{requestId}`) ensures at most ONE Record per FormRequest. Retrying a completed request returns the existing result instead of creating a duplicate.
+- **Exact Module Version Validation** — Completion now loads the immutable Module Version SNAPSHOT (`getVersionSnapshot`) instead of the current Module document. If request locks v2 but Module is now v5, validation and recordType provenance use v2.
+- **SecureShare Redemption Concurrency** — Token redemption uses a Firestore `runTransaction` for atomic check-and-increment of redemptionCount. Two concurrent redemptions against maxRedemptions=1 result in exactly one success.
+- **Submitted Record Data Immutability** — Firestore Rules now enforce that `data`, `entityReferences`, and `entityReferenceIds` are immutable on SUBMITTED/ACTIVE/COMPLETED/CANCELLED/ARCHIVED records. DRAFT records remain freely editable.
+- **ARCHIVED Query Normalization** — ARCHIVED bucket now forces `status: 'ARCHIVED'` regardless of any conflicting status filter, preventing incompatible dual constraints.
+- **Pagination Cursor Stability** — Added explicit `documentId()` tie-breaker ordering to prevent duplicates/skips when Records share identical sort-field timestamps.
+
+### Added
+- **sourceRequestId** — New immutable provenance field on Record. Normal Records: null. Records from FormRequest completion: the originating requestId. Links Record ↔ FormRequest deterministically.
+- **Archive Provenance** — `archivedAt` (server-authoritative timestamp) and `archivedBy` (canonical ActorRef) written when archiving, cleared on unarchive. Ready for Step 6 Ledger/Audit.
+- **Recipient Membership Validation** — Both RecordDeliveryService and FormRequestService now verify the recipient is an ACTIVE member of the Organization Workspace (or the owner for Personal Workspaces). Suspended/LEFT/non-member recipients are rejected.
+- **Date Range Filters** — `createdFrom` and `createdTo` implemented end-to-end: RecordQuery domain, Firestore repository (server-side `_createdAt` Timestamp filtering), and client-side filtering for collaboration bucket results.
+- **resultRecordId Immutability** — Once set on a FormRequest, `resultRecordId` cannot be changed via Firestore Rules. Prevents pointing a completed request at an arbitrary Record.
+- **Legacy Query Bounding** — `listByWorkspace()`, `listByStatus()`, `listByEntityRef()`, and `queryRecords()` now enforce an internal hard cap of 500 results. Browse operations should use `paginatedQuery()`.
+- **Unit Tests** — formRequestService, secureShareService, recordOperationService, recordDeliveryService, recordQueryService service-level tests (idempotency, concurrency, membership validation, provenance, bucket semantics)
+- **Emulator Security Tests** — Submitted Record data/entityReferences/sourceRequestId immutability, priority-only update allowed, priority+data denied, DRAFT data update allowed, archive-only update allowed, FormRequest resultRecordId immutability
+
+### Architecture
+- FormRequest completion no longer depends on RecordService. It builds the Record domain object directly and writes via `completeRequestAtomic` Firestore transaction.
+- SecureShare redemption no longer uses read-then-update. Uses `redeemTokenAtomic` Firestore transaction.
+- Services receive `membershipRepo` and `workspaceRepo` for recipient validation at the application layer (not just UI checks).
+
+## [Step 5] — Record Operations & Collaboration Engine
+
+### Added
+- **Record Query Engine** — Paginated, filtered, sorted Record queries with bucket views (ALL, OWN, STARRED, SENT, RECEIVED, ARCHIVED)
+- **Record Operation Service** — Priority changes, archive/unarchive, bulk operations (up to 50), submitted-data immutability enforcement
+- **Record Delivery Service** — Record sharing/sending with lifecycle state machine (PENDING → DELIVERED → OPENED → ACKNOWLEDGED → ACCEPTED/DECLINED → COMPLETED/REVOKED)
+- **Record Folder Service** — Workspace and user-scoped folders, folder items, starred state
+- **Form Request Service** — Form request creation with locked Module Version, recipient lifecycle, atomic completion creating canonical Record
+- **Secure Share Service** — QR/link foundation with SHA-256 token hashing, revocation, expiration, redemption limits
+- **Record List UI** — Global Record list page (`/app/records`) with bucket tabs, filtering, sorting, pagination, bulk operations
+- **Module Record List UI** — Module-scoped Record list (`/app/modules/:moduleId/records`) with "View Records" link from Module detail
+- **Record Table component** — Reusable sortable table with selection, starring, status/priority badges
+- **Firestore Security Rules** — Rules for deliveries, formRequests, folders, folder items, userRecordState, shareTokens
+- **Firestore Indexes** — Composite indexes for all new collections (firestore.indexes.json)
+- **Unit tests** — Domain model tests for recordQuery, delivery, formRequest, folder, userRecordState, secureShare
+- **Emulator security tests** — Rules tests for all new collections (delivery, formRequest, folder, userRecordState, shareToken)
+- **Infrastructure wiring** — All new repositories and services registered in services.js/repositories.js
+
+### Architecture
+- RecordService remains focused on canonical Record CRUD + lifecycle
+- Six new focused services prevent monolith accumulation
+- All services use factory pattern with dependency injection
+- Workspace isolation enforced at Firestore Security Rules level
+- User Record State isolated per-user (no cross-user leakage)
+- Form Requests lock Module Version at creation (immutable provenance)
+- Share tokens store only SHA-256 hashes (plaintext never persisted)
+
+## [Unreleased]
+
+### Added
+
+- Step 0: Architecture Blueprint & Project Constitution.
+  - Created architecture documentation in `docs/`.
+  - Created minimal project scaffolding: Vite + React + Tailwind CSS + ESLint + Prettier + Vitest + Playwright.
+  - Defined design system tokens and project structure.
+- Step 1: Application Foundation.
+  - Centralized configuration loader in `src/infrastructure/config/`.
+  - Provider-independent identity contract and Firebase Auth adapter.
+  - User model boundary mapping Firebase User to `UserIdentity`.
+  - Auth Provider, protected/guest routes, login and registration pages.
+  - Responsive authenticated shell with header, sidebar, and mobile drawer.
+  - First Design System components: Button, IconButton, Input, PasswordInput, Label, Card, Badge, Alert, Dialog, Drawer, Dropdown, Spinner, LoadingState, ErrorState, EmptyState, PageContainer, PageHeader.
+  - Application error model translating provider errors to user-safe messages.
+  - Unit tests for configuration, identity mapping, auth state, protected routes, form validation, and Design System primitives.
+  - GitHub Actions CI workflow running install, lint, test, and build.
+
+- Step 2: Workspace & People Foundation.
+  - Core domain models: Workspace, Organization, Membership, Role, Person/Profile, Group, Invitation.
+  - Repository contract pattern: contracts in `core/workspace/`, Firestore implementations in `infrastructure/firebase/`.
+  - Application services: WorkspaceService, OrganizationService, MembershipService, GroupService (React-independent).
+  - Event bus foundation (`core/events/eventBus.js`) with event envelope schema.
+  - WorkspaceProvider/Context with workspace switching, localStorage persistence, and access verification.
+  - Personal Workspace auto-creation on first login (idempotent).
+  - Organization creation flow: creates org + workspace + OWNER membership as one logical operation.
+  - Role/capability authorization boundary with OWNER, ADMIN, MEMBER system roles.
+  - Owner safety invariant: organization cannot end up with zero owners.
+  - Workspace Switcher in header with "Create Organization" action.
+  - Workspace-aware sidebar: organization nav items (People, Groups, Settings) only shown for organization workspaces.
+  - Dashboard page showing current workspace and user info.
+  - Create Organization page with validated form.
+  - Organization Settings page with view/edit capability.
+  - People page showing organization members with name, email, role, status.
+  - Groups page with create/delete functionality.
+  - Firestore integration via `firebase/firestore` with emulator support.
+  - Firestore Security Rules in `firestore.rules`.
+  - Route-level lazy loading for feature pages.
+  - Platform events emitted for workspace/organization/membership/group operations.
+  - `docs/WORKSPACE_MODEL.md` explaining workspace, membership, and people concepts.
+  - 107 unit tests across 21 test files (61 new tests for Step 2).
+
+- Step 2.1: Firestore Security Hardening.
+  - Redesigned membership storage: subcollections at `organizations/{orgId}/members/{userId}` for deterministic Security Rules lookups.
+  - Moved groups to `organizations/{orgId}/groups/{groupId}` subcollection.
+  - Moved invitations to `organizations/{orgId}/invitations/{invitationId}` subcollection.
+  - Added `userMemberships/{userId}/orgs/{orgId}` reverse index for efficient user membership queries.
+  - Rewrote `firestore.rules` with organization isolation, role-based enforcement, field immutability, and deny-by-default.
+  - Organization creation now uses atomic `writeBatch()` (org + workspace + membership + index in one commit).
+  - Added `firestoreOrganizationBootstrap.js` for atomic org creation.
+  - Security Rules prevent: cross-org access, self-promotion, OWNER escalation by non-OWNER, field tampering (organizationId, userId, type, ownerUserId, createdByUserId), suspended member access, unauthorized invitation creation/read, and access to unknown collections.
+  - Added 64 Firebase Emulator Security Rules tests covering all attack vectors.
+  - Updated `docs/SECURITY_MODEL.md` with rule patterns, trusted operations, and future collection requirements.
+  - Updated `docs/WORKSPACE_MODEL.md` with new data architecture.
+  - Added `npm run test:rules` command for emulator-based Security Rules testing.
+
+- Step 3: Universal Data Core.
+  - Core domain models: ActorRef, EntityType, Entity, Relationship, Record, FileMeta.
+  - Entity Type Registry with CORE and DOMAIN categories.
+  - 8 Core Entity Types seeded idempotently: PERSON, EMPLOYEE, CUSTOMER, SUPPLIER, VEHICLE, EQUIPMENT, LOCATION, DOCUMENT.
+  - Schema contract for Entity Type field definitions (text, number, date, boolean, select, entity-reference, file-reference).
+  - Entity Reference contract for typed, workspace-scoped cross-object links.
+  - Reference Resolver with workspace isolation enforcement.
+  - Relationship model supporting typed, workspace-scoped links between objects.
+  - Record foundation with multi-actor model (createdBy, submittedBy), lifecycle (DRAFT through ARCHIVED), and entity reference validation.
+  - File/Attachment metadata model with provider-independent storage contract.
+  - Repository contracts: EntityTypeRepository, EntityRepository, RelationshipRepository, RecordRepository, FileRepository.
+  - Firestore adapters for all 5 new collections under `workspaces/{workspaceId}/`.
+  - Application services: EntityTypeService, EntityService, RelationshipService, RecordService, FileService (all React-independent).
+  - Firestore Security Rules for entityTypes, entities, relationships, records, files — workspace ownership, immutable fields, CORE type protection, deny-by-default.
+  - 35 new Firebase Emulator security tests (99 total) covering positive, negative, cross-workspace, immutable field, and deny-by-default scenarios.
+  - 83 new unit tests (190 total) for all domain models, validation, schema contract, and core entity types.
+  - Minimal Entity browser/detail UI: EntityTypesPage, EntitiesPage, EntityDetailPage.
+  - Entity Type management UI with Domain type creation including field definitions.
+  - Entity detail shows type, status, data, relationships, and related record count.
+  - Platform events emitted for entity_type, entity, relationship, record, and file operations.
+  - `docs/UNIVERSAL_DATA_CORE.md` documenting full architecture, query strategy, security rules, multi-industry proof.
+  - Updated `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`.
+
+- Step 3.1: Universal Data Integrity Hardening.
+  - Full field type validation: text (string, minLength, maxLength), number (finite, min, max), date (ISO 8601), boolean, select (option set), entity-reference (canonical structure), file-reference (non-empty string).
+  - Unknown-field policy: undeclared fields in Entity data are rejected.
+  - Field definition hardening: key format validation (`/^[a-zA-Z][a-zA-Z0-9_]*$/`), duplicate key rejection, select options required, min/max consistency, minLength/maxLength consistency, required must be boolean.
+  - `validateFieldDefinitions()` validates entire field set including cross-field uniqueness.
+  - Canonical `validateEntityReference()` shared across EntityService, RecordService, and future consumers.
+  - Entity Reference type integrity: `ref.entityTypeId` must match resolved entity's actual `entityTypeId`.
+  - Record reference dual-storage: canonical `entityReferences[]` (source of truth) + derived `entityReferenceIds[]` (query index).
+  - Entity Type existence and ACTIVE status check before Entity creation.
+  - Entity update revalidation: data changes revalidated against Entity Type schema.
+  - Record draft update revalidation: entityReferences, data, attachments revalidated; entityReferenceIds recomputed.
+  - Actor identity enforcement in Firestore Rules: `isValidClientActor()` enforces `actorType == 'USER'` and `actorId == request.auth.uid` for all workspace data creates.
+  - INTERNAL_AGENT and EXTERNAL_INTEGRATION rejected from client writes.
+  - 13 new Firebase Emulator security tests (112 total) covering actor spoofing, trusted actor type rejection, cross-collection actor identity, and immutable actor fields.
+  - 53 new unit tests (243 total) for field type validation, field definition validation, entity reference validation, record reference indexing, and actor ref edge cases.
+  - Updated `docs/UNIVERSAL_DATA_CORE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `AGENTS.md`, `CHANGELOG.md`.
+
+- Step 4: Module Engine + Form Schema + Form Renderer.
+  - Module Definition domain model (`src/modules/module.js`) with moduleId, workspaceId, moduleCode, name, description, category, status, version, formSchema, recordConfig, displayConfig, primaryEntityTypeId, createdBy, timestamps.
+  - Module identity: `moduleId` is immutable internal ID, `moduleCode` is stable human/developer-facing code (unique within workspace, immutable after creation).
+  - Module lifecycle: DRAFT → ACTIVE → INACTIVE/ARCHIVED. DRAFT freely editable. ACTIVE modules increment version on schema changes. Archived modules preserved for historical Record interpretation.
+  - Module versioning: integer `version` on Module; Records store `moduleId` + `moduleVersion`.
+  - Shared field system: extended `FIELD_TYPES` in `entityType.js` with form-oriented types (textarea, email, phone, url, datetime). One coherent field system with `ENTITY_FIELD_TYPES` subset for Entity Type validation and full set for Form Schema validation.
+  - Validation patterns: `ISO_DATETIME_PATTERN`, `EMAIL_PATTERN`, `PHONE_PATTERN`, `URL_PATTERN` added to core field validators.
+  - Form Schema embedded in Module Definition: `{ schemaVersion, fields[] }` with ordered field definitions.
+  - Form Schema Validator (`src/modules/forms/formSchemaValidator.js`): validates schema structure, validates form values against schema, extracts entity references, rejects undeclared fields, enforces entity reference integrity.
+  - Structured validation error model: `{ valid: boolean, errors: { [fieldKey]: string } }`.
+  - Field Registry (`src/modules/forms/fieldRegistry.js`): deterministic mapping from field type to React component, falls back to `UnsupportedField` for unknown types.
+  - Generic Form Renderer (`src/modules/forms/FormRenderer.jsx`): schema-driven, renders fields in schema order via Field Registry, client-side validation, submit/draft buttons, accessible, no module-specific hardcoded JSX.
+  - 12 field components: TextField, TextareaField, NumberField, DateField, DateTimeField, BooleanField, SelectField, EmailField, PhoneField, UrlField, EntityReferenceField, FileReferenceField, plus UnsupportedField fallback.
+  - FieldWrapper component for consistent label, required indicator, help text, error display, and accessibility (aria-invalid, aria-describedby).
+  - EntityReferenceField: loads entities from workspace filtered by entityTypeId, stores canonical `{ entityId, entityTypeId, workspaceId }`.
+  - FileReferenceField: text input placeholder for file reference IDs (full upload deferred).
+  - Display Formatter (`src/modules/forms/displayFormatter.js`): formats canonical Record values for human display.
+  - ModuleService (`src/modules/moduleService.js`): CRUD, lifecycle transitions, code uniqueness, version management, immutable field protection, form schema validation.
+  - ModuleSubmissionService (`src/modules/moduleSubmissionService.js`): orchestrator that loads Module, validates status, validates form values, extracts/resolves entity references, delegates to RecordService, creates exactly ONE canonical Record, emits platform events.
+  - Module Repository contract (`src/modules/moduleRepository.js`) and Firestore adapter (`src/infrastructure/firebase/firestoreModuleRepository.js`).
+  - Wired into `infrastructure/repositories.js` and `infrastructure/services.js`.
+  - Module management UI: ModulesPage (list), CreateModulePage (manual builder), ModuleDetailPage (detail + preview), EditModulePage (DRAFT editing), ModuleFormPage (submission flow), RecordDetailPage (record display).
+  - Manual Module Builder: define module name, code, category, form fields with type selection, options, entity type, required state, field ordering.
+  - Route-level lazy loading for all module/record pages.
+  - "My Modules" sidebar link enabled.
+  - Demo modules: ROOM_INSPECTION (entity-reference, date, select, textarea, file-reference) and VEHICLE_INSPECTION (text, number, date, boolean, select, textarea).
+  - Firestore Security Rules for `workspaces/{workspaceId}/modules/{moduleId}`: workspace ownership, authenticated access, actor validation (USER + own uid), immutable fields (workspaceId, moduleId, moduleCode, createdBy, createdAt), archived module protection, org workspace requires ADMIN/OWNER for create/update, delete denied.
+  - 21 new Firebase Emulator security tests (133 total): module create/read for personal/org workspaces, cross-workspace isolation, actor spoofing, workspace mismatch, immutable field changes, archived module protection, delete protection, unauthenticated access.
+  - 79 new unit tests (322 total): Module domain model, validateModuleCode, ModuleService (CRUD, lifecycle, versioning, immutability), Form Schema validation, form values validation, entity reference extraction, ModuleSubmissionService (submission pipeline, status checks, validation, draft/submit), demo module schemas, Field Registry, Display Formatter.
+  - Updated `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `docs/UNIVERSAL_DATA_CORE.md`.
+
+- Step 4.1: Module Version History & Record Provenance Hardening.
+  - Record domain model: added `moduleVersion` field (positive integer, immutable after creation).
+  - Module Version Snapshots: `workspaces/{workspaceId}/modules/{moduleId}/versions/{version}` — immutable historical schema snapshots.
+  - Module Version snapshot domain model: `src/modules/moduleVersion.js` with frozen value objects.
+  - Version creation lifecycle: first activation creates Version 1 snapshot; ACTIVE schema changes create next version atomically.
+  - Atomic `moduleCode` reservation: `workspaces/{workspaceId}/moduleCodes/{code}` using `writeBatch`. Codes are never reused, even after archiving.
+  - ModuleSubmissionService passes exact `moduleVersion` to RecordService; Record persists `moduleId`, `moduleVersion`, `recordType` as immutable provenance.
+  - RecordService strips `moduleId`, `moduleVersion`, `recordType` from draft updates (provenance immutable).
+  - RecordDetailPage loads historical Module Version schema via `record.moduleId` + `record.moduleVersion`. Falls back to current schema with warning if version snapshot not found.
+  - ModuleService: `getModuleVersion()` and `listModuleVersions()` for historical schema retrieval.
+  - Firestore Module Repository: version snapshot CRUD, code reservation, `writeBatch` atomicity for version creation + module update.
+  - Firestore Rules: version snapshots (create + read allowed, update + delete denied), module code reservations (create + read allowed, update + delete denied), Record `moduleId`/`moduleVersion`/`recordType` immutable on update.
+  - 24 new unit tests (346 total): Module Version snapshot domain model (8), ModuleService version snapshots (7), code uniqueness (2), ModuleSubmissionService `moduleVersion` provenance (4), Record `moduleVersion` domain model (6 new assertions across tests).
+  - 28 new Firebase Emulator security tests (161 total): version snapshot immutability (13), module code reservation (11), Record provenance immutability (5).
+  - Updated `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY_MODEL.md`, `docs/MODULE_CONTRACT.md`.
+
+### Notes
+
+- No Modulity V1 code imported.
+- ListView, TableView, Ledger, Widgets, Reports, Chat, Notifications, Agents, Billing checkout, External API are intentionally not implemented in Step 4/4.1.
+- Invitation acceptance, ownership transfer, OWNER role escalation still require Cloud Functions.
+- File upload binary handling is deferred — only metadata model and storage contract established. FileReferenceField uses text input placeholder.
+- Schema migration framework is documented conceptually but not implemented.
+- Cross-workspace sharing is denied by default; future sharing system deferred.
+- Module code uniqueness is now enforced via atomic `writeBatch` reservation in `workspaces/{workspaceId}/moduleCodes/{code}`. Concurrent creates fail atomically — the race condition from Step 4 is resolved.
+- Submitted Record trust boundary: application-layer validation via ModuleSubmissionService; Firestore Rules enforce storage authorization and provenance immutability; future trusted backend enforcement may be needed for stronger validation guarantees. Browser form validation is UX; application service validation is deterministic business validation; Firestore Rules cannot reproduce arbitrary Module Form Schema validation.
+- Rich text, signature, location, image, currency, multiselect, radio, domain-entity-reference, user-reference field types are documented in MODULE_CONTRACT.md but not yet implemented in the Field Registry (UnsupportedField fallback renders).
+- **INVARIANT: A historical Record must always be interpretable using the exact Module Version that created it. Changing a Module tomorrow must never change the meaning of a Record created yesterday.**
