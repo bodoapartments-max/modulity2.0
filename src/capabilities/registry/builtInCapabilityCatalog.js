@@ -39,6 +39,11 @@ export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
     capabilities: ['run, tool-orchestrate, propose-config, simulate'],
     requires: ['simulation', 'policy-authority'],
   }),
+  descriptor('credential-vault', 'Secrets / Credential Vault', CAPABILITY_MODES.READ, 'Trusted canonical credential boundary. Credentials live as identities; raw secret material never follows public surfaces.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['reference', 'resolve-server', 'rotate', 'revoke'],
+    requires: [],
+  }),
   descriptor('scheduling', 'Scheduling', CAPABILITY_MODES.ACTION, 'Trusted allocation and scheduling commands using Calendar semantics.', { capabilities: ['resource-allocation'], requires: ['calendar'] }),
   descriptor('task', 'Task', CAPABILITY_MODES.ACTION, 'Trusted task orchestration around canonical business state.', { capabilities: ['task-assignment', 'task-state'] }),
   descriptor('workflow', 'Workflow', CAPABILITY_MODES.ACTION, 'Trusted deterministic transitions and commands over canonical state.', { capabilities: ['transition-policy', 'command-journal'], optionalDependencies: ['notification'] }),
