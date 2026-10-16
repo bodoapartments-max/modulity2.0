@@ -366,7 +366,7 @@ Every milestone above the CONTEXT shape is informed of the health-check coverage
 
 After every five product milestones, run a mandatory Repair & Control Gate before the next product milestone.
 
-- Steps 25–29 → RC-01 **BLOCKED / IN PROGRESS** — remote CI failed at Lint for commit `a2a6110`; repair in progress
+- Steps 25–29 → RC-01 **PASSED** — repaired through `c23c2a8`; remote CI run 38890539834 green (Lint, Test, Functions tests, Build)
 - Steps 30–34 → RC-02 (planned; must pass ahead of step 35)
 - Later cycles preserve the same pattern.
 
