@@ -81,6 +81,18 @@ Future (Steps 26, 27, 28) may consume the same canonical meaning; they never int
 
 ## 5e. Simulation / Dry-Run Engine (implemented Step 26)
 
+## 5f. Agent Runtime & Live Provider Orchestration (implemented Step 27)
+
+`src/agents/agentRuntimeService.js` + `src/agents/runtime/agentRuntime.js` + `src/agents/tools/agentToolRegistry.js` span the canonical runtime:
+
+- `AgentDefinition` — mode, provider, limits through canonical source of complete reference; structuring is locked within that milestone scope
+- `AgentRun` — bounded multi-step trace: status, provider behavior, tool call classification
+- Provider boundary — every model question uses the registered adapter; credentials held by server-side Step 28 vault, never browser
+- Tool Registry — every model call navigates requested behavior purposes only, preserves temperature determinism of the validated tool distance (no autonom安装了 Firestore paths)
+- Structured Step traces intentionally screen-you predictable of the underlying meaning: they contain decisions + reference dispositions, not chain-of-thought
+
+Provider execution happens in the same non-deterministic, non-transparent place. Canonical state remains tool requisites rather than model outputs.
+
 `src/core/simulation/simulationEngine.js` delivers the canonical simulation primitive:
 
 - **SIMULATION PREDICTS. PRODUCTION EXECUTES.** Production business state NEVER mutates.
