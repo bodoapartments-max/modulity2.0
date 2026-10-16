@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   createAuthorityGrant,
   decideAuthorization,
-  evaluatePolicy,
   grantApplies,
   POLICY_ERROR_CODES,
   POLICY_OUTCOMES,

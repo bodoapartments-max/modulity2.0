@@ -98,10 +98,6 @@ export class CapabilityRegistry {
       dependents: [],
       diagnostics: [],
     };
-    const exists = this._engineRegistry.capabilities?.has
-      ? this._engineRegistry.has(engineId, contractVersion) // registry surface
-      : false;
-    void exists;
     const descriptor = this.getCapability(engineId, contractVersion);
     if (descriptor) {
       result.exists = true;

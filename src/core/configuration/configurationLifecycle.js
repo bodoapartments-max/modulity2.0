@@ -14,8 +14,6 @@
  *
  * @module core/configuration/configurationLifecycle
  */
-import { BUSINESS_EVENT_TYPES } from '../events/businessEvent.js';
-
 export const CONFIGURATION_CONTRACT_VERSION = '1.0.0';
 
 export const CONFIGURATION_STATUSES = Object.freeze({
@@ -191,12 +189,10 @@ export function publishConfiguration(revision, { evaluatingActor = null }) {
  * Rollback is simply a NEW revision re-asserting an older configuration —
  * an important distinction to inspect vs. deletion semantics.
  */
-export function rollbackConfiguration(currentRevision, baseRevision, { evaluationTime = new Date(), actor = null } = {}) {
+export function rollbackConfiguration(currentRevision, baseRevision, { evaluationTime: _evaluationTime = new Date(), actor = null } = {}) {
   if (currentRevision.status !== CONFIGURATION_STATUSES.PUBLISHED) throw new Error(CONFIGURATION_ERROR_CODES.ROLLBACK_TARGET_INVALID);
   if (baseRevision.status !== CONFIGURATION_STATUSES.PUBLISHED) throw new Error(CONFIGURATION_ERROR_CODES.ROLLBACK_TARGET_INVALID);
   // Verification flow: is the policy approving rollback? For Step 25, only the current revision.
-  void evaluationTime;
-  void baseRevision;
   return createConfigurationRevision({
     configurationId: currentRevision.configurationId,
     configurationType: currentRevision.configurationType,

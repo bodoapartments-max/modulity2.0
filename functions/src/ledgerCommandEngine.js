@@ -447,7 +447,6 @@ async function executeCreateLedgerBook(db, { userId, command, internal = false }
       });
       return { book: result.book, operationId: command.operationId, idempotent: false, backfill: summary };
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('ledger source backfill failed', err?.message || err);
     }
   }
@@ -496,7 +495,6 @@ async function backfillLedgerSource(db, { workspaceId, ledgerBookId, sourceDefin
         void result;
         registered += 1;
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error(`ledger backfill failed for record ${recSnap.id}:`, err?.message || err);
       }
     }

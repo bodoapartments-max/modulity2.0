@@ -379,7 +379,6 @@ async function executeCreateRecordCommand(db, { userId, command }) {
     } catch (err) {
       // Registration must not invalidate the canonical Record. A later replay
       // of this same command replays the chain deterministically.
-      // eslint-disable-next-line no-console
       console.error('ledger auto-registration failed', err?.message || err);
     }
   }
@@ -593,7 +592,6 @@ async function executeRecordMutationCommand(db, { userId, command }) {
       });
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('ledger chained operation failed', err?.message || err);
   }
 

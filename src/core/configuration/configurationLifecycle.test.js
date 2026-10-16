@@ -3,8 +3,6 @@ import {
   createConfigurationRevision,
   validateConfiguration,
   publishConfiguration,
-  validateRollbackCompatibility,
-  CONFIGURATION_ERROR_CODES,
   CONFIGURATION_STATUSES,
   CONFIGURATION_TYPES,
   rollbackConfiguration,

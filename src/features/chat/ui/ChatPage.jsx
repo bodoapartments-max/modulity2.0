@@ -58,7 +58,6 @@ export default function ChatPage() {
     try {
       return await services.conversation.listForUser(workspaceId, userId, 50);
     } catch (loaderError) {
-      // eslint-disable-next-line no-console
       console.error('[chat-debug] loader failed:', loaderError?.code, loaderError?.message);
       throw loaderError;
     }

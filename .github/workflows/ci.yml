@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -39,6 +39,16 @@ jobs:
           VITE_FIREBASE_APP_ID: '1:123:web:ci'
           VITE_IDENTITY_PROVIDER: firebase
           VITE_MAX_CONNECTIONS: '5'
+
+      # Trusted Functions engine tests — pure node:test suite, no emulator.
+      # Firestore Rules tests stay local/emulator-gated (npm run test:rules):
+      # they require the Firestore Emulator toolchain which is not provisioned
+      # in this workflow — documented in docs/HANDOFF_AGENT_CONTINUITY.md.
+      - name: Functions tests
+        run: |
+          npm --prefix functions ci
+          npm --prefix functions run build:shared
+          node --test functions/src/*.test.js
 
       - name: Build
         run: npm run build

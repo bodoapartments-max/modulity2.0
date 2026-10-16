@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AgentRuntime, AGENT_RUNTIME_ERROR_CODES } from './agentRuntimeService.js';
-import { KNOWN_TOOL_IDS, validateToolArguments } from './tools/agentToolRegistry.js';
+import { AgentRuntime } from './agentRuntimeService.js';
+import { validateToolArguments } from './tools/agentToolRegistry.js';
 
 function fakeProvider(behavior) { return { providerKey: 'TEST_ADAPTER', generate: async ({ task, context, history } = {}) => behavior({ task, context, history }) }; }
 
@@ -44,6 +44,3 @@ describe('AgentRuntime locked behaviour', () => {
     // Only runs via `AGENT_SIMULATE` offload; proposal could occurs here.
   });
 });
-
-void AGENT_RUNTIME_ERROR_CODES;
-void KNOWN_TOOL_IDS;

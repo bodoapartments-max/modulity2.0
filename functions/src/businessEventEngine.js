@@ -42,7 +42,7 @@ function businessEventPath(workspaceId, eventId) {
  * Firestore transaction can read/check before write, then call the writer for
  * the document set.
  */
-export function planBusinessEventEmission(db, { eventType, workspaceId, source, actor, objectReference = null, payload = {}, idempotencyKey }) {
+export function planBusinessEventEmission(db, { eventType, workspaceId, source, idempotencyKey }) {
   if (!Object.values(BUSINESS_EVENT_SOURCES).includes(source)) {
     fail('INTERNAL', 'Untrusted event source denied.');
   }

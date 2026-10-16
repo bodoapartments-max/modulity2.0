@@ -55,6 +55,8 @@ import { createCapabilityRuntime } from '../capabilities/runtime/capabilityRunti
 import { createBuiltInCapabilityRegistry } from '../capabilities/registry/builtInCapabilityCatalog.js';
 import { createCapabilityRegistry } from '../capabilities/capabilityRegistry.js';
 import { createCalendarEngine, validateCalendarDefinitionV1 } from '../engines/calendar/index.js';
+import { GatewayEngine } from '../core/gateway/gatewayEngine.js';
+import { createCanonicalGatewayOperations } from '../core/gateway/gatewayCanonicalOperations.js';
 import { recordCommandClient } from './firebase/recordCommandClient.js';
 import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
 import { adminCommandClient } from './firebase/adminCommandClient.js';
@@ -284,6 +286,24 @@ function createServices() {
         calendar: { definitionValidator: validateCalendarDefinitionV1 },
       });
       return createCapabilityRegistry(engineRegistry);
+    })(),
+    /**
+     * Step 29: canonical Platform Gateway surface. Reads route through the
+     * canonical Record services; mutations route exclusively through the
+     * trusted Record command boundary (server-side operation journal).
+     */
+    gateway: (() => {
+      const engineRegistry = createBuiltInCapabilityRegistry({
+        calendar: { definitionValidator: validateCalendarDefinitionV1 },
+      });
+      return new GatewayEngine({
+        operations: createCanonicalGatewayOperations({
+          recordService: recordSvc,
+          recordQueryService: recordQuerySvc,
+          recordCommand,
+        }),
+        capabilityRegistry: createCapabilityRegistry(engineRegistry),
+      });
     })(),
     workspacePreference: createWorkspacePreferenceService({
       preferenceRepo: repositories.workspacePreferences,

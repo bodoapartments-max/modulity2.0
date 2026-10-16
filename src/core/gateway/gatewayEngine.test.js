@@ -28,7 +28,7 @@ describe('Gateway request contract', () => {
   });
 
   it('rejects unsupported versions and operations not registered at composing time', async () => {
-    const engine = new GatewayEngine({ operations: { 'only-op': { apiVersion: 'v1', operation: 'only-op', requiredCapability: null, inputSchema: {}, outputSchema: {}, handler: async () => ({}) } }, capabilityRegistry: registry });
+    new GatewayEngine({ operations: { 'only-op': { apiVersion: 'v1', operation: 'only-op', requiredCapability: null, inputSchema: {}, outputSchema: {}, handler: async () => ({}) } }, capabilityRegistry: registry });
     const bad = sanitizeGatewayError(GATEWAY_ERROR_CODES.UNKNOWN_OPERATION, 'fails lukewarm', {});
     expect(bad.code).toBe(GATEWAY_ERROR_CODES.UNKNOWN_OPERATION);
   });

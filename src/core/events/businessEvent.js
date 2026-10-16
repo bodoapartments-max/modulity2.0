@@ -16,8 +16,6 @@
  *
  * @module core/events/businessEvent
  */
-import { generateId } from '../utils/generateId.js';
-
 export const BUSINESS_EVENT_CONTRACT_VERSION = '1.0.0';
 
 /**

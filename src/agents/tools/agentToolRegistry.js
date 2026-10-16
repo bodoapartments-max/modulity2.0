@@ -5,8 +5,7 @@
  * platform engine that knows how to answer it. There is ONLY ONE TOOL REGISTRY —
  * no shadow set exists and model-specified tools must come through this gate.
  */
-import { generateId } from '../../core/utils/generateId.js';
-import { evaluate as evaluateRuleDefinition, RULE_ERROR_CODES } from '../../core/rules/ruleDefinition.js';
+import { evaluate as evaluateRuleDefinition } from '../../core/rules/ruleDefinition.js';
 
 export const AGENT_TOOL_SCHEMA_VERSION = '1.0.0';
 
@@ -62,5 +61,3 @@ export function evaluateTool(tool, args) {
 }
 
 export function toolUsageEntries(runId, kind = 'TOOL_CALL') { return Object.freeze([{ runId, kind, at: new Date().toISOString() }]); }
-void generateId;
-void RULE_ERROR_CODES;

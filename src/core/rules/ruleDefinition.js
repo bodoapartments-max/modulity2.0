@@ -258,9 +258,13 @@ export function evaluate(rule, { event, state = {}, context = {} }) {
   if (!rule) throw new Error(RULE_ERROR_CODES.UNKNOWN_RULE);
   if (rule.status !== RULE_STATUSES.ACTIVE) return Object.freeze({ matched: false, rule, intents: [], trace: [] });
   if (rule.trigger && rule.trigger.eventType && event?.eventType !== rule.trigger.eventType) return Object.freeze({ matched: false, rule, intents: [], trace: [] });
-  // Self-causation guard: A rule evaluating on an event whose lineage already
-  // carries the same event id is the smallest deterministic recursion guard.
-  const lineage = context.causationLineage || [];
+  // A rule reacting to an event that already traces back to itself indicates an
+  // evaluation cycle. `context.event.causeEventId` is the causal parent of the
+  // event being evaluated; `context.causationLineage` may carry the full chain.
+  const lineage = [
+    ...(context.event?.causeEventId ? [context.event.causeEventId] : []),
+    ...(Array.isArray(context.causationLineage) ? context.causationLineage : []),
+  ];
   if (event?.eventId && lineage.includes(event.eventId)) throw new Error(RULE_ERROR_CODES.RULE_CYCLE_DETECTED);
   const trace = [];
   let matched = true;

@@ -20,7 +20,6 @@ function validateWorkspaceCrossReference(storage, { credentialId, workspaceId })
   for (const [key, value] of storage.entries()) {
     if (value?.credentialId === credentialId && value?.workspaceId !== workspaceId) return true;
     if (key === `${credentialId}:${workspaceId}` || key === `${workspaceId}:${credentialId}`) return false;
-    void key;
   }
   return false;
 }
@@ -141,9 +140,8 @@ export function createCredentialDefinition({
  * Datetime returns to plaintext.
  */
 export class CredentialVault {
-  constructor({ boundedPersist = null, storage = new Map() } = {}) {
+  constructor({ boundedPersist: _boundedPersist = null, storage = new Map() } = {}) {
     this._storage = storage;
-    void boundedPersist;
   }
 
   /**
@@ -198,12 +196,9 @@ export class CredentialVault {
 export function createCredentialVault({ initialSecrets = {} } = {}) {
   const vault = new CredentialVault({ storage: new Map() });
   for (const [key, value] of Object.entries(initialSecrets)) {
-    const composite = key.startsWith('cred_') ? key : `cred_${key}`;
-    if (typeof value === 'string') {
-      void composite;
-      // dev/testing convenience only: rank-sensitive environments must never rely on hardcoded fixtures in production paths.
-      continue;
-    }
+    // dev/testing convenience only: fixture secrets are never promoted to
+    // production credential records; production paths never rely on hardcoded fixtures.
+    if (typeof value === 'string' || !key) continue;
   }
   return vault;
 }

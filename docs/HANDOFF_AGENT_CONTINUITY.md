@@ -68,3 +68,15 @@ Reviews may be done by Agents too. Reviewers do not rewrite verified architectur
 4. Commit only when the tree is clean and all suites pass.
 
 Failure to honor these makes the system drift — and every Modulity milestone must remain reviewable by the next agent without context.
+
+## Repair & Control Gates (permanent rule)
+
+After every five product milestones, a mandatory Repair & Control Gate (RC-01, RC-02, …) must run before the next product milestone starts. The next milestone is blocked until the gate passes. RC gates do not consume or renumber roadmap milestone numbers.
+
+## Remote CI closure rule (permanent rule)
+
+A product milestone or RC gate must never be called verified solely because local tests pass. Where an active remote CI pipeline exists, closure requires the canonical GitHub Actions workflow to be green for the final pushed SHA — all required jobs completed, none skipped because of an earlier failure. A local "tests passed" statement does not override a red remote run.
+
+Verification split today:
+- Remote CI (`.github/workflows/ci.yml`): lint, unit/UI tests, Functions unit tests (`node --test`), production build.
+- Local/emulator-gated: `npm run test:rules` (Firestore Security Rules suite requires the Firestore Emulator toolchain; run locally before every milestone/RC closure).

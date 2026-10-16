@@ -176,10 +176,9 @@ function activeGrants(grants = [], actorActorId, workspaceId, resourceId, resour
  *   grants            — original grantset valid within the current temporal window
  *   evaluationTime     — time to treat as present
  */
-// eslint-disable-next-line no-unused-vars -- test suites + sibling decisions depend on this evaluation surface
 export function evaluatePolicy(input) {
   assertWorkerActor(input.actor);
-  const { workspaceId = null, resourceType = null, resourceId = null, permission = null, grants = [] } = input;
+  const { workspaceId = null, resourceType = null, resourceId = null, permission = null, result = null, grants = [] } = input;
   const active = activeGrants(grants, input.actor.actorId, workspaceId, resourceId, resourceType, input.evaluationTime || new Date(0));
   const exact = active.find((g) => g.resources.includes('ALL_RESOURCE_TYPES') || g.resources.includes(resourceType) || g.resources.includes('*'));
   if (!exact) {
@@ -193,6 +192,7 @@ export function evaluatePolicy(input) {
       resourceType,
       resourceId,
       permission,
+      result,
       reason: 'No applicable authority grant was found; intent cannot self-escalate beyond the primary owner.',
     });
   }
@@ -205,6 +205,7 @@ export function evaluatePolicy(input) {
     resourceType,
     resourceId,
     permission,
+    result,
     authoritativeGrantId: exact.grantId,
     grantee: exact.granteeActorId,
     authorityBasis: 'TEMPORAL_GRANT',
@@ -216,13 +217,14 @@ export function evaluatePolicy(input) {
  * returns the canonical Auth Policy Decision without executing further.
  * This function exists explicitly to separate "decide" from "execute".
  */
-export function decideAuthorization({ actor, grantSnapshot = [], workspaceId, resourceType, resourceId, permission, evaluationTime = new Date(0) }) {
+export function decideAuthorization({ actor, grantSnapshot = [], workspaceId, resourceType, resourceId, permission, result, evaluationTime = new Date(0) }) {
   return evaluatePolicy({
     actor,
     workspaceId,
     resourceType,
     resourceId,
     permission,
+    result,
     grants: grantSnapshot,
     evaluationTime,
   });

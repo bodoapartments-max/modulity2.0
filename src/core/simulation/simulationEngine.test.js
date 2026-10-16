@@ -98,9 +98,9 @@ describe('simulateScenario is deterministic, bounded and leak-proof', () => {
   it('state ledger is immutable against mutation from projection stage', () => {
     const shared = { base: { deepCounter: 10 } };
     const overlay = createStateOverlay(shared, []);
+    expect(overlay.__isOverlay).toBe(true);
     expect(shared.base.deepCounter).toBe(10);
     createStateOverlay(shared, [{ path: 'base.deepCounter', value: 22 }]);
     expect(shared.base.deepCounter).toBe(10);
-    void overlay;
   });
 });

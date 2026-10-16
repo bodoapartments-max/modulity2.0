@@ -11,7 +11,7 @@
  * @module core/simulation/simulationEngine
  */
 import { evaluate as evaluateRuleDefinition } from '../rules/ruleDefinition.js';
-import { decideAuthorization, POLICY_ACTOR_TYPES, POLICY_ERROR_CODES, POLICY_OUTCOMES } from '../permissions/policyAuthority.js'; // eslint-disable-line no-unused-vars -- kept stable for future milestones
+import { decideAuthorization, POLICY_ACTOR_TYPES, POLICY_ERROR_CODES } from '../permissions/policyAuthority.js';
 
 export const SIMULATION_CONTRACT_VERSION = '1.0.0';
 
@@ -185,10 +185,3 @@ export function simulateScenario({ runId, workspaceId, actor, inputEvent, state,
     cycleDetected: false,
   });
 }
-
-function safePolicyActorType(actor) {
-  return POLICY_ACTOR_TYPES[actor?.actorType] ? actor.actorType : POLICY_ACTOR_TYPES.USER;
-}
-
-void POLICY_ERROR_CODES;
-void safePolicyActorType;

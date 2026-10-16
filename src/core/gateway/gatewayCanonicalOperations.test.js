@@ -1,0 +1,290 @@
+/**
+ * RC-01 integration proofs for the canonical Gateway operations.
+ *
+ * The fake command executor models the SAME observable contract as the
+ * server-side operation journal in functions/src/recordCommandEngine.js:
+ *   - same operationId + same fingerprint → idempotent replay, ONE effect
+ *   - same operationId + different fingerprint → OPERATION_MISMATCH
+ *   - one canonical BusinessEvent per logical operation (event id is derived
+ *     from operationId — retries converge onto the same event document)
+ */
+import { describe, expect, it } from 'vitest';
+import { GatewayEngine } from './gatewayEngine.js';
+import { GATEWAY_ERROR_CODES } from './gatewayGateway.js';
+import { createCanonicalGatewayOperations } from './gatewayCanonicalOperations.js';
+import { CapabilityRegistry } from '../../capabilities/capabilityRegistry.js';
+import { createBuiltInCapabilityRegistry } from '../../capabilities/registry/builtInCapabilityCatalog.js';
+import {
+  createAuthorityGrant,
+  POLICY_OUTCOMES,
+} from '../permissions/policyAuthority.js';
+import { businessEventIdFor, BUSINESS_EVENT_TYPES } from '../events/businessEvent.js';
+
+const WS_A = 'ws-a';
+const WS_B = 'ws-b';
+const USER_A = { actorType: 'USER', actorId: 'user-a' };
+
+function capabilityRegistry() {
+  return new CapabilityRegistry(createBuiltInCapabilityRegistry()).registerCatalog();
+}
+
+/** In-memory model of the trusted journal contract (NOT a second engine). */
+function createFakeTrustedCommand() {
+  const journal = new Map();
+  const records = new Map();
+  const events = new Map();
+  let executeCalls = 0;
+  return {
+    journal, records, events,
+    get executeCalls() { return executeCalls; },
+    async execute(command) {
+      executeCalls += 1;
+      const key = `${command.payload.workspaceId}:${command.operationId}`;
+      const fingerprint = JSON.stringify(command);
+      const existing = journal.get(key);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          const err = new Error('Operation command mismatch.');
+          err.code = 'OPERATION_MISMATCH';
+          throw err;
+        }
+        return { record: records.get(existing.recordId), operationId: command.operationId, idempotent: true };
+      }
+      const recordId = `rec_${records.size + 1}`;
+      const record = {
+        recordId,
+        workspaceId: command.payload.workspaceId,
+        moduleId: command.payload.moduleId,
+        data: { ...command.payload.values },
+        status: command.payload.isDraft ? 'DRAFT' : 'SUBMITTED',
+      };
+      journal.set(key, { fingerprint, recordId });
+      records.set(recordId, record);
+      // BusinessEvent identity is derived from operationId — a retry of the
+      // same logical operation witnesses the SAME event document.
+      const eventId = businessEventIdFor(command.operationId, BUSINESS_EVENT_TYPES.RECORD_CREATED);
+      events.set(eventId, { eventId, eventType: BUSINESS_EVENT_TYPES.RECORD_CREATED, workspaceId: command.payload.workspaceId, idempotencyKey: command.operationId });
+      return { record, operationId: command.operationId, idempotent: false };
+    },
+  };
+}
+
+function makeEngine({ recordService = null, recordQueryService = null, recordCommand, policyDecider } = {}) {
+  const operations = createCanonicalGatewayOperations({
+    recordService: recordService || { getRecord: async () => null },
+    recordQueryService,
+    recordCommand: recordCommand || createFakeTrustedCommand(),
+    policyDecider,
+  });
+  return new GatewayEngine({ operations, capabilityRegistry: capabilityRegistry() });
+}
+
+function grantFor(workspaceId, actorId, authority = ['record.read', 'record.create']) {
+  return createAuthorityGrant({
+    grantId: `g-${actorId}`,
+    workspaceId,
+    granteeActorId: actorId,
+    grantedByActorId: 'user-owner',
+    authority,
+    resources: ['RECORD'],
+  });
+}
+
+function req(overrides = {}) {
+  return {
+    apiVersion: 'v1',
+    operationId: `op-${Math.random().toString(36).slice(2, 10)}`,
+    operation: 'record.create',
+    workspaceId: WS_A,
+    input: { moduleId: 'mod-1', values: { note: 'hello' } },
+    ...overrides,
+  };
+}
+
+const ctx = (overrides = {}) => ({
+  workspaceId: WS_A,
+  actor: USER_A,
+  grants: [grantFor(WS_A, USER_A.actorId)],
+  ...overrides,
+});
+
+describe('canonical READ — record.get', () => {
+  it('reads a Record through the canonical read service in the caller workspace', async () => {
+    const record = { recordId: 'rec-1', workspaceId: WS_A, data: {} };
+    const recordService = { getRecord: async (workspaceId, recordId) => (workspaceId === WS_A && recordId === 'rec-1' ? record : null) };
+    const engine = makeEngine({ recordService });
+    const res = await engine.handle(req({ operation: 'record.get', input: { recordId: 'rec-1' } }), ctx());
+    expect(res.success).toBe(true);
+    expect(res.data.record.recordId).toBe('rec-1');
+  });
+
+  it('denies cross-workspace reads — ws-a caller cannot read ws-b data', async () => {
+    const record = { recordId: 'rec-b', workspaceId: WS_B, data: {} };
+    const recordService = { getRecord: async (workspaceId, recordId) => (workspaceId === record.workspaceId && recordId === record.recordId ? record : null) };
+    const engine = makeEngine({ recordService });
+    // Explicit mismatched workspace claim:
+    const mismatched = await engine.handle(
+      req({ operation: 'record.get', workspaceId: WS_B, input: { recordId: 'rec-b' } }),
+      ctx(),
+    );
+    expect(mismatched.success).toBe(false);
+    expect(mismatched.error.code).toBe(GATEWAY_ERROR_CODES.WORKSPACE_MISMATCH);
+    // Even with a ws-b-scoped grant, the trusted context stays ws-a and the
+    // canonical read service cannot resolve ws-b state from it:
+    const viaContext = await engine.handle(
+      req({ operation: 'record.get', input: { recordId: 'rec-b' } }),
+      ctx({ grants: [grantFor(WS_A, USER_A.actorId), grantFor(WS_B, USER_A.actorId)] }),
+    );
+    expect(viaContext.success).toBe(false);
+  });
+
+  it('requires an authenticated actor context', async () => {
+    const engine = makeEngine();
+    const res = await engine.handle(req({ operation: 'record.get', input: { recordId: 'rec-1' } }), { workspaceId: WS_A });
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.AUTHENTICATION_REQUIRED);
+  });
+});
+
+describe('canonical MUTATION — record.create', () => {
+  it('AUTO_EXECUTE → the trusted command executes and returns a normalized response', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(req({ idempotencyKey: 'idem-1' }), ctx());
+    expect(res.success).toBe(true);
+    expect(res.data.operationId).toBe('idem-1');
+    expect(res.data.recordId).toBe('rec_1');
+    expect(trusted.records.size).toBe(1);
+  });
+
+  it('reuses the trusted command journal: idempotencyKey becomes command.operationId', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    await engine.handle(req({ idempotencyKey: 'idem-map' }), ctx());
+    expect(trusted.journal.has(`${WS_A}:idem-map`)).toBe(true);
+  });
+
+  it('APPROVAL_REQUIRED → no canonical mutation', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({
+      recordCommand: trusted,
+      policyDecider: () => ({ outcome: POLICY_OUTCOMES.APPROVAL_REQUIRED }),
+    });
+    const res = await engine.handle(req({ idempotencyKey: 'idem-approval' }), ctx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.APPROVAL_REQUIRED);
+    expect(trusted.executeCalls).toBe(0);
+    expect(trusted.records.size).toBe(0);
+  });
+
+  it('DENY → no canonical mutation', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({
+      recordCommand: trusted,
+      policyDecider: () => ({ outcome: POLICY_OUTCOMES.DENY }),
+    });
+    const res = await engine.handle(req({ idempotencyKey: 'idem-deny' }), ctx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.POLICY_DENIED);
+    expect(trusted.executeCalls).toBe(0);
+  });
+
+  it('no applicable authority grant → denied, no mutation', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(req({ idempotencyKey: 'idem-nogrant' }), ctx({ grants: [] }));
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.POLICY_DENIED);
+    expect(trusted.executeCalls).toBe(0);
+  });
+
+  it('cross-workspace mutation is rejected before any trusted command runs', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(req({ workspaceId: WS_B, idempotencyKey: 'idem-ws' }), ctx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.WORKSPACE_MISMATCH);
+    expect(trusted.executeCalls).toBe(0);
+  });
+});
+
+describe('idempotency boundary (trusted journal semantics)', () => {
+  it('same idempotency identity + same payload twice → ONE canonical effect', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const first = await engine.handle(req({ operationId: 'op-dup', idempotencyKey: 'dup-1' }), ctx());
+    const second = await engine.handle(req({ operationId: 'op-dup', idempotencyKey: 'dup-1' }), ctx());
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(second.data.idempotent).toBe(true);
+    expect(second.data.recordId).toBe(first.data.recordId);
+    expect(trusted.records.size).toBe(1);
+  });
+
+  it('same idempotency identity + different payload → stable conflict, no second mutation', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    await engine.handle(req({ idempotencyKey: 'conf-1', input: { moduleId: 'mod-1', values: { a: 1 } } }), ctx());
+    const conflict = await engine.handle(req({ idempotencyKey: 'conf-1', input: { moduleId: 'mod-1', values: { a: 2 } } }), ctx());
+    expect(conflict.success).toBe(false);
+    expect(conflict.error.code).toBe(GATEWAY_ERROR_CODES.CONFLICTING_IDEMPOTENCY);
+    expect(trusted.records.size).toBe(1);
+  });
+
+  it('exactly one canonical BusinessEvent is witnessed per logical operation', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    await engine.handle(req({ operationId: 'op-ev', idempotencyKey: 'ev-1' }), ctx());
+    await engine.handle(req({ operationId: 'op-ev', idempotencyKey: 'ev-1' }), ctx());
+    const created = [...trusted.events.values()].filter((e) => e.eventType === BUSINESS_EVENT_TYPES.RECORD_CREATED);
+    expect(created).toHaveLength(1);
+    expect(created[0].eventId).toBe(businessEventIdFor('ev-1', BUSINESS_EVENT_TYPES.RECORD_CREATED));
+  });
+});
+
+describe('protected fields and response hygiene', () => {
+  it.each(['workspaceId', 'createdBy', 'createdAt', 'status', 'actor', 'userId'])(
+    'rejects external injection of server-authoritative field %s',
+    async (field) => {
+      const trusted = createFakeTrustedCommand();
+      const engine = makeEngine({ recordCommand: trusted });
+      const res = await engine.handle(
+        req({ idempotencyKey: `prot-${field}`, input: { moduleId: 'mod-1', values: { x: 1 }, [field]: 'injected' } }),
+        ctx(),
+      );
+      expect(res.success).toBe(false);
+      expect(res.error.code).toBe(GATEWAY_ERROR_CODES.VALIDATION_FAILED);
+      expect(trusted.executeCalls).toBe(0);
+    },
+  );
+
+  it('error responses are normalized — no stack, no secret material, no details payload', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(req({ idempotencyKey: 'sec-1' }), ctx({ grants: [] }));
+    expect(res.success).toBe(false);
+    expect(res.error.details).toBeNull();
+    expect(JSON.stringify(res)).not.toContain('stack');
+    expect(JSON.stringify(res)).not.toContain('apiKey');
+  });
+
+  it('credential material in context never leaks into the response', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(
+      req({ operation: 'record.get', input: { recordId: 'rec-1' } }),
+      ctx({ credential: { secret: 'shhh-vault-material' } }),
+    );
+    expect(JSON.stringify(res)).not.toContain('shhh-vault-material');
+  });
+});
+
+describe('closed registry contract', () => {
+  it('unregistered operations never reach a handler', async () => {
+    const trusted = createFakeTrustedCommand();
+    const engine = makeEngine({ recordCommand: trusted });
+    const res = await engine.handle(req({ operation: 'sys.exec', input: {} }), ctx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.UNKNOWN_OPERATION);
+  });
+});

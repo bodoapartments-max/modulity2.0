@@ -64,7 +64,7 @@ export function createGatewayRequest({
   if (!operation || typeof operation !== 'string') throw new Error('operation name is required');
   if (input === undefined || input === null) throw new Error('input is required');
   if (new TextEncoder().encode(JSON.stringify(input)).length > GATEWAY_LIMITS.MAX_REQUEST_BYTES) throw new Error(GATEWAY_ERROR_CODES.REQUEST_SIZE_EXCEEDED);
-    return Object.freeze({
+  return Object.freeze({
     requestId,
     apiVersion,
     operationId,

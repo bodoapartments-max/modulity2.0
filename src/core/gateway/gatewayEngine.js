@@ -14,8 +14,6 @@ import {
   sanitizeGatewayError,
   createGatewayResponse,
 } from './gatewayGateway.js';
-import { hasCapability } from '../workspace/role.js'; // reuse canonical capability primitives
-
 export class GatewayEngine {
   constructor({ operations = new Map(), requiredCapability = null, capabilityRegistry = null } = {}) {
     this.operations = new Map(Object.entries(operations || {}));
@@ -67,7 +65,7 @@ export class GatewayEngine {
 
     validateGatewayInput(request.input, op);
     try {
-      const output = await op.handler(request.input, context);
+      const output = await op.handler(request.input, { ...context, request });
       if (new TextEncoder().encode(JSON.stringify(output)).length > GATEWAY_LIMITS.MAX_RESPONSE_BYTES) throw new Error(GATEWAY_ERROR_CODES.OPERATION_LIMIT_EXCEEDED);
       return createGatewayResponse({
         requestId: request.requestId,
@@ -76,13 +74,12 @@ export class GatewayEngine {
         metadata: { operation: request.operation, apiVersion: request.apiVersion },
       });
     } catch (error) {
+      const code = error?.gatewayCode || (Object.values(GATEWAY_ERROR_CODES).includes(error?.code) ? error.code : GATEWAY_ERROR_CODES.INTERNAL_ERROR);
       return createGatewayResponse({
         requestId: request.requestId,
         success: false,
-        error: sanitizeGatewayError(GATEWAY_ERROR_CODES.INTERNAL_ERROR, `${error.message}`, { requestId: request.requestId }),
+        error: sanitizeGatewayError(code, `${error.message}`, { requestId: request.requestId }),
       });
     }
   }
 }
-
-void GATEWAY_LIMITS; void hasCapability;

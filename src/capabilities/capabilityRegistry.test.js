@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CapabilityRegistry, CAPABILITY_RESOLUTION_REASONS, createCapabilityRegistry } from './capabilityRegistry.js';
+import { CapabilityRegistry, CAPABILITY_RESOLUTION_REASONS } from './capabilityRegistry.js';
 import { CapabilityEngineRegistry } from './registry/capabilityEngineRegistry.js';
 import { CAPABILITY_AVAILABILITY, CAPABILITY_MODES, CAPABILITY_SOURCE_KINDS } from './contracts/capabilityContracts.js';
 

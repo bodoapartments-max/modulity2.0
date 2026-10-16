@@ -319,7 +319,7 @@ async function createRoomConversation(transaction, db, { command, userId, now, a
   return { result: { conversationId, memberCount: invitedMemberIds.size }, postActions: { room: conv, invitedGroups, invitedMemberIds: [...invitedMemberIds], operationId: command.operationId, userId } };
 }
 
-async function roomAddMember(transaction, db, { command, userId, now, workspaceId, preloadConv }) {
+async function roomAddMember(transaction, db, { command, userId, workspaceId, preloadConv }) {
   const p = command.payload;
   if (!preloadConv?.snap?.exists) fail(CODES.RESOURCE_NOT_FOUND, 'Room not found.');
   const conversation = preloadConv.snap.data();
@@ -337,7 +337,7 @@ async function roomAddMember(transaction, db, { command, userId, now, workspaceI
   return { result: { conversationId: p.conversationId, targetUserId: p.targetUserId, added: true } };
 }
 
-async function roomRemoveMember(transaction, db, { command, userId, now, workspaceId, preloadConv }) {
+async function roomRemoveMember(transaction, db, { command, userId, workspaceId, preloadConv }) {
   const p = command.payload;
   if (!preloadConv?.snap?.exists) fail(CODES.RESOURCE_NOT_FOUND, 'Room not found.');
   const conversation = preloadConv.snap.data();
