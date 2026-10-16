@@ -79,6 +79,17 @@ export const AUDIT_ACTIONS = Object.freeze({
   FILE_DETACHED: 'file.detached',
   FILE_ARCHIVED: 'file.archived',
   FILE_RESTORED: 'file.restored',
+
+  // Step 31 — Approval lifecycle
+  APPROVAL_DEFINITION_CREATED: 'approval_definition.created',
+  APPROVAL_DEFINITION_UPDATED: 'approval_definition.updated',
+  APPROVAL_REQUESTED: 'approval.requested',
+  APPROVAL_DECIDED: 'approval.decided',
+  APPROVAL_APPROVED: 'approval.approved',
+  APPROVAL_REJECTED: 'approval.rejected',
+  APPROVAL_CANCELLED: 'approval.cancelled',
+  APPROVAL_EXPIRED: 'approval.expired',
+  APPROVAL_EXECUTED: 'approval.executed',
 });
 
 /** All valid action strings for validation. */
@@ -109,6 +120,8 @@ export const AUDIT_RESOURCE_TYPES = Object.freeze({
   AUTOMAT_PLAN: 'AUTOMAT_PLAN',
   FILE: 'FILE',
   FILE_ATTACHMENT: 'FILE_ATTACHMENT',
+  APPROVAL_CASE: 'APPROVAL_CASE',
+  APPROVAL_DEFINITION: 'APPROVAL_DEFINITION',
 });
 
 /**

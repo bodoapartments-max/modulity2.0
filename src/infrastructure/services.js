@@ -23,6 +23,8 @@ import { createRecordFolderService } from '../core/data/recordFolderService.js';
 import { createFormRequestService } from '../core/data/formRequestService.js';
 import { createSecureShareService } from '../core/data/secureShareService.js';
 import { createFileService } from '../core/files/fileService.js';
+import { createApprovalService } from '../core/approvals/approvalService.js';
+import { createActionCardService } from '../core/actionCards/actionCardService.js';
 import { createModuleService } from '../modules/moduleService.js';
 import { createModuleSubmissionService } from '../modules/moduleSubmissionService.js';
 import { createLedgerService } from '../core/ledger/ledgerService.js';
@@ -61,6 +63,7 @@ import { recordCommandClient } from './firebase/recordCommandClient.js';
 import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
 import { adminCommandClient } from './firebase/adminCommandClient.js';
 import { fileCommandClient } from './firebase/fileCommandClient.js';
+import { approvalCommandClient } from './firebase/approvalCommandClient.js';
 import { createFirebaseStorageAdapter } from './firebase/firebaseStorageAdapter.js';
 import {
   buildCreateFileCommand,
@@ -70,6 +73,11 @@ import {
   buildArchiveFileCommand,
   buildRestoreFileCommand,
 } from '../core/files/fileCommandContract.js';
+import {
+  buildCreateApprovalCommand,
+  buildDecideApprovalCommand,
+  buildCancelApprovalCommand,
+} from '../core/approvals/approvalCommandContract.js';
 import {
   buildCreateRecordCommand,
   buildUpdateDraftCommand,
@@ -107,6 +115,9 @@ function createServices() {
     fileAttachmentRepo: repositories.fileAttachments,
     fileVersionRepo: repositories.files,
   });
+
+  const approvalSvc = createApprovalService({ approvalRepo: repositories.approvals });
+  const actionCardSvc = createActionCardService({ actionCardRepo: repositories.actionCards });
 
   const recordQuerySvc = createRecordQueryService({
     recordRepo: repositories.records,
@@ -219,6 +230,21 @@ function createServices() {
     },
   });
 
+  const approvalCommand = Object.freeze({
+    execute: (command) => approvalCommandClient.execute(command),
+    async createApproval({ workspaceId, requestType, title, subject, proposedAction, definitionId, steps, selfApprovalPolicy, expiresAt, reason, operationId = generateId() }) {
+      return approvalCommandClient.execute(buildCreateApprovalCommand({
+        operationId, workspaceId, requestType, title, subject, proposedAction, definitionId, steps, selfApprovalPolicy, expiresAt, reason,
+      }));
+    },
+    async decideApproval({ workspaceId, approvalCaseId, decision, reason, operationId = generateId() }) {
+      return approvalCommandClient.execute(buildDecideApprovalCommand({ operationId, workspaceId, approvalCaseId, decision, reason }));
+    },
+    async cancelApproval({ workspaceId, approvalCaseId, reason, operationId = generateId() }) {
+      return approvalCommandClient.execute(buildCancelApprovalCommand({ operationId, workspaceId, approvalCaseId, reason }));
+    },
+  });
+
   const ledgerCommand = Object.freeze({
     async createBook({ workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', sourceDefinition = null, operationId = generateId() }) {
       return ledgerCommandClient.execute(buildCreateLedgerBookCommand({
@@ -256,6 +282,8 @@ function createServices() {
     }),
     entity: entitySvc,
     file: fileSvc,
+    approval: approvalSvc,
+    actionCard: actionCardSvc,
     relationship: createRelationshipService({
       relationshipRepo: repositories.relationships,
       entityRepo: repositories.entities,
@@ -283,6 +311,7 @@ function createServices() {
     }),
     recordCommand,
     ledgerCommand,
+    approvalCommand,
     adminCommand: adminCommandClient,
     recordQuery: recordQuerySvc,
     recordOperation: recordOpSvc,
@@ -342,6 +371,8 @@ function createServices() {
           recordCommand,
           fileService: fileSvc,
           fileCommand,
+          approvalService: approvalSvc,
+          approvalCommand,
         }),
         capabilityRegistry: createCapabilityRegistry(engineRegistry),
       });

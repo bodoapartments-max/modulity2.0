@@ -56,6 +56,16 @@ export const NOTIFICATION_TEMPLATES = Object.freeze({
     priority: NOTIFICATION_PRIORITIES.ATTENTION,
     messageFor: () => 'You were invited to a new Chat Room.',
   }),
+  [NOTIFICATION_EVENT_TYPES.APPROVAL_REQUESTED]: Object.freeze({
+    title: 'Approval requested',
+    priority: NOTIFICATION_PRIORITIES.ATTENTION,
+    messageFor: () => 'An approval is waiting for your decision.',
+  }),
+  [NOTIFICATION_EVENT_TYPES.APPROVAL_RESOLVED]: Object.freeze({
+    title: 'Approval resolved',
+    priority: NOTIFICATION_PRIORITIES.NORMAL,
+    messageFor: () => 'An approval you requested was resolved.',
+  }),
 });
 
 const DEFAULT_ACTION = '/app/notifications';
@@ -87,6 +97,7 @@ function defaultActionUrl(ref) {
     case 'MODULE': return `/app/modules/${ref.id}`;
     case 'ENTITY': return `/app/entities/${ref.id}`;
     case 'LEDGER_ENTRY': return `/app/ledger`;
+    case 'APPROVAL_CASE': return `/app/action-cards`;
     default: return DEFAULT_ACTION;
   }
 }

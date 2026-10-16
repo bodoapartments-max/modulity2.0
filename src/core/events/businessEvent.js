@@ -37,6 +37,13 @@ export const BUSINESS_EVENT_TYPES = Object.freeze({
   FILE_DETACHED: 'file.detached',
   FILE_ARCHIVED: 'file.archived',
   FILE_RESTORED: 'file.restored',
+  // Step 31 — approval lifecycle
+  APPROVAL_REQUESTED: 'approval.requested',
+  APPROVAL_STEP_COMPLETED: 'approval.step_completed',
+  APPROVAL_APPROVED: 'approval.approved',
+  APPROVAL_REJECTED: 'approval.rejected',
+  APPROVAL_CANCELLED: 'approval.cancelled',
+  APPROVAL_EXPIRED: 'approval.expired',
   // todo: future events registered in later steps (never invented ahead)
 });
 
@@ -52,6 +59,7 @@ export const BUSINESS_EVENT_SOURCES = Object.freeze({
   AUTOMAT_PLAN: 'automatPlan',
   AUTOMAT_APPLY: 'automatApplyPlan',
   FILE_COMMAND: 'fileCommand',
+  APPROVAL_COMMAND: 'approvalCommand',
   TRUSTED_INTERNAL: 'trusted_internal',
 });
 

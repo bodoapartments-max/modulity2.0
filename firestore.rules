@@ -406,6 +406,57 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // ─── Approval Definitions ─────────────────────────────
+      // Path: workspaces/{workspaceId}/approvalDefinitions/{definitionId}
+
+      match /approvalDefinitions/{definitionId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // STEP 31 — all writes are authored exclusively by the trusted
+        // approvalCommand boundary. Browser create/update/delete are denied.
+        allow create, update, delete: if false;
+      }
+
+      // ─── Approval Cases ───────────────────────────────────
+      // Path: workspaces/{workspaceId}/approvalCases/{approvalCaseId}
+
+      match /approvalCases/{approvalCaseId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+
+        // Status, decisions, assignments, execution are server-authoritative.
+        allow create, update, delete: if false;
+      }
+
+      // ─── Action Cards ─────────────────────────────────────
+      // Path: workspaces/{workspaceId}/actionCards/{actionCardId}
+      // Derived projection written by trusted command engines only.
+
+      match /actionCards/{actionCardId} {
+        allow read: if isAuthenticated()
+          && (
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+              && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+            ||
+            (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+              && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+          );
+        allow create, update, delete: if false;
+      }
+
       // ─── Modules ──────────────────────────────────────────
       // Path: workspaces/{workspaceId}/modules/{moduleId}
 

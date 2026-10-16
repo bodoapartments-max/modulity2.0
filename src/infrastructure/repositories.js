@@ -18,6 +18,8 @@ import { createFirestoreRelationshipRepository } from './firebase/firestoreRelat
 import { createFirestoreRecordRepository } from './firebase/firestoreRecordRepository.js';
 import { createFirestoreFileRepository } from './firebase/firestoreFileRepository.js';
 import { createFirestoreFileAttachmentRepository } from './firebase/firestoreFileAttachmentRepository.js';
+import { createFirestoreApprovalRepository } from './firebase/firestoreApprovalRepository.js';
+import { createFirestoreActionCardRepository } from './firebase/firestoreActionCardRepository.js';
 import { createFirestoreModuleRepository } from './firebase/firestoreModuleRepository.js';
 import { createFirestoreDeliveryRepository } from './firebase/firestoreDeliveryRepository.js';
 import { createFirestoreFormRequestRepository } from './firebase/firestoreFormRequestRepository.js';
@@ -58,6 +60,8 @@ function createRepositories() {
     records: createFirestoreRecordRepository(firebaseDb),
     files: createFirestoreFileRepository(firebaseDb),
     fileAttachments: createFirestoreFileAttachmentRepository(firebaseDb),
+    approvals: createFirestoreApprovalRepository(firebaseDb),
+    actionCards: createFirestoreActionCardRepository(firebaseDb),
     modules: createFirestoreModuleRepository(firebaseDb),
     deliveries: createFirestoreDeliveryRepository(firebaseDb),
     formRequests: createFirestoreFormRequestRepository(firebaseDb),

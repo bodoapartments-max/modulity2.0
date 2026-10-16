@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Shared deterministic in-memory Firestore test harness for trusted-engine
@@ -19,12 +19,16 @@ export function clone(v) {
   return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clone(x)]));
 }
 
+function isServerTimestampSentinel(v) {
+  return v && typeof v === 'object' && '_methodName' in v && v._methodName === 'serverTimestamp';
+}
+
 function normalizeServerTimestamps(value, now = Timestamp.now()) {
-  if (value === FieldValue.serverTimestamp()) return now;
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    for (const k of Object.keys(value)) value[k] = normalizeServerTimestamps(value[k], now);
-  } else if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i += 1) value[i] = normalizeServerTimestamps(value[i], now);
+  if (isServerTimestampSentinel(value)) return now;
+  if (Array.isArray(value)) return value.map((v) => normalizeServerTimestamps(v, now));
+  if (value && typeof value === 'object') {
+    // Non-mutating rebuild — canonical models are Object.freeze'd.
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalizeServerTimestamps(v, now)]));
   }
   return value;
 }

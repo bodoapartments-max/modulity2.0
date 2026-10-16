@@ -409,3 +409,173 @@ describe('canonical MUTATION — file.attach / file.detach', () => {
     expect(commands.length).toBe(0);
   });
 });
+
+// ─── Step 31: canonical Approval operations ──────────────────────────
+
+function approvalGrantFor(workspaceId, actorId, authority = ['approval.read', 'approval.write']) {
+  return createAuthorityGrant({
+    grantId: `ga-${actorId}`,
+    workspaceId,
+    granteeActorId: actorId,
+    grantedByActorId: 'user-owner',
+    authority,
+    resources: ['APPROVAL_CASE'],
+  });
+}
+
+function fakeApprovalDeps() {
+  const commands = [];
+  return {
+    commands,
+    approvalService: {
+      getApprovalCase: async (workspaceId, approvalCaseId) =>
+        (workspaceId === WS_A && approvalCaseId === 'appr_1'
+          ? { approvalCaseId: 'appr_1', workspaceId: WS_A, status: 'PENDING' }
+          : (() => { throw new Error('not found'); })()),
+      listApprovalCasesForRequester: async (workspaceId, requesterUserId) =>
+        (workspaceId === WS_A ? [{ approvalCaseId: 'appr_1', workspaceId: WS_A, requestedBy: { actorId: requesterUserId } }] : []),
+    },
+    approvalCommand: {
+      async execute(command) {
+        commands.push(command);
+        return { resource: { approvalCaseId: command.payload.approvalCaseId, status: 'APPROVED' }, operationId: command.operationId, idempotent: false };
+      },
+    },
+  };
+}
+
+function makeApprovalEngine({ approvalService, approvalCommand, policyDecider } = {}) {
+  const operations = createCanonicalGatewayOperations({
+    recordService: { getRecord: async () => null },
+    recordCommand: createFakeTrustedCommand(),
+    approvalService,
+    approvalCommand,
+    policyDecider,
+  });
+  return new GatewayEngine({ operations, capabilityRegistry: capabilityRegistry() });
+}
+
+const approvalCtx = () => ctx({ grants: [approvalGrantFor(WS_A, USER_A.actorId)] });
+
+describe('canonical READ — approval.get / approval.list', () => {
+  it('reads an ApprovalCase in the caller workspace', async () => {
+    const { approvalService, approvalCommand } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(req({ operation: 'approval.get', input: { approvalCaseId: 'appr_1' } }), approvalCtx());
+    expect(res.success).toBe(true);
+    expect(res.data.approvalCase.approvalCaseId).toBe('appr_1');
+  });
+
+  it('denies a case that does not resolve in the caller workspace', async () => {
+    const { approvalService, approvalCommand } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(req({ operation: 'approval.get', input: { approvalCaseId: 'appr_other' } }), approvalCtx());
+    expect(res.success).toBe(false);
+  });
+
+  it('lists cases for the caller requester only', async () => {
+    const { approvalService, approvalCommand } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(req({ operation: 'approval.list', input: {} }), approvalCtx());
+    expect(res.success).toBe(true);
+    expect(res.data.approvalCases[0].requestedBy.actorId).toBe(USER_A.actorId);
+  });
+
+  it('fails closed when the approval capability is not configured', async () => {
+    const engine = makeApprovalEngine({});
+    const res = await engine.handle(req({ operation: 'approval.get', input: { approvalCaseId: 'appr_1' } }), approvalCtx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE);
+  });
+});
+
+describe('canonical MUTATION — approval.create', () => {
+  const proposedAction = { actionType: 'RECORD_COMMAND', command: { commandType: 'SUBMIT_RECORD', payload: { recordId: 'r1' } } };
+
+  it('routes case creation through the trusted boundary with server-pinned workspace', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(
+      req({
+        operation: 'approval.create', idempotencyKey: 'acr-1',
+        input: { requestType: 'TRUSTED_COMMAND', title: 'Review', proposedAction, steps: [{ quorum: 'ANY_ONE', approverUserIds: ['u2'] }] },
+      }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(true);
+    expect(commands[0].commandType).toBe('CREATE_APPROVAL');
+    expect(commands[0].operationId).toBe('acr-1');
+    expect(commands[0].payload.workspaceId).toBe(WS_A);
+  });
+
+  it('no arbitrary approval mutation exists — unregistered ops are rejected', async () => {
+    const { approvalService, approvalCommand } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(req({ operation: 'approval.forceApprove', input: {} }), approvalCtx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.UNKNOWN_OPERATION);
+  });
+});
+
+describe('canonical MUTATION — approval.decide / approval.cancel', () => {
+  it('approval.decide routes through the trusted approvalCommand boundary', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(
+      req({ operation: 'approval.decide', idempotencyKey: 'ad-1', input: { approvalCaseId: 'appr_1', decision: 'APPROVE' } }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(true);
+    expect(commands.length).toBe(1);
+    expect(commands[0].commandType).toBe('DECIDE_APPROVAL');
+    expect(commands[0].operationId).toBe('ad-1');
+    expect(commands[0].payload).toMatchObject({ approvalCaseId: 'appr_1', decision: 'APPROVE', workspaceId: WS_A });
+  });
+
+  it('approval.cancel routes through the trusted boundary', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(
+      req({ operation: 'approval.cancel', idempotencyKey: 'ac-1', input: { approvalCaseId: 'appr_1', reason: 'withdrawn' } }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(true);
+    expect(commands[0].commandType).toBe('CANCEL_APPROVAL');
+  });
+
+  it('policy denial stops the trusted approval command', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const denied = makeApprovalEngine({ approvalService, approvalCommand, policyDecider: () => ({ outcome: POLICY_OUTCOMES.DENY }) });
+    const res = await denied.handle(
+      req({ operation: 'approval.decide', idempotencyKey: 'ad-deny', input: { approvalCaseId: 'appr_1', decision: 'APPROVE' } }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.POLICY_DENIED);
+    expect(commands.length).toBe(0);
+  });
+
+  it('rejects protected-field injection into approval commands', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(
+      req({ operation: 'approval.decide', idempotencyKey: 'ad-prot', input: { approvalCaseId: 'appr_1', decision: 'APPROVE', workspaceId: 'injected' } }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.VALIDATION_FAILED);
+    expect(commands.length).toBe(0);
+  });
+
+  it('cross-workspace decide is rejected before the trusted command runs', async () => {
+    const { approvalService, approvalCommand, commands } = fakeApprovalDeps();
+    const engine = makeApprovalEngine({ approvalService, approvalCommand });
+    const res = await engine.handle(
+      req({ operation: 'approval.decide', workspaceId: WS_B, idempotencyKey: 'ad-ws', input: { approvalCaseId: 'appr_1', decision: 'APPROVE' } }),
+      approvalCtx(),
+    );
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.WORKSPACE_MISMATCH);
+    expect(commands.length).toBe(0);
+  });
+});

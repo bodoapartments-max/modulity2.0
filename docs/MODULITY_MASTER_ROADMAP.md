@@ -48,7 +48,7 @@ Step 11.0 identified three categories of work:
 | Design System | EXISTS | DESIGN_SYSTEM | `src/design-system/` primitives | Checkbox/Radio not yet extracted; other primitives added | — | Step 13 |
 | Infrastructure Wiring | EXISTS | INFRASTRUCTURE | `src/infrastructure/services.js`, `repositories.js` | `services.js` has import-time bridge side effects; `automatPlanning.js` violates layer direction | — | Step 11.1 |
 | Form Import / Digitization | MISSING | AGENT+FEATURE | Contracts only in docs | No OCR, document understanding, or import UI | Module Designer | Step 24 |
-| Approval Engine | MISSING | CAPABILITY | Architecture only in docs | Needs Record action model + permissions | Step 15 | Step 25 |
+| Approval Engine | EXISTS | CAPABILITY | `src/core/approvals/` (ApprovalCase/Definition/decisions, trusted `approvalCommand`), `src/core/actionCards/` projection, ActionCardsPage | QUORUM(n), request-changes flow, signature integration | policy-authority, business-event | Platform Step 31 (done) - `docs/APPROVAL_ENGINE.md` |
 | Workflow Engine | MISSING | CAPABILITY | Architecture only | Needs Record action model + task/notification | Step 15, Task, Notification | Step 26 |
 | Task Engine | MISSING | CAPABILITY | None | Decide canonical Record vs Capability | Record actions | Step 27 |
 | Scheduling / Booking Engine | MISSING | CAPABILITY | `datetime-range` field exists | No availability/conflict engine | Calendar, Record actions | Step 28 |
@@ -87,7 +87,7 @@ Step 11.0 identified three categories of work:
 | PD-002 | No Attachment/File upload UI — RESOLVED (platform Step 30: AttachmentSection on RecordDetailPage; Entity/chat surfaces remain) | MEDIUM | `src/features/files/` | follow-on surfaces |
 | PD-003 | No Sharing / Send / Folders / Favorites UI despite Core services | HIGH | design-system, Record actions | Step 19 |
 | PD-004 | No workflow-style Record actions (approve/reject/assign/complete); generic trusted lifecycle foundation landed in Step 15 | HIGH | Core lifecycle | Step 25+ |
-| PD-005 | No Approval Engine | HIGH | PD-004, permissions | Step 25 |
+| PD-005 | No Approval Engine - RESOLVED (platform Step 31: generic ApprovalCase/Definition + ActionCards) | HIGH | `src/core/approvals/` | follow-on: QUORUM(n), signatures |
 | PD-006 | No Workflow Engine | MEDIUM | PD-004, Task, Notification | Step 26 |
 | PD-007 | No Scheduling/Booking conflict/availability engine | MEDIUM | Calendar, `datetime-range` | Step 28 |
 | PD-008 | No Inventory projection | MEDIUM | Record actions | Step 29 |

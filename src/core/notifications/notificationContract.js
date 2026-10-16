@@ -45,6 +45,8 @@ export const NOTIFICATION_EVENT_TYPES = Object.freeze({
   CHAT_MENTIONED: 'chat.mentioned',
   CHAT_CONTEXT_MESSAGE: 'chat.context_message',
   CHAT_ROOM_INVITED: 'chat.room_invited',
+  APPROVAL_REQUESTED: 'approval.requested',
+  APPROVAL_RESOLVED: 'approval.resolved',
 });
 
 /**
@@ -75,6 +77,7 @@ export const CONTEXT_RESOURCE_TYPES = Object.freeze({
   MODULE: 'MODULE',
   LEDGER_ENTRY: 'LEDGER_ENTRY',
   ENTITY: 'ENTITY',
+  APPROVAL_CASE: 'APPROVAL_CASE',
 });
 
 /**

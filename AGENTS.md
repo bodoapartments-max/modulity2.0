@@ -104,6 +104,20 @@ Step 30 replaced the minimal Step 3 file foundation with a generic platform file
 - `test:rules` pins `--project modulity-storage-rules-test` — the Storage emulator evaluates cross-service `firestore.get` against the emulator project, not the request project.
 - Full architecture: `docs/UNIVERSAL_FILES.md`. Deferred items: GAP-020–024 in `docs/KNOWN_GAPS_REGISTER.md`.
 
+## Step 31 — Approval Engine & Action Cards
+
+Step 31 added the canonical generic controlled-decision capability under `src/core/approvals/` + `src/core/actionCards/`:
+
+- **Approval authorizes; it never mutates.** `ApprovalCase.proposedAction` is a closed action registry (`RECORD_COMMAND`) — on final approval the server re-enters the canonical `executeRecordCommand` under a deterministic `exec_{createOpId}`. Approval is never a mutation backdoor.
+- **ApprovalCase** (`appr_`) is deterministic per creation operationId — PENDING → APPROVED/REJECTED/CANCELLED/EXPIRED; step snapshots are pinned at creation (later ApprovalDefinition edits can't rewrite an open case); `decisions[]` is append-only immutable evidence.
+- **ApprovalDefinition** (`apdef_`) is the versioned reusable config; cases store their own step snapshot + `{definitionId, version}` provenance.
+- **Stale-state protection**: `subject.revision` (`FILE` → `v{currentVersion}`, RECORD/ENTITY → `u{updatedAt}`) is captured at creation and re-verified in-transaction at decision → `PROPOSAL_STALE`. Approving file v3 never implies v4.
+- **Approver authority is re-checked at decision time** — ACTIVE org membership / personal ownership re-evaluated inside the transaction; self-approval governed by `selfApprovalPolicy` (FORBID default) at creation AND decision.
+- All mutations go through the `approvalCommand` callable: CREATE/UPDATE_APPROVAL_DEFINITION, CREATE_APPROVAL, DECIDE_APPROVAL, CANCEL_APPROVAL. Firestore collections (`approvalCases`, `approvalDefinitions`, `actionCards`) are member-read, server-write-only.
+- **ActionCard** (`ac_`) is a derived projection, never truth — closed `APPROVAL_DECIDE`/`VIEW_SUBJECT` actions only; UI at `/app/action-cards`. Full Action Inbox is Step 42.
+- `AGENT_PROPOSAL` requestType is reserved-inactive — agents gain no authority by proposing.
+- Full architecture: `docs/APPROVAL_ENGINE.md`. Deferred items: GAP-025–030.
+
 ## Step 3.1 — Universal Data Integrity Hardening
 
 Step 3.1 hardened validation, reference integrity, and actor security without changing product scope:

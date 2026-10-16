@@ -31,5 +31,11 @@ Statuses: `OPEN`, `DEFERRED_BY_DESIGN`, `SCHEDULED`, `RESOLVED`, `OBSOLETE`.
 | GAP-022 | Download URLs are Firebase bearer tokens, not bounded capability URLs | Step 30 | DEFERRED_BY_DESIGN | expiring/audited download authorization | Documented in docs/UNIVERSAL_FILES.md |
 | GAP-023 | File physical purge / retention | Step 30 | DEFERRED_BY_DESIGN | future retention capability | DELETED status reserved; archive/detach never remove bytes |
 | GAP-024 | CONVERSATION attachment target | Step 30 | DEFERRED_BY_DESIGN | after chat membership semantics land | Reserved target, not active |
+| GAP-025 | Approval QUORUM(n) and REQUEST_CHANGES/RETURN/DELEGATE decisions | Step 31 | DEFERRED_BY_DESIGN | future approval revision flow | ANY_ONE/ALL + APPROVE/REJECT shipped; seams documented |
+| GAP-026 | Automatic approval expiry sweeper | Step 31 | DEFERRED_BY_DESIGN | Scheduling/Workflow (Steps 32–33) | Decision-time lazy expiry is deterministic today |
+| GAP-027 | AGENT_PROPOSAL approval requestType | Step 31 | DEFERRED_BY_DESIGN | Agent Runtime surface integration | Reserved — contract rejects it until the seam lands |
+| GAP-028 | Digital signature flow | Step 31 | DEFERRED_BY_DESIGN | future Signature capability | APPROVED ≠ SIGNED; FileVersion pinning is signature-compatible |
+| GAP-029 | ApprovalDefinition version history documents | Step 31 | DEFERRED_BY_DESIGN | Configuration Lifecycle integration | Case step snapshots + {definitionId, version} pin cover audit needs today |
+| GAP-030 | Organization-admin approval cancellation | Step 31 | DEFERRED_BY_DESIGN | product decision | Requester + personal owner may cancel today |
 
 **(Step 20 closure note)** — GAP-001–008 open items remain acknowledged; GAP-011/gap-015/gap-016/gap-017 are correctly closed; nothing new opened by this architecture milestone.

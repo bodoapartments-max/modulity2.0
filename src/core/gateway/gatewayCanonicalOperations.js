@@ -31,6 +31,7 @@ import {
 } from '../permissions/policyAuthority.js';
 import { buildCreateRecordCommand } from '../recordCommands/recordCommandContract.js';
 import { buildAttachFileCommand, buildDetachFileCommand } from '../files/fileCommandContract.js';
+import { buildCreateApprovalCommand, buildDecideApprovalCommand, buildCancelApprovalCommand } from '../approvals/approvalCommandContract.js';
 import { AppError } from '../errors/appError.js';
 
 /** Inputs the outside world may never set — server-derived only. */
@@ -133,10 +134,14 @@ function policyInput(actor, workspaceId, resourceType, resourceId, permission, c
  * @param {Object} [deps.fileCommand]       — trusted File command executor
  *   ({ execute(command) }). If absent, file.* operations are registered but
  *   fail with CAPABILITY_UNAVAILABLE.
+ * @param {Object} [deps.approvalService]   — canonical Approval read service
+ * @param {Object} [deps.approvalCommand]   — trusted Approval command executor
+ *   ({ execute(command) }). If absent, approval.* operations are registered
+ *   but fail with CAPABILITY_UNAVAILABLE.
  * @param {Function} [deps.policyDecider]   — defaults to canonical
  *   decideAuthorization; injectable ONLY for tests of non-AUTO_EXECUTE paths.
  */
-export function createCanonicalGatewayOperations({ recordService, recordQueryService = null, recordCommand, fileService = null, fileCommand = null, policyDecider = decideAuthorization }) {
+export function createCanonicalGatewayOperations({ recordService, recordQueryService = null, recordCommand, fileService = null, fileCommand = null, approvalService = null, approvalCommand = null, policyDecider = decideAuthorization }) {
   const operations = {};
 
   operations['record.get'] = createGatewayOperation({
@@ -328,6 +333,180 @@ export function createCanonicalGatewayOperations({ recordService, recordQuerySer
           mapCommandError(error);
         }
         return { attachmentId: result?.resource?.attachmentId || input.attachmentId || null, operationId, idempotent: result?.idempotent === true };
+      },
+    });
+  }
+
+  // ─── Approval operations (Step 31) ───────────────────────────────
+  // Closed canonical operations only — decisions and cancellations go
+  // through the trusted approvalCommand boundary; there is no arbitrary
+  // approval mutation or action execution through the Gateway.
+
+  operations['approval.get'] = createGatewayOperation({
+    operation: 'approval.get',
+    apiVersion: 'v1',
+    description: 'Read a canonical ApprovalCase by id within the caller workspace.',
+    requiredCapability: 'platform-gateway',
+    executionClass: 'READ',
+    inputSchema: { type: 'object', properties: { approvalCaseId: { type: 'string' } }, required: ['approvalCaseId'] },
+    handler: async (input, context) => {
+      const actor = requireActor(context);
+      const workspaceId = requireWorkspace(context, context?.request);
+      if (!approvalService) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'Approval capability is not configured.');
+      if (!input.approvalCaseId || typeof input.approvalCaseId !== 'string') {
+        fail(GATEWAY_ERROR_CODES.VALIDATION_FAILED, 'approvalCaseId is required.');
+      }
+      assertPolicyAllows(
+        policyDecider(policyInput(actor, workspaceId, 'APPROVAL_CASE', input.approvalCaseId, 'approval.read', context)),
+      );
+      let approvalCase;
+      try {
+        approvalCase = await approvalService.getApprovalCase(workspaceId, input.approvalCaseId);
+      } catch {
+        approvalCase = null;
+      }
+      if (!approvalCase || approvalCase.workspaceId !== workspaceId) {
+        fail(GATEWAY_ERROR_CODES.VALIDATION_FAILED, 'Approval case not found.');
+      }
+      return { approvalCase };
+    },
+  });
+
+  operations['approval.list'] = createGatewayOperation({
+    operation: 'approval.list',
+    apiVersion: 'v1',
+    description: 'List ApprovalCases for the calling requester within the caller workspace.',
+    requiredCapability: 'platform-gateway',
+    executionClass: 'READ',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (input, context) => {
+      const actor = requireActor(context);
+      const workspaceId = requireWorkspace(context, context?.request);
+      if (!approvalService) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'Approval capability is not configured.');
+      assertPolicyAllows(
+        policyDecider(policyInput(actor, workspaceId, 'APPROVAL_CASE', null, 'approval.read', context)),
+      );
+      const approvalCases = await approvalService.listApprovalCasesForRequester(workspaceId, actor.actorId);
+      return { approvalCases };
+    },
+  });
+
+  operations['approval.create'] = createGatewayOperation({
+    operation: 'approval.create',
+    apiVersion: 'v1',
+    description: 'Open an ApprovalCase for a proposed action through the trusted Approval command boundary.',
+    requiredCapability: 'platform-gateway',
+    executionClass: 'COMMAND',
+    idempotent: true,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        requestType: { type: 'string' },
+        title: { type: 'string' },
+        subject: { type: 'object' },
+        proposedAction: { type: 'object' },
+        definitionId: { type: 'string' },
+        steps: { type: 'array' },
+        selfApprovalPolicy: { type: 'string' },
+        expiresAt: { type: 'string' },
+        reason: { type: 'string' },
+      },
+      required: ['requestType', 'title', 'proposedAction'],
+    },
+    handler: async (input, context) => {
+      const actor = requireActor(context);
+      const workspaceId = requireWorkspace(context, context?.request);
+      if (!approvalCommand) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'Approval command capability is not configured.');
+      assertNoProtectedKeys(input);
+      assertPolicyAllows(
+        policyDecider(policyInput(actor, workspaceId, 'APPROVAL_CASE', null, 'approval.write', context)),
+      );
+      const request = context?.request;
+      const operationId = request?.idempotencyKey || request?.operationId;
+      if (!operationId) fail(GATEWAY_ERROR_CODES.INVALID_GATEWAY_REQUEST, 'operationId or idempotencyKey is required for mutations.');
+      const command = buildCreateApprovalCommand({
+        operationId,
+        workspaceId,
+        requestType: input.requestType,
+        title: input.title,
+        subject: input.subject || null,
+        proposedAction: input.proposedAction,
+        definitionId: input.definitionId || null,
+        steps: input.steps || null,
+        selfApprovalPolicy: input.selfApprovalPolicy || null,
+        expiresAt: input.expiresAt || null,
+        reason: input.reason || null,
+      });
+      let result;
+      try {
+        result = await approvalCommand.execute(command);
+      } catch (error) {
+        mapCommandError(error);
+      }
+      return { approvalCaseId: result?.resource?.approvalCaseId, operationId, idempotent: result?.idempotent === true };
+    },
+  });
+
+  for (const op of ['approval.decide', 'approval.cancel']) {
+    operations[op] = createGatewayOperation({
+      operation: op,
+      apiVersion: 'v1',
+      description: op === 'approval.decide'
+        ? 'Record an APPROVE/REJECT decision through the trusted Approval command boundary.'
+        : 'Cancel a pending ApprovalCase through the trusted Approval command boundary.',
+      requiredCapability: 'platform-gateway',
+      executionClass: 'COMMAND',
+      idempotent: true,
+      inputSchema: op === 'approval.decide'
+        ? {
+            type: 'object',
+            properties: {
+              approvalCaseId: { type: 'string' },
+              decision: { type: 'string' },
+              reason: { type: 'string' },
+            },
+            required: ['approvalCaseId', 'decision'],
+          }
+        : {
+            type: 'object',
+            properties: {
+              approvalCaseId: { type: 'string' },
+              reason: { type: 'string' },
+            },
+            required: ['approvalCaseId'],
+          },
+      handler: async (input, context) => {
+        const actor = requireActor(context);
+        const workspaceId = requireWorkspace(context, context?.request);
+        if (!approvalCommand) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'Approval command capability is not configured.');
+        assertNoProtectedKeys(input);
+        assertPolicyAllows(
+          policyDecider(policyInput(actor, workspaceId, 'APPROVAL_CASE', input.approvalCaseId, 'approval.write', context)),
+        );
+        const request = context?.request;
+        const operationId = request?.idempotencyKey || request?.operationId;
+        if (!operationId) fail(GATEWAY_ERROR_CODES.INVALID_GATEWAY_REQUEST, 'operationId or idempotencyKey is required for mutations.');
+        const command = op === 'approval.decide'
+          ? buildDecideApprovalCommand({
+              operationId,
+              workspaceId,
+              approvalCaseId: input.approvalCaseId,
+              decision: input.decision,
+              reason: input.reason || null,
+            })
+          : buildCancelApprovalCommand({
+              operationId,
+              workspaceId,
+              approvalCaseId: input.approvalCaseId,
+              reason: input.reason || null,
+            });
+        let result;
+        try {
+          result = await approvalCommand.execute(command);
+        } catch (error) {
+          mapCommandError(error);
+        }
+        return { approvalCaseId: result?.resource?.approvalCaseId || input.approvalCaseId, operationId, idempotent: result?.idempotent === true };
       },
     });
   }

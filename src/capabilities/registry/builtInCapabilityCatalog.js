@@ -4,7 +4,12 @@ import { CapabilityEngineRegistry } from './capabilityEngineRegistry.js';
 const descriptor = (engineId, name, mode, description, options = {}) => ({ engineId, contractVersion: CAPABILITY_CONTRACT_VERSION, name, description, availability: options.availability || CAPABILITY_AVAILABILITY.ARCHITECTURE_ONLY, mode, definitionTypes: options.definitionTypes || [], supportedSourceKinds: options.supportedSourceKinds || [CAPABILITY_SOURCE_KINDS.MODULE], capabilities: options.capabilities || [], requires: options.requires || [], optionalDependencies: options.optionalDependencies || [] });
 
 export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
-  descriptor('approval', 'Approval', CAPABILITY_MODES.ACTION, 'Trusted approval policies and canonical state transitions.', { capabilities: ['approval-policy', 'state-transition'], optionalDependencies: ['notification'] }),
+  descriptor('approval', 'Approval Engine & Action Cards', CAPABILITY_MODES.ACTION, 'Canonical generic controlled-decision capability - multi-step ApprovalCases with pinned step snapshots, stale-state fingerprints and closed trusted-action resumption; ActionCard is a derived operational projection.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['approval-policy', 'state-transition', 'action-cards'],
+    requires: ['policy-authority', 'business-event'],
+    optionalDependencies: ['notification', 'file'],
+  }),
   descriptor('calendar', 'Calendar', CAPABILITY_MODES.READ, 'Derived time-based projections over canonical Records.', { availability: CAPABILITY_AVAILABILITY.AVAILABLE, definitionTypes: ['CalendarDefinitionV1'], capabilities: ['time-mapping', 'record-projection'] }),
   descriptor('business-event', 'Business Event Backbone', CAPABILITY_MODES.READ, 'Facts emitted by trusted operations; canonical append-only event persistence.', {
     availability: CAPABILITY_AVAILABILITY.AVAILABLE,

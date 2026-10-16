@@ -42,6 +42,13 @@ const files = [
   'src/core/files/fileCommandContract.js',
   'src/core/files/fileCommandEngine.js',
   'src/core/files/fileActionPolicy.js',
+  'src/core/approvals/approvalConstraints.js',
+  'src/core/approvals/approvalCase.js',
+  'src/core/approvals/approvalDefinition.js',
+  'src/core/approvals/approvalCommandContract.js',
+  'src/core/approvals/approvalCommandEngine.js',
+  'src/core/approvals/approvalActionPolicy.js',
+  'src/core/actionCards/actionCard.js',
   'src/core/utils/generateId.js',
 ];
 

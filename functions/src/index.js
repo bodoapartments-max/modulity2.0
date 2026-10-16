@@ -9,6 +9,7 @@ import { executeLedgerCommand } from './ledgerCommandEngine.js';
 import { executeAdminCommand } from './adminCommandEngine.js';
 import { executeChatCommand } from './chatCommandEngine.js';
 import { executeFileCommand } from './fileCommandEngine.js';
+import { executeApprovalCommand } from './approvalCommandEngine.js';
 
 initializeApp();
 const db = getFirestore();
@@ -70,4 +71,15 @@ export const fileCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60, 
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
   const { command } = request.data || {};
   return executeFileCommand(db, { userId: request.auth.uid, command });
+});
+
+export const approvalCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60, memory: '512MiB' }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
+  const { command } = request.data || {};
+  // Closed executor registry: approved outcomes resume only canonical
+  // trusted commands — approval never mutates domain state directly.
+  const actionExecutors = {
+    RECORD_COMMAND: ({ userId, command: embedded }) => executeRecordCommand(db, { userId, command: embedded }),
+  };
+  return executeApprovalCommand(db, { userId: request.auth.uid, command, actionExecutors });
 });

@@ -39,6 +39,7 @@ const CreateWorksetPage = lazy(() => import('../features/worksets/ui/CreateWorks
 const WorksetDetailPage = lazy(() => import('../features/worksets/ui/WorksetDetailPage.jsx'));
 const WidgetsPage = lazy(() => import('../features/widgets/ui/WidgetsPage.jsx'));
 const NotificationsPage = lazy(() => import('../features/notifications/ui/NotificationsPage.jsx'));
+const ActionCardsPage = lazy(() => import('../features/actionCards/ui/ActionCardsPage.jsx'));
 const ChatPage = lazy(() => import('../features/chat/ui/ChatPage.jsx'));
 const ReportsPage = lazy(() => import('../features/reports/ui/ReportsPage.jsx'));
 const ReportBuilderPage = lazy(() => import('../features/reports/ui/ReportBuilderPage.jsx'));
@@ -76,6 +77,7 @@ export default function AppRoutes() {
       <Route path="worksets/:worksetId" element={<WorksetDetailPage />} />
       <Route path="widgets" element={<WidgetsPage />} />
       <Route path="notifications" element={<NotificationsPage />} />
+      <Route path="action-cards" element={<ActionCardsPage />} />
       <Route path="chat" element={<ChatPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="reports/new" element={<ReportBuilderPage />} />

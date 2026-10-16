@@ -327,6 +327,40 @@
         { "fieldPath": "fileId", "order": "ASCENDING" },
         { "fieldPath": "_createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "approvalCases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject.type", "order": "ASCENDING" },
+        { "fieldPath": "subject.id", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "approvalCases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requestedBy.actorId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "actionCards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "audienceUserIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "approvalDefinitions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
