@@ -97,17 +97,19 @@ describe('formatDisplayValue', () => {
 
   it('formats same-day datetime-range', () => {
     const result = formatDisplayValue({ start: '2024-06-15T09:30:00', end: '2024-06-15T10:15:00' }, { type: 'datetime-range' });
-    expect(result).toContain('09:30');
-    expect(result).toContain('10:15');
+    const time = (v) => parseLocalDateTime(v).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    expect(result).toContain(time('2024-06-15T09:30:00'));
+    expect(result).toContain(time('2024-06-15T10:15:00'));
     expect(result).toContain('–');
   });
 
   it('formats cross-day datetime-range', () => {
     const result = formatDisplayValue({ start: '2024-06-15T22:00:00', end: '2024-06-16T02:00:00' }, { type: 'datetime-range' });
-    expect(result).toContain('15');
-    expect(result).toContain('16');
-    expect(result).toContain('22:00');
-    expect(result).toContain('02:00');
+    const dateTime = (v) => parseLocalDateTime(v).toLocaleString(undefined, {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    expect(result).toBe(`${dateTime('2024-06-15T22:00:00')} – ${dateTime('2024-06-16T02:00:00')}`);
   });
 
   it('formats number with locale', () => {
