@@ -81,7 +81,16 @@ Future (Steps 26, 27, 28) may consume the same canonical meaning; they never int
 
 ## 5e. Simulation / Dry-Run Engine (implemented Step 26)
 
-## 5f. Agent Runtime & Live Provider Orchestration (implemented Step 27)
+## 5g. Secrets / Credential Vault (implemented Step 28)
+
+`src/core/credentials/credentialVault.js` formalizes the platform's secure vault:
+
+- Credential identity uses canonical path: credentialId + workspaceId + credentialType
+- Secret material never travels bound. Raw content only accommodates the trusted adapter.resolution boundary — text reaches metadata through an explicit masked pointer
+- Resolution/rotation/revocation is server-side only. Cross-workspace resolution is denied by default
+- Workspace I'ernit debuggers vert dieschemetust occurrence vie: no raw secret ever visits metadata, traces, events
+
+Environment/development: no hardcoded secrets; test adapters prove production semantics.
 
 `src/agents/agentRuntimeService.js` + `src/agents/runtime/agentRuntime.js` + `src/agents/tools/agentToolRegistry.js` span the canonical runtime:
 
