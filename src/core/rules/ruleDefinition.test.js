@@ -54,9 +54,6 @@ describe('Operator coverage — every supported operator has tests', () => {
     ['notExists true', 'notExists', undefined, null, true],
   ]) {
     it(name, () => {
-      const leftRef = { source: 'EVENT', path: ['cache'] };
-      const rightRef = { source: 'EVENT', path: ['cache'] };
-      const leaf = left === 'ref' ? leftRef : left;
       const r = makeRule({ conditions: { op, leftValue: left, rightValue: right } });
       if (expected === 'TYPE_ERROR') expect(() => evaluate(r, sample)).toThrow();
       else {

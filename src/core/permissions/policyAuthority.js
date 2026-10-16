@@ -77,8 +77,6 @@ export const POLICY_ACTOR_TYPES = Object.freeze({
   INTEGRATION: 'INTEGRATION',
 });
 
-const SYSTEM_FIELDS = Object.freeze(['ruleId', 'ruleVersion', 'ruleCode', 'name', 'description', 'workspaceId', 'status', 'trigger', 'conditions', 'intents', 'priority']);
-
 function assertWorkerActor(actor) {
   if (!actor || typeof actor !== 'object' || Array.isArray(actor)) throw new Error(POLICY_ERROR_CODES.INVALID_ACTOR);
   if (!POLICY_ACTOR_TYPES[actor.actorType]) throw new Error(POLICY_ERROR_CODES.INVALID_ACTOR);
@@ -139,7 +137,7 @@ export function createAuthorityGrant({
 /**
  * Match an actor to a grantee using workspace + resource dimensions return true.
  */
-export function grantApplies(grant, { actorActorId, workspaceId, resourceId, evaluationTime = new Date(0), resourceType = null }) {
+export function grantApplies(grant, { actorActorId, workspaceId, resourceId: _ignored, evaluationTime = new Date(0), resourceType = null }) {
   if (!grant) return false;
   if (grant.status !== AUTHORITY_STATUSES.ACTIVE) return false;
   if (grant.granteeActorId !== actorActorId) return false;
@@ -157,8 +155,8 @@ export function grantApplies(grant, { actorActorId, workspaceId, resourceId, eva
  * returns { granted: false/true, grantId?: string } where the grant routing is
  * the only temporary authority model.
  */
-export function applicableGrants(grants = [], actorActorId, workspaceId, resourceId, resourceType, evaluationTime = new Date(0)) {
-  return activeGrants(grants, actorActorId, workspaceId, resourceId, resourceType, evaluationTime);
+export function applicableGrants(grants = [], actorActorId, workspaceId, _ignored, resourceType, evaluationTime = new Date(0)) {
+  return activeGrants(grants, actorActorId, workspaceId, _ignored, resourceType, evaluationTime);
 }
 
 function activeGrants(grants = [], actorActorId, workspaceId, resourceId, resourceType, evaluationTime) {
@@ -174,13 +172,14 @@ function activeGrants(grants = [], actorActorId, workspaceId, resourceId, resour
  *   permission        — (string) evaluated capability (all will pass if null)
  *   resourceType      — the invocation's canonical args
  *   resourceIdOptional
- *   result            — declared desired action outcome ("MUTATE", "READ", "WRITE") — legacy caller DOES NOT read supports.
+ *   result            — (reserved: legacy trusted-operation result semantics)
  *   grants            — original grantset valid within the current temporal window
  *   evaluationTime     — time to treat as present
  */
+// eslint-disable-next-line no-unused-vars -- test suites + sibling decisions depend on this evaluation surface
 export function evaluatePolicy(input) {
   assertWorkerActor(input.actor);
-  const { workspaceId = null, resourceType = null, resourceId = null, permission = null, result = null, grants = [] } = input;
+  const { workspaceId = null, resourceType = null, resourceId = null, permission = null, grants = [] } = input;
   const active = activeGrants(grants, input.actor.actorId, workspaceId, resourceId, resourceType, input.evaluationTime || new Date(0));
   const exact = active.find((g) => g.resources.includes('ALL_RESOURCE_TYPES') || g.resources.includes(resourceType) || g.resources.includes('*'));
   if (!exact) {
@@ -194,7 +193,6 @@ export function evaluatePolicy(input) {
       resourceType,
       resourceId,
       permission,
-      result,
       reason: 'No applicable authority grant was found; intent cannot self-escalate beyond the primary owner.',
     });
   }
@@ -207,7 +205,6 @@ export function evaluatePolicy(input) {
     resourceType,
     resourceId,
     permission,
-    result,
     authoritativeGrantId: exact.grantId,
     grantee: exact.granteeActorId,
     authorityBasis: 'TEMPORAL_GRANT',
@@ -219,17 +216,14 @@ export function evaluatePolicy(input) {
  * returns the canonical Auth Policy Decision without executing further.
  * This function exists explicitly to separate "decide" from "execute".
  */
-export function decideAuthorization({ actor, grantSnapshot = [], workspaceId, resourceType, resourceId, permission, result, evaluationTime = new Date(0) }) {
+export function decideAuthorization({ actor, grantSnapshot = [], workspaceId, resourceType, resourceId, permission, evaluationTime = new Date(0) }) {
   return evaluatePolicy({
     actor,
     workspaceId,
     resourceType,
     resourceId,
     permission,
-    result,
     grants: grantSnapshot,
     evaluationTime,
   });
 }
-
-void SYSTEM_FIELDS;

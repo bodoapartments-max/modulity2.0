@@ -164,7 +164,7 @@ Independent streams:
 | 20 | Attachments UI | File upload/download in Records/Entities/Chat | Step 13 | FEATURE+INFRA | Prerequisite for Documents |
 | 21 | Agent Live Provider Adapters | Add optional OpenAI/Anthropic/local adapters behind entitlement gate | Step 11.1, Billing prep | AGENT | Enables real AI planning |
 | 22 | Production Entitlement Enforcement | Replace dev-only grants with subscription-backed resolver | Step 21 readiness | INFRASTRUCTURE | Required before paid features |
-| **23** | Rules / Decision Engine � VERIFIED: deterministic evaluator (src/core/rules) with DecisionResult + TransitionIntent; zero mutations; rules ? policy ? permission; supported closing intents `evaluate` based on canonical BusinessEvents | 22 | Workspace Reset Storage Cleanup | Add Firebase Storage cleanup adapter | Step 11.1 | INFRASTRUCTURE | Security/compliance gap |
+| **23** | Rules / Decision Engine � VERIFIED: deterministic evaluator (src/core/rules) with DecisionResult + TransitionIntent; zero mutations; rules ? policy ? permission; supported closing intents `evaluate` based on canonical BusinessEvents | 22 | Workspace Reset Storage Cleanup | Add Firebase Storage cleanup adapter | Step 11.1 | INFRASTRUCTURE | Security/compliance gap |
 | 24 | Form Import / Digitization | Photo/scan/PDF → proposed FormSchema → Designer review → publish | Steps 13, 20 | AGENT+FEATURE | Major product differentiator |
 | 25 | Approval Engine | Generic approval definitions and trusted actions on Records | Steps 15, 17, 22 | CAPABILITY | Enables holiday/expense/leave approvals |
 | 26 | Workflow Engine | Multi-step state machines over canonical Records | Steps 15, 17, 25 | CAPABILITY | Automation beyond single approval |
@@ -320,8 +320,8 @@ Numbering reflects the DOCUMENTED order of expected implementation. Reordering i
 |---|---|---|---|---|
 | 21 | **Capability Registry & Dependency Graph (GAP-014 close)** — canonical machine-readable capability metadata, registry bookkeeping, capability context inputs/outputs/permissions contract | 20 | Agents, search and future Engines can query/discover | 26, 27, 29 |
 | 22 | **Business Event Backbone contract** — BusinessEvent, event persistence, standardized emission surface, idempotent correlation, first-class trace +店的 NOTIFICATION fan-out of deterministic events | 20+21 | canonical event surface replacing direct inter-engine calls | 23, 24, future Procurement/Inventory reactions |
-| **23** | Rules / Decision Engine � VERIFIED: deterministic evaluator (src/core/rules) with DecisionResult + TransitionIntent; zero mutations; rules ? policy ? permission; supported closing intents `evaluate` based on canonical BusinessEvents | 22 | **Rules / Decision Engine (minimal deterministic evaluation)** — versioned RuleDefinition, deterministic evaluation over Events/State, recommended transition intents, cycle protection, dry-run mode | 22 | deterministic rules core | 25, 28, Data Import logical automations |
-| **24** | **Permission / Policy / Authority separation & Temporal Grants � verified** | 22 | actor-typed policy construction is explicit from the current context; decision rules it to AUTO_EXECUTE / APPROVAL_REQUIRED / DENY on any non-overriding basis; rules.getAuthority granularity returns NULL will | 23 |
+| **23** | Rules / Decision Engine � VERIFIED: deterministic evaluator (src/core/rules) with DecisionResult + TransitionIntent; zero mutations; rules ? policy ? permission; supported closing intents `evaluate` based on canonical BusinessEvents | 22 | **Rules / Decision Engine (minimal deterministic evaluation)** — versioned RuleDefinition, deterministic evaluation over Events/State, recommended transition intents, cycle protection, dry-run mode | 22 | deterministic rules core | 25, 28, Data Import logical automations |
+| **24** | **Permission / Policy / Authority separation & Temporal Grants � verified** | 22 | actor-typed policy construction is explicit from the current context; decision rules it to AUTO_EXECUTE / APPROVAL_REQUIRED / DENY on any non-overriding basis; rules.getAuthority granularity returns NULL will | 23 |
 | 25 | **Configuration Lifecycle** — DRAFT → VALIDATE → TEST/SIMULATE → POLICY CHECK → (AUTO-PUBLISH / APPROVAL REQUIRED / DENY) → PUBLISHED, versioned, rollback to N-1 | 23+24 | versioned configuration ownership for Rule/Agent/Connector/etc. | all future Engines use a shared publish path |
 | 26 | **Agent Orchestrator + Live Provider Adapters** — provider-agnostic planner/executor, deterministic adapter set (expandable to future LLM providers), structured agent↔agent handoffs, trace-backed observability finds | 21+25 | complete future Agents machinery without inventing Chat-petal Chat multiple identity | all practical use of Agents; "George Pizza"/"WindTech"-style specialized workspaces are enabled |
 | 27 | **Integration Platform & Connectors** — canonical Connectors (WordPress > stories_shape > partners > ERP), sync jobs, credential mapping/storage primitives, inbound/outbound events bending into BusinessEvent sphere | 21+22+24.4 | canonical platform boundary; WordPress/websites/ERP/SAP surface flows without crossing | supplier integrations, OAuth/apps/MCP adapters, WordPress embedded client |
@@ -359,3 +359,16 @@ Numbering reflects the DOCUMENTED order of expected implementation. Reordering i
 
 Every milestone above the CONTEXT shape is informed of the health-check coverage table and the previous milestones closure. Do not re-number or re-order completed historical milestones.
 **Single repository.** Keep Core, Engines, Agents, Features, Infrastructure, and Design System in one Git repository with explicit package boundaries. Do not split into per-engine repositories until there is concrete evidence that deployment scale or team autonomy requires it.
+
+---
+
+## REPAIR & CONTROL GATES
+
+After every five product milestones, run a mandatory Repair & Control Gate before the next product milestone.
+
+- Steps 25–29 → RC-01 **PASSED**
+- Steps 30–34 → RC-02 (planned; must pass ahead of step 35)
+- Later cycles preserve the same pattern.
+
+A product milestone is never verified by local tests alone: if remote CI exists, `ci.yml` must also be green for the same closure commit.
+Working tree must be clean before the new milestone starts.

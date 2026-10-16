@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AgentRuntime, AGENT_RUNTIME_ERROR_CODES, AGENT_RUN_STATUSES, AGENT_RUNTIME_LIMITS } from './agentRuntimeService.js';
+import { AgentRuntime, AGENT_RUNTIME_ERROR_CODES } from './agentRuntimeService.js';
 import { KNOWN_TOOL_IDS, validateToolArguments } from './tools/agentToolRegistry.js';
 
 function fakeProvider(behavior) { return { providerKey: 'TEST_ADAPTER', generate: async ({ task, context, history } = {}) => behavior({ task, context, history }) }; }

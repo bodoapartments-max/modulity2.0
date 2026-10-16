@@ -136,6 +136,7 @@ export class CapabilityRegistry {
   }
 }
 
+/** Canonical Capability Registry facade (services-scale consumers only). */
 export function createCapabilityRegistry(registry = null) {
   return new CapabilityRegistry(registry);
 }

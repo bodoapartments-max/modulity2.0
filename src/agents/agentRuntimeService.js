@@ -12,7 +12,6 @@ import {
   createStepTrace,
 } from './runtime/agentRuntime.js';
 import { KNOWN_TOOL_IDS, validateToolArguments, evaluateTool } from './tools/agentToolRegistry.js';
-import { evaluate as evaluateRuleDefinition } from '../core/rules/ruleDefinition.js';
 
 const MAX_STEPS = AGENT_RUNTIME_LIMITS.MAX_AGENT_STEPS;
 const MAX_TOOL_PER_STEP = AGENT_RUNTIME_LIMITS.MAX_TOOL_CALLS_PER_STEP;
@@ -112,6 +111,5 @@ export class AgentRuntime {
       const classified = error.message.includes('RULE') ? 'RULE_FAILED' : 'TOOL_FAILED';
       return { toolId, status: classified, error: error.message };
     }
-    void evaluateRuleDefinition;
   }
 }

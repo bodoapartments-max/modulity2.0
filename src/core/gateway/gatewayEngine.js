@@ -85,8 +85,4 @@ export class GatewayEngine {
   }
 }
 
-function createGatewayEngineRegistry(operations = {}, capabilityRegistry = null) {
-  return new GatewayEngine({ operations, capabilityRegistry });
-}
-export { GatewayEngine, createGatewayEngineRegistry };
 void GATEWAY_LIMITS; void hasCapability;

@@ -14,7 +14,6 @@
  *
  * @module core/configuration/configurationLifecycle
  */
-import { generateId } from '../utils/generateId.js';
 import { BUSINESS_EVENT_TYPES } from '../events/businessEvent.js';
 
 export const CONFIGURATION_CONTRACT_VERSION = '1.0.0';
@@ -117,12 +116,12 @@ export function createConfigurationRevision({
  * Validation via the canonical RuleDefinition validator (depend on Step 23's
  * bounded checker — don't write a second wrong validator here).
  */
-function validateConfigurationBaseValues(definition, configurationType) {
+function validateConfigurationBaseValues(definition) {
   return definition && typeof definition === 'object' && !Array.isArray(definition) ? { valid: true } : { valid: false, errors: ['definition must be a plain object'] };
 }
 
 export function validateConfiguration(revision) {
-  const base = validateConfigurationBaseValues(revision.definition, revision.configurationType);
+  const base = validateConfigurationBaseValues(revision.definition);
   if (!base.valid) return { valid: false, errors: base.errors };
   if (revision.configurationType === CONFIGURATION_TYPES.RULE) {
     const target = revision.definition;
@@ -139,7 +138,7 @@ export function validateConfiguration(revision) {
 
  canonical state.
  */
-export function testConfigurationDryRun(revision, engineInput) {
+export function testConfigurationDryRun(revision, _engineInput) {
   if (revision.status === CONFIGURATION_STATUSES.PUBLISHED) throw new Error(CONFIGURATION_ERROR_CODES.INVALID_LIFECYCLE_TRANSITION);
   if (revision.configurationType !== CONFIGURATION_TYPES.RULE) return { valid: true, note: 'non-rule configuration types skip type-specific dry run in Step 25' };
   // Step 23's plainevaluate() does not mutate — external tests read the same
