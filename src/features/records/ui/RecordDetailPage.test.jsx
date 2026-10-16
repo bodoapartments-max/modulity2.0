@@ -33,6 +33,9 @@ vi.mock('../../../infrastructure/services.js', () => ({
     },
     ledger: { listBooks: mocks.listBooks },
     ledgerCommand: { registerEntry: mocks.registerEntry },
+    file: { listAttachmentsForTarget: vi.fn().mockResolvedValue([]) },
+    fileCommand: { detachFile: vi.fn() },
+    fileStorage: { getDownloadUrl: vi.fn() },
   },
 }));
 

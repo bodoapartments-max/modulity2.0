@@ -26,5 +26,10 @@ Statuses: `OPEN`, `DEFERRED_BY_DESIGN`, `SCHEDULED`, `RESOLVED`, `OBSOLETE`.
 | GAP-017 | Room/channel semantics conflated: created ROOM type with topic, INVITE_ONLY/WORKSPACE_VISIBLE visibility, Group snapshot invitations; persistent Channels deferred (post-Step 20) | 18 | RESOLVED (Step 19 v2) | — | `CHANNEL` is not shipped yet; conversation exposes the grouped "Room" creating via `ch_` legacy type "ROOM" (visible on the Conversation doc, governing access semantics) |
 | GAP-018 | Message edit/delete and richer threading deferred | 18 | OPEN | 20.1 review | Simple reply-to remains; edit/delete and thread trees still later |
 | GAP-019 | Chat context conversation access semantics | 18 | OPEN | 20.1 review | Requires a product/security decision before tightening |
+| GAP-020 | Production Storage bucket not provisioned | Step 30 | DEFERRED_BY_DESIGN | infrastructure milestone | Adapter contract + rules shipped; bucket creation is an ops task |
+| GAP-021 | Malware scanning / content-type spoof detection | Step 30 | OPEN | trusted post-upload pipeline | Rules bound size/path only; cannot inspect content |
+| GAP-022 | Download URLs are Firebase bearer tokens, not bounded capability URLs | Step 30 | DEFERRED_BY_DESIGN | expiring/audited download authorization | Documented in docs/UNIVERSAL_FILES.md |
+| GAP-023 | File physical purge / retention | Step 30 | DEFERRED_BY_DESIGN | future retention capability | DELETED status reserved; archive/detach never remove bytes |
+| GAP-024 | CONVERSATION attachment target | Step 30 | DEFERRED_BY_DESIGN | after chat membership semantics land | Reserved target, not active |
 
 **(Step 20 closure note)** — GAP-001–008 open items remain acknowledged; GAP-011/gap-015/gap-016/gap-017 are correctly closed; nothing new opened by this architecture milestone.

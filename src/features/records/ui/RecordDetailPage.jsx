@@ -38,6 +38,7 @@ import { RECORD_ACTIONS } from '../../../core/recordCommands/recordActionPolicy.
 import { Badge, Button, Dialog, useToast } from '../../../design-system/index.js';
 import { workspaceQueryCache } from '../../../core/cache/workspaceQueryCache.js';
 import ContextConversationLink from '../../chat/ui/ContextConversationLink.jsx';
+import AttachmentSection from '../../files/ui/AttachmentSection.jsx';
 import services from '../../../infrastructure/services.js';
 
 function actionToastMessage(action) {
@@ -397,6 +398,13 @@ export default function RecordDetailPage() {
           onRegistered={() => { workspaceQueryCache.invalidate(`${workspaceId}:records:`); reload(); }}
         />
       )}
+
+      {/* Canonical File Attachments (Step 30) — trusted fileCommand path */}
+      <AttachmentSection
+        workspaceId={workspaceId}
+        targetType="RECORD"
+        targetId={recordId}
+      />
 
       {/* Record History (Audit Trail) — from the canonical Audit Service */}
       <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6">

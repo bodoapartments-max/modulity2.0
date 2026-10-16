@@ -8,6 +8,7 @@ import { executeRecordCommand } from './recordCommandEngine.js';
 import { executeLedgerCommand } from './ledgerCommandEngine.js';
 import { executeAdminCommand } from './adminCommandEngine.js';
 import { executeChatCommand } from './chatCommandEngine.js';
+import { executeFileCommand } from './fileCommandEngine.js';
 
 initializeApp();
 const db = getFirestore();
@@ -63,4 +64,10 @@ export const chatCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60, 
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
   const { command } = request.data || {};
   return executeChatCommand(db, { userId: request.auth.uid, command });
+});
+
+export const fileCommand = onCall({ region: 'europe-west1', timeoutSeconds: 60, memory: '512MiB' }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Authentication is required.', { code: 'UNAUTHENTICATED' });
+  const { command } = request.data || {};
+  return executeFileCommand(db, { userId: request.auth.uid, command });
 });

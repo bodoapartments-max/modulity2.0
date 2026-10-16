@@ -49,6 +49,11 @@ export const BUILT_IN_CAPABILITY_DESCRIPTORS = Object.freeze([
     capabilities: ['handle-request', 'dispatch'],
     requires: ['policy-authority', 'credential-vault'],
   }),
+  descriptor('file', 'Universal Files & Attachments', CAPABILITY_MODES.ACTION, 'Canonical generic File resource — provider-agnostic storage, immutable versions, workspace-scoped trusted attachments over Records/Entities.', {
+    availability: CAPABILITY_AVAILABILITY.AVAILABLE,
+    capabilities: ['upload', 'version', 'attach', 'detach', 'lifecycle', 'integrity'],
+    requires: ['business-event'],
+  }),
   descriptor('scheduling', 'Scheduling', CAPABILITY_MODES.ACTION, 'Trusted allocation and scheduling commands using Calendar semantics.', { capabilities: ['resource-allocation'], requires: ['calendar'] }),
   descriptor('task', 'Task', CAPABILITY_MODES.ACTION, 'Trusted task orchestration around canonical business state.', { capabilities: ['task-assignment', 'task-state'] }),
   descriptor('workflow', 'Workflow', CAPABILITY_MODES.ACTION, 'Trusted deterministic transitions and commands over canonical state.', { capabilities: ['transition-policy', 'command-journal'], optionalDependencies: ['notification'] }),

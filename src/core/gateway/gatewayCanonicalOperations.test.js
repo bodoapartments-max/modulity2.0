@@ -288,3 +288,124 @@ describe('closed registry contract', () => {
     expect(res.error.code).toBe(GATEWAY_ERROR_CODES.UNKNOWN_OPERATION);
   });
 });
+
+// ─── Step 30: canonical File operations ──────────────────────────────
+
+function fileGrantFor(workspaceId, actorId, authority = ['file.read', 'file.write']) {
+  return createAuthorityGrant({
+    grantId: `gf-${actorId}`,
+    workspaceId,
+    granteeActorId: actorId,
+    grantedByActorId: 'user-owner',
+    authority,
+    resources: ['FILE'],
+  });
+}
+
+function fakeFileDeps() {
+  const commands = [];
+  return {
+    commands,
+    fileService: {
+      getFile: async (workspaceId, fileId) =>
+        (workspaceId === WS_A && fileId === 'f_1'
+          ? { fileId: 'f_1', workspaceId: WS_A, name: 'a.pdf', status: 'ACTIVE' }
+          : (() => { throw new Error('not found'); })()),
+    },
+    fileCommand: {
+      async execute(command) {
+        commands.push(command);
+        return { resource: { attachmentId: 'att_1', fileId: command.payload.fileId }, operationId: command.operationId, idempotent: false };
+      },
+    },
+  };
+}
+
+function makeFileEngine({ fileService, fileCommand, policyDecider } = {}) {
+  const operations = createCanonicalGatewayOperations({
+    recordService: { getRecord: async () => null },
+    recordCommand: createFakeTrustedCommand(),
+    fileService,
+    fileCommand,
+    policyDecider,
+  });
+  return new GatewayEngine({ operations, capabilityRegistry: capabilityRegistry() });
+}
+
+const fileCtx = () => ctx({ grants: [fileGrantFor(WS_A, USER_A.actorId)] });
+
+describe('canonical READ — file.get', () => {
+  it('reads File metadata through the canonical service in the caller workspace', async () => {
+    const { fileService, fileCommand } = fakeFileDeps();
+    const engine = makeFileEngine({ fileService, fileCommand });
+    const res = await engine.handle(req({ operation: 'file.get', input: { fileId: 'f_1' } }), fileCtx());
+    expect(res.success).toBe(true);
+    expect(res.data.file.fileId).toBe('f_1');
+  });
+
+  it('denies files that do not resolve in the caller workspace', async () => {
+    const { fileService, fileCommand } = fakeFileDeps();
+    const engine = makeFileEngine({ fileService, fileCommand });
+    const res = await engine.handle(req({ operation: 'file.get', input: { fileId: 'f_other' } }), fileCtx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.VALIDATION_FAILED);
+  });
+
+  it('fails closed when the file capability is not configured', async () => {
+    const engine = makeFileEngine({});
+    const res = await engine.handle(req({ operation: 'file.get', input: { fileId: 'f_1' } }), fileCtx());
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE);
+  });
+});
+
+describe('canonical MUTATION — file.attach / file.detach', () => {
+  it('file.attach routes through the trusted fileCommand boundary', async () => {
+    const { fileService, fileCommand, commands } = fakeFileDeps();
+    const engine = makeFileEngine({ fileService, fileCommand });
+    const res = await engine.handle(
+      req({ operation: 'file.attach', idempotencyKey: 'fa-1', input: { fileId: 'f_1', targetType: 'RECORD', targetId: 'rec-1' } }),
+      fileCtx(),
+    );
+    expect(res.success).toBe(true);
+    expect(commands.length).toBe(1);
+    expect(commands[0].commandType).toBe('ATTACH_FILE');
+    expect(commands[0].operationId).toBe('fa-1');
+    expect(commands[0].payload).toMatchObject({ fileId: 'f_1', targetType: 'RECORD', targetId: 'rec-1' });
+  });
+
+  it('file.detach routes through the trusted fileCommand boundary', async () => {
+    const { fileService, fileCommand, commands } = fakeFileDeps();
+    const engine = makeFileEngine({ fileService, fileCommand });
+    const res = await engine.handle(
+      req({ operation: 'file.detach', idempotencyKey: 'fd-1', input: { attachmentId: 'att_1' } }),
+      fileCtx(),
+    );
+    expect(res.success).toBe(true);
+    expect(commands[0].commandType).toBe('DETACH_FILE');
+  });
+
+  it('policy denial stops the trusted command from executing', async () => {
+    const { fileService, fileCommand, commands } = fakeFileDeps();
+    const denied = makeFileEngine({ fileService, fileCommand, policyDecider: () => ({ outcome: POLICY_OUTCOMES.DENY }) });
+    const res = await denied.handle(
+      req({ operation: 'file.attach', idempotencyKey: 'fa-deny', input: { fileId: 'f_1', targetType: 'RECORD', targetId: 'r' } }),
+      fileCtx(),
+    );
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.POLICY_DENIED);
+    expect(commands.length).toBe(0);
+  });
+
+  it('rejects protected-field injection into file commands', async () => {
+    const { fileService, fileCommand, commands } = fakeFileDeps();
+    const engine = makeFileEngine({ fileService, fileCommand });
+    const res = await engine.handle(
+      req({ operation: 'file.attach', idempotencyKey: 'fa-prot', input: { fileId: 'f_1', targetType: 'RECORD', targetId: 'r', workspaceId: 'injected' } }),
+      fileCtx(),
+    );
+    expect(res.success).toBe(false);
+    expect(res.error.code).toBe(GATEWAY_ERROR_CODES.VALIDATION_FAILED);
+    expect(commands.length).toBe(0);
+  });
+});

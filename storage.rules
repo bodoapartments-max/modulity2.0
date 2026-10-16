@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Modulity 2.0 — Firebase Storage Rules (Step 30)
+//
+// Canonical object layout — server-derived, never caller-chosen:
+//   workspaces/{workspaceId}/files/{fileId}/v{version}/{sanitizedName}
+//
+// Binary content is only reachable through workspace-scoped paths guarded by
+// the same workspace ownership/membership boundary as Firestore metadata.
+// Uploads are size-bounded; downloads are authenticated reads — the token URL
+// bearer-link limitation is documented in docs/UNIVERSAL_FILES.md.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function workspacePath(workspaceId) {
+      return /databases/(default)/documents/workspaces/$(workspaceId);
+    }
+
+    function memberPath(organizationId, userId) {
+      return /databases/(default)/documents/organizations/$(organizationId)/members/$(userId);
+    }
+
+    // Fails closed: missing workspace doc → deny (never a null evaluation).
+    function hasWorkspaceAccess(workspaceId) {
+      let wsPath = workspacePath(workspaceId);
+      return isAuthenticated()
+        && firestore.exists(wsPath)
+        && grantsAccess(firestore.get(wsPath).data);
+    }
+
+    function grantsAccess(ws) {
+      return (ws.type == 'PERSONAL' && ws.ownerUserId == request.auth.uid)
+        || (ws.type == 'ORGANIZATION'
+          && 'organizationId' in ws
+          && firestore.exists(memberPath(ws.organizationId, request.auth.uid))
+          && firestore.get(memberPath(ws.organizationId, request.auth.uid)).data.status == 'ACTIVE');
+    }
+
+    // Canonical File content — workspaces/{ws}/files/{fileId}/v{n}/{name}
+    // The v-prefix is enforced by the trusted path derivation; Rules cannot
+    // mix a literal and a wildcard inside one segment.
+    match /workspaces/{workspaceId}/files/{fileId}/{version}/{fileName} {
+      allow read: if hasWorkspaceAccess(workspaceId);
+      // Uploads must stay inside the canonical path and be size-bounded.
+      // Client SDKs always declare a content type, so a null-check would be
+      // dead weight; spoof detection / malware scanning is a documented
+      // deferred production requirement.
+      allow write: if hasWorkspaceAccess(workspaceId)
+        && request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    // Everything outside the canonical file path is denied by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

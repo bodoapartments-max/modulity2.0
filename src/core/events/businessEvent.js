@@ -30,6 +30,13 @@ export const BUSINESS_EVENT_TYPES = Object.freeze({
   RECORD_ARCHIVED: 'record.archived',
   RECORD_RESTORED: 'record.restored',
   RECORD_CANCELLED: 'record.cancelled',
+  // Step 30 — file lifecycle
+  FILE_CREATED: 'file.created',
+  FILE_VERSION_CREATED: 'file.version_created',
+  FILE_ATTACHED: 'file.attached',
+  FILE_DETACHED: 'file.detached',
+  FILE_ARCHIVED: 'file.archived',
+  FILE_RESTORED: 'file.restored',
   // todo: future events registered in later steps (never invented ahead)
 });
 
@@ -44,6 +51,7 @@ export const BUSINESS_EVENT_SOURCES = Object.freeze({
   ADMIN_COMMAND: 'adminCommand',
   AUTOMAT_PLAN: 'automatPlan',
   AUTOMAT_APPLY: 'automatApplyPlan',
+  FILE_COMMAND: 'fileCommand',
   TRUSTED_INTERNAL: 'trusted_internal',
 });
 

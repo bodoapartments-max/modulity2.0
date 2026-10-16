@@ -1347,13 +1347,27 @@ describe('workspaces/{wsId}/relationships/{relId}', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('workspaces/{wsId}/files/{fileId}', () => {
-  it('workspace owner can create file metadata', async () => {
+  it('workspace owner can read file metadata', async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+        fileId: 'file1', workspaceId: 'ws-p', name: 'photo.jpg',
+        mimeType: 'image/jpeg', size: 1024, storagePath: 'workspaces/ws-p/files/file1/v1/photo.jpg',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+    });
+    const db = authedDb('user1');
+    await assertSucceeds(getDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1')));
+  });
+
+  it('Step 30 — browser file metadata writes are denied (trusted fileCommand only)', async () => {
     await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
     const db = authedDb('user1');
-    await assertSucceeds(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1'), {
       fileId: 'file1', workspaceId: 'ws-p', name: 'photo.jpg',
       mimeType: 'image/jpeg', size: 1024, storagePath: '/files/photo.jpg',
-      uploadedBy: { actorType: 'USER', actorId: 'user1' },
+      createdBy: { actorType: 'USER', actorId: 'user1' },
     }));
   });
 
@@ -1400,6 +1414,94 @@ describe('workspaces/{wsId}/files/{fileId}', () => {
     });
     const db = authedDb('user1');
     await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'files', 'file1')));
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// 14b. WORKSPACE DATA — FILE VERSIONS + ATTACHMENTS (Step 30)
+// ═══════════════════════════════════════════════════════
+
+describe('workspaces/{wsId}/files/{fileId}/versions/{vId}', () => {
+  const seedVersion = async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await setupWorkspace('ws-p2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'WS2' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'f1', 'versions', 'v1'), {
+        fileVersionId: 'v1', fileId: 'f1', workspaceId: 'ws-p', version: 1,
+        name: 'a.pdf', mimeType: 'application/pdf', size: 1, storagePath: 'p',
+        createdBy: { actorType: 'USER', actorId: 'user1' },
+      });
+      await setDoc(doc(db, 'workspaces', 'ws-p2', 'files', 'f9', 'versions', 'v1'), {
+        fileVersionId: 'v1', fileId: 'f9', workspaceId: 'ws-p2', version: 1,
+        name: 's.pdf', mimeType: 'application/pdf', size: 1, storagePath: 'p',
+        createdBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+  };
+
+  it('workspace users can read version metadata', async () => {
+    await seedVersion();
+    await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-p', 'files', 'f1', 'versions', 'v1')));
+  });
+
+  it('version reads are workspace-isolated', async () => {
+    await seedVersion();
+    await assertFails(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-p2', 'files', 'f9', 'versions', 'v1')));
+  });
+
+  it('version docs are immutable to all clients — no create/update/delete', async () => {
+    await seedVersion();
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'files', 'f1', 'versions', 'v2'), {
+      fileVersionId: 'v2', fileId: 'f1', workspaceId: 'ws-p', version: 2,
+      name: 'b.pdf', mimeType: 'application/pdf', size: 1, storagePath: 'p',
+      createdBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'files', 'f1', 'versions', 'v1'), { name: 'x.pdf' }));
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'files', 'f1', 'versions', 'v1')));
+  });
+});
+
+describe('workspaces/{wsId}/fileAttachments/{attachmentId}', () => {
+  const seedAttachment = async () => {
+    await setupWorkspace('ws-p', { type: 'PERSONAL', ownerUserId: 'user1', name: 'My WS' });
+    await setupWorkspace('ws-p2', { type: 'PERSONAL', ownerUserId: 'user2', name: 'WS2' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'workspaces', 'ws-p', 'fileAttachments', 'att1'), {
+        attachmentId: 'att1', workspaceId: 'ws-p', fileId: 'f1', fileVersion: 1,
+        targetType: 'RECORD', targetId: 'r1', status: 'ACTIVE',
+        attachedBy: { actorType: 'USER', actorId: 'user1' },
+      });
+      await setDoc(doc(db, 'workspaces', 'ws-p2', 'fileAttachments', 'att9'), {
+        attachmentId: 'att9', workspaceId: 'ws-p2', fileId: 'f9', fileVersion: 1,
+        targetType: 'RECORD', targetId: 'r9', status: 'ACTIVE',
+        attachedBy: { actorType: 'USER', actorId: 'user2' },
+      });
+    });
+  };
+
+  it('workspace users can read attachment metadata', async () => {
+    await seedAttachment();
+    await assertSucceeds(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-p', 'fileAttachments', 'att1')));
+  });
+
+  it('attachment reads are workspace-isolated', async () => {
+    await seedAttachment();
+    await assertFails(getDoc(doc(authedDb('user1'), 'workspaces', 'ws-p2', 'fileAttachments', 'att9')));
+  });
+
+  it('attachment writes are trusted-only — no browser attach/detach/update', async () => {
+    await seedAttachment();
+    const db = authedDb('user1');
+    await assertFails(setDoc(doc(db, 'workspaces', 'ws-p', 'fileAttachments', 'att2'), {
+      attachmentId: 'att2', workspaceId: 'ws-p', fileId: 'f1', fileVersion: 1,
+      targetType: 'RECORD', targetId: 'r1', status: 'ACTIVE',
+      attachedBy: { actorType: 'USER', actorId: 'user1' },
+    }));
+    await assertFails(updateDoc(doc(db, 'workspaces', 'ws-p', 'fileAttachments', 'att1'), { status: 'DETACHED' }));
+    await assertFails(deleteDoc(doc(db, 'workspaces', 'ws-p', 'fileAttachments', 'att1')));
   });
 });
 

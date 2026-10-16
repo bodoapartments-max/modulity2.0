@@ -71,13 +71,13 @@ Step 3 added the universal data layer under `src/core/data/`:
 | `entity.js` | Entity instance model |
 | `relationship.js` | Workspace-scoped relationship model |
 | `record.js` | Canonical Record foundation |
-| `file.js` | File/attachment metadata |
+| `files/file.js` | Canonical File metadata (moved to `src/core/files/` in Step 30) |
 | `entityService.js` | Entity CRUD, validation, reference resolution |
 | `entityTypeService.js` | Entity Type registry, seeding, management |
 | `relationshipService.js` | Relationship creation with integrity |
 | `recordService.js` | Record lifecycle, entity reference validation |
-| `fileService.js` | File metadata registration |
-| `fileStorageContract.js` | Provider-independent file storage interface |
+| `files/fileService.js` | File/attachment read service (moved to `src/core/files/` in Step 30) |
+| `files/fileStorageContract.js` | Provider-independent file storage interface (moved to `src/core/files/` in Step 30) |
 
 Key concepts:
 - **Entity != Record != Module**. Entities are persistent identities; Records are business events.
@@ -90,6 +90,19 @@ Key concepts:
 - **Reference Resolver** enforces workspace isolation — cross-workspace references denied.
 - All data is under `workspaces/{workspaceId}/` subcollections with explicit Firestore Security Rules.
 - See `docs/UNIVERSAL_DATA_CORE.md` for full architecture.
+
+## Step 30 — Universal Files & Attachments
+
+Step 30 replaced the minimal Step 3 file foundation with a generic platform file architecture under `src/core/files/`:
+
+- **File != FileVersion != FileAttachment.** File is canonical metadata; FileVersion is an immutable binary snapshot; FileAttachment is an explicit relationship document pinning `attachedVersion` to RECORD/ENTITY targets (CONVERSATION reserved).
+- `record.attachments`/`entity.attachments` are derived indexes only, maintained inside the trusted transaction — never edit them from the browser.
+- All mutations go through the `fileCommand` callable (`functions/src/fileCommandEngine.js`): CREATE_FILE, CREATE_FILE_VERSION, ATTACH_FILE, DETACH_FILE, ARCHIVE_FILE, RESTORE_FILE. No purge command exists.
+- Binary content never enters Firestore or command envelopes. Upload path: derive canonical storage path → upload bytes → SHA-256 → register metadata via command.
+- Canonical Storage path: `workspaces/{ws}/files/{fileId}/v{n}/{sanitizedName}` — server-derived, never caller-chosen. `storage.rules` enforce path shape, 50 MiB bound, and workspace-scoped auth via cross-service `firestore.get`.
+- Constraints (255-char names, 50 MiB size, 128-char MIME, 16 KiB metadata, SHA-256 format) live in `fileConstraints.js` and are shared client/server via `functions/scripts/build-shared.mjs`.
+- `test:rules` pins `--project modulity-storage-rules-test` — the Storage emulator evaluates cross-service `firestore.get` against the emulator project, not the request project.
+- Full architecture: `docs/UNIVERSAL_FILES.md`. Deferred items: GAP-020–024 in `docs/KNOWN_GAPS_REGISTER.md`.
 
 ## Step 3.1 — Universal Data Integrity Hardening
 

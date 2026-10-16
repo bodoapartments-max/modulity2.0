@@ -35,6 +35,13 @@ const files = [
   'src/core/notifications/deliveryRouter.js',
   'src/core/data/record.js',
   'src/core/data/actorRef.js',
+  'src/core/files/file.js',
+  'src/core/files/fileVersion.js',
+  'src/core/files/fileAttachment.js',
+  'src/core/files/fileConstraints.js',
+  'src/core/files/fileCommandContract.js',
+  'src/core/files/fileCommandEngine.js',
+  'src/core/files/fileActionPolicy.js',
   'src/core/utils/generateId.js',
 ];
 

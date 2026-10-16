@@ -369,11 +369,31 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        // Actor enforcement: uploadedBy must claim USER + own uid.
-        allow create: if isAuthenticated()
-          && request.resource.data.workspaceId == workspaceId
-          && request.resource.data.uploadedBy != null
-          && isValidClientActor(request.resource.data.uploadedBy)
+        // STEP 30 — all File writes are authored exclusively by the trusted
+        // fileCommand boundary. Browser create/update/delete are denied.
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
+
+        // Immutable File Version docs — same read boundary, no client writes.
+        match /versions/{versionId} {
+          allow read: if isAuthenticated()
+            && (
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
+                && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
+              ||
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'ORGANIZATION'
+                && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
+            );
+          allow create, update, delete: if false;
+        }
+      }
+
+      // ─── File Attachments ──────────────────────────────────
+      // Path: workspaces/{workspaceId}/fileAttachments/{attachmentId}
+
+      match /fileAttachments/{attachmentId} {
+        allow read: if isAuthenticated()
           && (
             (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'PERSONAL'
               && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUserId == request.auth.uid)
@@ -382,8 +402,8 @@ service cloud.firestore {
               && isActiveMember(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.organizationId))
           );
 
-        allow update: if false;
-        allow delete: if false;
+        // Attach/detach goes through the trusted fileCommand boundary only.
+        allow create, update, delete: if false;
       }
 
       // ─── Modules ──────────────────────────────────────────

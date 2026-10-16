@@ -38,7 +38,7 @@ Step 11.0 identified three categories of work:
 | Notifications | EXISTS (generic capability) | CORE+FEATURE | `src/core/notifications/`, `functions/src/notificationEngine.js`, Notification Center | delivery/* trusted notification migration deferred; per-user policy deferred | trusted commands | Step 17 (done) — `NOTIFICATION_ARCHITECTURE.md`, ADR-0009 |
 | Chat / Conversations | PARTIAL | CORE+FEATURE | `conversation.js`, `ChatPage` | No conversation creation/member selection UI | — | Step 18 |
 | Sharing / Folders / Favorites | PARTIAL | CORE | `secureShare.js`, `recordFolderService.js`, `userRecordState.js` | No user-facing Feature UI | — | Step 19 |
-| Attachments / Files | PARTIAL | CORE | `file.js`, `fileService.js`, `fileStorageContract.js` | No upload/download UI | design-system FileUpload | Step 20 |
+| Attachments / Files | EXISTS | CORE+CAPABILITY | `src/core/files/` (File/FileVersion/FileAttachment, trusted `fileCommand`, storage adapter), `AttachmentSection` on RecordDetailPage | Entity/other-feature attachment surfaces, download capability URLs, retention purge | — | Platform Step 30 (done) — `docs/UNIVERSAL_FILES.md` |
 | Calendar Capability Engine | EXISTS | CAPABILITY+ENGINE | `src/core/capabilities/calendarEngine.js`, `src/features/calendar/` | Engine factory is hardcoded to calendar; engine code lives in core | package cleanup | Step 11.1 |
 | Generic Capability Infrastructure | EXISTS | CAPABILITY | `capabilityContracts.js`, `capabilityEngineRegistry.js`, `capabilityDefinitionService.js` | No engine-factory registration seam; `CapabilityBinding` unused | package cleanup | Step 11.1 |
 | Agent Infrastructure | EXISTS | AGENT | `src/agents/contracts/`, `registry/`, `orchestrator/`, `providers/` | Only deterministic test adapter; no LLM provider | entitlement/billing | Step 21 |
@@ -84,7 +84,7 @@ Step 11.0 identified three categories of work:
 | ID | Description | Severity | Depends On | Recommended Step |
 |---|---|---|---|---|
 | PD-001 | No Form Import / Digitization UI or document-understanding seam | HIGH | Module Designer | Step 24 |
-| PD-002 | No Attachment/File upload UI | HIGH | design-system FileUpload | Step 20 |
+| PD-002 | No Attachment/File upload UI — RESOLVED (platform Step 30: AttachmentSection on RecordDetailPage; Entity/chat surfaces remain) | MEDIUM | `src/features/files/` | follow-on surfaces |
 | PD-003 | No Sharing / Send / Folders / Favorites UI despite Core services | HIGH | design-system, Record actions | Step 19 |
 | PD-004 | No workflow-style Record actions (approve/reject/assign/complete); generic trusted lifecycle foundation landed in Step 15 | HIGH | Core lifecycle | Step 25+ |
 | PD-005 | No Approval Engine | HIGH | PD-004, permissions | Step 25 |

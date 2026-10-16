@@ -22,7 +22,7 @@ import { createRecordDeliveryService } from '../core/data/recordDeliveryService.
 import { createRecordFolderService } from '../core/data/recordFolderService.js';
 import { createFormRequestService } from '../core/data/formRequestService.js';
 import { createSecureShareService } from '../core/data/secureShareService.js';
-import { createFileService } from '../core/data/fileService.js';
+import { createFileService } from '../core/files/fileService.js';
 import { createModuleService } from '../modules/moduleService.js';
 import { createModuleSubmissionService } from '../modules/moduleSubmissionService.js';
 import { createLedgerService } from '../core/ledger/ledgerService.js';
@@ -60,6 +60,16 @@ import { createCanonicalGatewayOperations } from '../core/gateway/gatewayCanonic
 import { recordCommandClient } from './firebase/recordCommandClient.js';
 import { ledgerCommandClient } from './firebase/ledgerCommandClient.js';
 import { adminCommandClient } from './firebase/adminCommandClient.js';
+import { fileCommandClient } from './firebase/fileCommandClient.js';
+import { createFirebaseStorageAdapter } from './firebase/firebaseStorageAdapter.js';
+import {
+  buildCreateFileCommand,
+  buildCreateFileVersionCommand,
+  buildAttachFileCommand,
+  buildDetachFileCommand,
+  buildArchiveFileCommand,
+  buildRestoreFileCommand,
+} from '../core/files/fileCommandContract.js';
 import {
   buildCreateRecordCommand,
   buildUpdateDraftCommand,
@@ -90,6 +100,12 @@ function createServices() {
   const recordSvc = createRecordService({
     recordRepo: repositories.records,
     entityRepo: repositories.entities,
+  });
+
+  const fileSvc = createFileService({
+    fileRepo: repositories.files,
+    fileAttachmentRepo: repositories.fileAttachments,
+    fileVersionRepo: repositories.files,
   });
 
   const recordQuerySvc = createRecordQueryService({
@@ -181,6 +197,28 @@ function createServices() {
     },
   });
 
+  const fileCommand = Object.freeze({
+    execute: (command) => fileCommandClient.execute(command),
+    async createFile({ workspaceId, name, displayName, mimeType, size, checksum, source, metadata, operationId = generateId() }) {
+      return fileCommandClient.execute(buildCreateFileCommand({ operationId, workspaceId, name, displayName, mimeType, size, checksum, source, metadata }));
+    },
+    async createFileVersion({ workspaceId, fileId, name, displayName, mimeType, size, checksum, metadata, operationId = generateId() }) {
+      return fileCommandClient.execute(buildCreateFileVersionCommand({ operationId, workspaceId, fileId, name, displayName, mimeType, size, checksum, metadata }));
+    },
+    async attachFile({ workspaceId, fileId, targetType, targetId, operationId = generateId() }) {
+      return fileCommandClient.execute(buildAttachFileCommand({ operationId, workspaceId, fileId, targetType, targetId }));
+    },
+    async detachFile({ workspaceId, attachmentId, operationId = generateId() }) {
+      return fileCommandClient.execute(buildDetachFileCommand({ operationId, workspaceId, attachmentId }));
+    },
+    async archiveFile({ workspaceId, fileId, operationId = generateId() }) {
+      return fileCommandClient.execute(buildArchiveFileCommand({ operationId, workspaceId, fileId }));
+    },
+    async restoreFile({ workspaceId, fileId, operationId = generateId() }) {
+      return fileCommandClient.execute(buildRestoreFileCommand({ operationId, workspaceId, fileId }));
+    },
+  });
+
   const ledgerCommand = Object.freeze({
     async createBook({ workspaceId, ledgerCode, name, description = '', moduleId = null, recordType = null, blockSize = 100, referencePrefix = '', sourceDefinition = null, operationId = generateId() }) {
       return ledgerCommandClient.execute(buildCreateLedgerBookCommand({
@@ -217,14 +255,15 @@ function createServices() {
       adminCommand: adminCommandClient,
     }),
     entity: entitySvc,
+    file: fileSvc,
     relationship: createRelationshipService({
       relationshipRepo: repositories.relationships,
       entityRepo: repositories.entities,
     }),
     record: recordSvc,
-    file: createFileService({
-      fileRepo: repositories.files,
-    }),
+    fileCommand,
+    /** Step 30: canonical File Storage Adapter (contract boundary). */
+    fileStorage: createFirebaseStorageAdapter(),
     module: createModuleService({
       moduleRepo: repositories.modules,
       entityTypeRepo: repositories.entityTypes,
@@ -301,6 +340,8 @@ function createServices() {
           recordService: recordSvc,
           recordQueryService: recordQuerySvc,
           recordCommand,
+          fileService: fileSvc,
+          fileCommand,
         }),
         capabilityRegistry: createCapabilityRegistry(engineRegistry),
       });

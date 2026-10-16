@@ -30,6 +30,7 @@ import {
   POLICY_ACTOR_TYPES,
 } from '../permissions/policyAuthority.js';
 import { buildCreateRecordCommand } from '../recordCommands/recordCommandContract.js';
+import { buildAttachFileCommand, buildDetachFileCommand } from '../files/fileCommandContract.js';
 import { AppError } from '../errors/appError.js';
 
 /** Inputs the outside world may never set — server-derived only. */
@@ -128,10 +129,14 @@ function policyInput(actor, workspaceId, resourceType, resourceId, permission, c
  *   ({ execute(command) }) — in production this is the callable client bound
  *   to the server-side command engine; its operation journal provides the
  *   durable idempotency boundary.
+ * @param {Object} [deps.fileService]       — canonical File read service
+ * @param {Object} [deps.fileCommand]       — trusted File command executor
+ *   ({ execute(command) }). If absent, file.* operations are registered but
+ *   fail with CAPABILITY_UNAVAILABLE.
  * @param {Function} [deps.policyDecider]   — defaults to canonical
  *   decideAuthorization; injectable ONLY for tests of non-AUTO_EXECUTE paths.
  */
-export function createCanonicalGatewayOperations({ recordService, recordQueryService = null, recordCommand, policyDecider = decideAuthorization }) {
+export function createCanonicalGatewayOperations({ recordService, recordQueryService = null, recordCommand, fileService = null, fileCommand = null, policyDecider = decideAuthorization }) {
   const operations = {};
 
   operations['record.get'] = createGatewayOperation({
@@ -232,6 +237,100 @@ export function createCanonicalGatewayOperations({ recordService, recordQuerySer
       return { recordId: result?.record?.recordId || null, operationId, idempotent: result?.idempotent === true };
     },
   });
+
+  // ─── File operations (Step 30) ────────────────────────────────────
+  // Closed canonical operations only — no storage/blob access through the
+  // Gateway. Mutations reuse the trusted fileCommand boundary.
+
+  operations['file.get'] = createGatewayOperation({
+    operation: 'file.get',
+    apiVersion: 'v1',
+    description: 'Read canonical File metadata by id within the caller workspace.',
+    requiredCapability: 'platform-gateway',
+    executionClass: 'READ',
+    inputSchema: { type: 'object', properties: { fileId: { type: 'string' } }, required: ['fileId'] },
+    handler: async (input, context) => {
+      const actor = requireActor(context);
+      const workspaceId = requireWorkspace(context, context?.request);
+      if (!fileService) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'File capability is not configured.');
+      if (!input.fileId || typeof input.fileId !== 'string') {
+        fail(GATEWAY_ERROR_CODES.VALIDATION_FAILED, 'fileId is required.');
+      }
+      assertPolicyAllows(
+        policyDecider(policyInput(actor, workspaceId, 'FILE', input.fileId, 'file.read', context)),
+      );
+      let file;
+      try {
+        file = await fileService.getFile(workspaceId, input.fileId);
+      } catch {
+        file = null;
+      }
+      if (!file || file.workspaceId !== workspaceId) {
+        fail(GATEWAY_ERROR_CODES.VALIDATION_FAILED, 'File not found.');
+      }
+      return { file };
+    },
+  });
+
+  for (const op of ['file.attach', 'file.detach']) {
+    operations[op] = createGatewayOperation({
+      operation: op,
+      apiVersion: 'v1',
+      description: op === 'file.attach'
+        ? 'Attach a canonical File to a target through the trusted File command boundary.'
+        : 'Detach a File Attachment through the trusted File command boundary.',
+      requiredCapability: 'platform-gateway',
+      executionClass: 'COMMAND',
+      idempotent: true,
+      inputSchema: op === 'file.attach'
+        ? {
+            type: 'object',
+            properties: {
+              fileId: { type: 'string' },
+              targetType: { type: 'string' },
+              targetId: { type: 'string' },
+            },
+            required: ['fileId', 'targetType', 'targetId'],
+          }
+        : {
+            type: 'object',
+            properties: { attachmentId: { type: 'string' } },
+            required: ['attachmentId'],
+          },
+      handler: async (input, context) => {
+        const actor = requireActor(context);
+        const workspaceId = requireWorkspace(context, context?.request);
+        if (!fileCommand) fail(GATEWAY_ERROR_CODES.CAPABILITY_UNAVAILABLE, 'File command capability is not configured.');
+        assertNoProtectedKeys(input);
+        assertPolicyAllows(
+          policyDecider(policyInput(actor, workspaceId, 'FILE', input.fileId || input.attachmentId || null, 'file.write', context)),
+        );
+        const request = context?.request;
+        const operationId = request?.idempotencyKey || request?.operationId;
+        if (!operationId) fail(GATEWAY_ERROR_CODES.INVALID_GATEWAY_REQUEST, 'operationId or idempotencyKey is required for mutations.');
+        const command = op === 'file.attach'
+          ? buildAttachFileCommand({
+              operationId,
+              workspaceId,
+              fileId: input.fileId,
+              targetType: input.targetType,
+              targetId: input.targetId,
+            })
+          : buildDetachFileCommand({
+              operationId,
+              workspaceId,
+              attachmentId: input.attachmentId,
+            });
+        let result;
+        try {
+          result = await fileCommand.execute(command);
+        } catch (error) {
+          mapCommandError(error);
+        }
+        return { attachmentId: result?.resource?.attachmentId || input.attachmentId || null, operationId, idempotent: result?.idempotent === true };
+      },
+    });
+  }
 
   return Object.freeze(operations);
 }

@@ -9,6 +9,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import config from '../config/config.js';
 
 function createFirebaseApp() {
@@ -23,6 +24,7 @@ function createFirebaseApp() {
   const auth = getAuth(app);
   const db = getFirestore(app);
   const functions = getFunctions(app, 'europe-west1');
+  const storage = config.firebase.storageBucket ? getStorage(app) : null;
 
   const emulatorHost = import.meta.env?.VITE_FIREBASE_AUTH_EMULATOR_HOST;
   if (emulatorHost && config.app.env === 'development') {
@@ -41,7 +43,13 @@ function createFirebaseApp() {
     connectFunctionsEmulator(functions, configuredHost === 'localhost' ? '127.0.0.1' : configuredHost, Number(port));
   }
 
-  return { app, auth, db, functions };
+  const storageEmulatorHost = import.meta.env?.VITE_STORAGE_EMULATOR_HOST;
+  if (storage && storageEmulatorHost && config.app.env === 'development') {
+    const [configuredHost, port] = storageEmulatorHost.split(':');
+    connectStorageEmulator(storage, configuredHost === 'localhost' ? '127.0.0.1' : configuredHost, Number(port));
+  }
+
+  return { app, auth, db, functions, storage };
 }
 
 const firebase = createFirebaseApp();
@@ -50,5 +58,6 @@ export const firebaseApp = firebase?.app ?? null;
 export const firebaseAuth = firebase?.auth ?? null;
 export const firebaseDb = firebase?.db ?? null;
 export const firebaseFunctions = firebase?.functions ?? null;
+export const firebaseStorage = firebase?.storage ?? null;
 
 export default firebase;

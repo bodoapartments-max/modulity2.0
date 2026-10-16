@@ -71,6 +71,14 @@ export const AUDIT_ACTIONS = Object.freeze({
   MODULE_CATEGORY_DELETED: 'module_category.deleted',
 
   AUTOMAT_PLAN_APPLIED: 'automat.plan.applied',
+
+  // Step 30 — File lifecycle
+  FILE_CREATED: 'file.created',
+  FILE_VERSION_CREATED: 'file.version_created',
+  FILE_ATTACHED: 'file.attached',
+  FILE_DETACHED: 'file.detached',
+  FILE_ARCHIVED: 'file.archived',
+  FILE_RESTORED: 'file.restored',
 });
 
 /** All valid action strings for validation. */
@@ -99,6 +107,8 @@ export const AUDIT_RESOURCE_TYPES = Object.freeze({
   ENTITY_TYPE: 'ENTITY_TYPE',
   MODULE_CATEGORY: 'MODULE_CATEGORY',
   AUTOMAT_PLAN: 'AUTOMAT_PLAN',
+  FILE: 'FILE',
+  FILE_ATTACHMENT: 'FILE_ATTACHMENT',
 });
 
 /**

@@ -17,6 +17,7 @@ import { createFirestoreEntityRepository } from './firebase/firestoreEntityRepos
 import { createFirestoreRelationshipRepository } from './firebase/firestoreRelationshipRepository.js';
 import { createFirestoreRecordRepository } from './firebase/firestoreRecordRepository.js';
 import { createFirestoreFileRepository } from './firebase/firestoreFileRepository.js';
+import { createFirestoreFileAttachmentRepository } from './firebase/firestoreFileAttachmentRepository.js';
 import { createFirestoreModuleRepository } from './firebase/firestoreModuleRepository.js';
 import { createFirestoreDeliveryRepository } from './firebase/firestoreDeliveryRepository.js';
 import { createFirestoreFormRequestRepository } from './firebase/firestoreFormRequestRepository.js';
@@ -56,6 +57,7 @@ function createRepositories() {
     relationships: createFirestoreRelationshipRepository(firebaseDb),
     records: createFirestoreRecordRepository(firebaseDb),
     files: createFirestoreFileRepository(firebaseDb),
+    fileAttachments: createFirestoreFileAttachmentRepository(firebaseDb),
     modules: createFirestoreModuleRepository(firebaseDb),
     deliveries: createFirestoreDeliveryRepository(firebaseDb),
     formRequests: createFirestoreFormRequestRepository(firebaseDb),
